@@ -3,8 +3,13 @@
 ## Unreleased
 
 - Add `doc/RULES.md`: working spec for the state machine, fleet orders,
-  trade escrow/cover, pirates, driver/client split, and implementation
-  order. Point the README at it as the document that wins on disagreement.
+  trade, pirates, taking planets, driver/client split, and
+  implementation order. Point the README at it as the document that
+  wins on disagreement.
+- Extend `doc/RULES.md` with hull dispatch cost, trade wealth+resource
+  cargo and wealth-only return profit, pirate 100% cargo loot and
+  forced return after a win, colony-before-production, defender attack
+  bump / productivity loss / tech bump, and a locked admin setup file.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

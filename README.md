@@ -8,7 +8,7 @@ A player has attributes such as wealth, power, experience, and technology level.
 
 A player uses a fleet of ships to explore and conquer the galaxy. Ships are classed by attributes such as speed, range, weapons, shields, size, and cost. Cost increases by the quality of attributes and decreases by technology level. Ship classes include planetary defense, scout, freighter, frigate, destroyer, cruiser, carrier, and colony. Ship classes control the cost and balance of attributes. Ships are created using a shipyard. Shipyards are a planetary resource that consumes other resources and wealth. 
 
-Players can form relationships and broadcast messages and send messages directly to other players. Freighters run standing trade cycles under a bilateral size agreement; pirates can station on a lane and ambush. Roles (neutral, conqueror, pirate, trader, hermit) retune how wealth becomes worlds, resources, and technology. Working rules — tick order, orders, trade escrow, cover without wealth probes, pirate recall/timeout — are in [doc/RULES.md](doc/RULES.md). That file is the spec if it disagrees with this overview. 
+Players can form relationships and broadcast messages and send messages directly to other players. Freighters run standing trade cycles under a bilateral size agreement; pirates can station on a lane and ambush. Taking a planet requires a later colony before it produces. Roles (neutral, conqueror, pirate, trader, hermit) retune how wealth becomes worlds, resources, and technology. Magnitudes live in a scenario setup file that an admin edits and that locks once play starts. Working rules are in [doc/RULES.md](doc/RULES.md). That file is the spec if it disagrees with this overview. 
 
 ## User interface
 

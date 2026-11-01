@@ -1,10 +1,24 @@
-# Cwhip project template
+# CPlanets
 
-`cwhip-template` is a small starter for Cwhip applications against an installed
-SDK. Source:
-[github.com/chucktilbury/cwhip-template](https://github.com/chucktilbury/cwhip-template).
-`cwhip-pkg new` downloads this repository and rewrites the heading above to the
-new project name.
+`CPlanets` is a territory game where a player tries to conquer the playing space by outmaneuvering all opponents. Opponents can be any mix of robotic or human players. Game play is turn based. When it is your turn, you allocate resources and explore the map to increase your power and find new resources. The idea for this game is loosely inspired by the 1990's Macintosh game Spaceward HO! by DeltaTau Software. 
+
+The playing field is an array of "planets", called a "galaxy", where the planets have different attributes that are based upon their livability and available resources. A player expends resources on planets to increase livability while resources are used up. The player wins by exploring them and using their available resources wisely. 
+
+A player has attributes such as wealth, power, experience, and technology level. Players compete based upon these attributes and the attributes change as a result of game play. Players apply resources to planets to increase their own attributes. Some planets are efficient in increasing some player attributes and inefficient at others. A planet's value and desirability is based on its efficiency. As a player gains in wealth and technology, new resources become available on existing planets.
+
+A player uses a fleet of ships to explore and conquer the galaxy. Ships are classed by attributes such as speed, range, weapons, shields, size, and cost. Cost increases by the quality of attributes and decreases by technology level. Ship classes include planetary defense, scout, freighter, frigate, destroyer, cruiser, carrier, and colony. Ship classes control the cost and balance of attributes. Ships are created using a shipyard. Shipyards are a planetary resource that consumes other resources and wealth. 
+
+Players can form relationships and broadcast messages and send messages directly to other players. Players can send freighters to trade unspecified resources with other players, which increases the wealth of both sides, but has no effect on the resource level of the player. Players can choose roles in the game such as neutral, conqueror, pirate, trader, or hermit. Players can change roles at will. A player's chosen role basically changes the balance of the efficiency of how their wealth is used to build worlds, extract resources, and develop technology. 
+
+## Planet grid
+
+The planet grid is a computer generated graphic with "hot spots" for planets. A player has the ability to detect planets according to their technology level, and at first, there are planets that are out of detection range. A player sends ships to a planet by clicking on it. While ships are in transit, a dotted line connects the planet that they were sent from and the progress of the ship. When the ship arrives, the line disappears and is replaced by a different graphic. The status of a planet is given by its color. Green means that it is settled and does not have any problems, red means that it has been taken by another player. Colors between that give the current status of the planet between those extremes. Players can pan and zoom the playing field and to see areas more clearly of get an overview of the field. To do things like change a planet's budget, the player clicks on it and selects menu options.
+
+## Multi-player
+
+The game is a turn-based multi-player game that can also be played stand-alone. Multi-player is based on a REST based protocol to a central server. Players can join the game before play begins and if they quit or become AFK, their turn times out by a decreasing increment until they return. 
+
+## Building and Installation
 
 This directory contains the example program in `src/main.cw`, CMake that builds
 it into `bin/`, tests in `tests/`, and SDK discovery helpers in `scripts/`.

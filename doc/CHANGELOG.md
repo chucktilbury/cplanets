@@ -37,6 +37,10 @@
   messages; pirate role stuck while ambush fleets wait.
 - Roles are empire-wide allocation coefficients (the Neutral /
   Conqueror / Pirate / Trader / Hermit matrix), not per-partner.
+- Server and clients are separate executables; TCP REST-shaped
+  frames (compressed binary on LAN), not an HTTP server; AI is a
+  stand-alone client with its own config. HTTP REST is a later
+  façade on the same commands.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

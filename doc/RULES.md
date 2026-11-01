@@ -87,7 +87,11 @@ Parked hulls and defenses can still **fight**.
 
 ## 4. Roles
 
-Roles are coefficients on the same tick.
+Roles are **not per-partner**. They are **one** empire-wide stance:
+how **you** allocate resources and how **you** get them. They are not
+a diplomatic face toward A vs B. You cannot be a trader to A and a
+pirate to B. Agreements, ambush, and `take` are separate orders; the
+role only retunes the coefficients on the tick.
 
 | Role | Intent |
 | --- | --- |
@@ -99,11 +103,8 @@ Roles are coefficients on the same tick.
 
 Role change is **fairly fluid**, with one hard stop: you **cannot
 stop being a pirate** while you still have fleets **waiting on
-ambush**. Recall or resolve those first.
-
-**Still open:** trader toward A and pirate toward B at once; whether
-A or B can learn your role without you telling them. Until that is
-settled, a player has **one** role.
+ambush**. Recall or resolve those first. Only pirate (while the role
+is live) may `ambush`.
 
 ## 5. Fleets, orders, dispatch
 
@@ -393,8 +394,6 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 ## 17. Open
 
 - Exact combat/production formulas (values are setup fields).
-- **Per-partner role** (trader to A, pirate to B) and whether anyone
-  learns your role without being told.
 - Agreement player–player vs planet–planet.
 - Identify visible to anyone but the victim.
 - Seeded RNG (not `SecureRandom`).

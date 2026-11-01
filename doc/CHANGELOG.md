@@ -35,6 +35,8 @@
   closed game ends at one player; ongoing map is fully created, own
   all worlds, sandbox until contact; newspaper + known-competitor
   messages; pirate role stuck while ambush fleets wait.
+- Roles are empire-wide allocation coefficients (the Neutral /
+  Conqueror / Pirate / Trader / Hermit matrix), not per-partner.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

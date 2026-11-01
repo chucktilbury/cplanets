@@ -143,7 +143,8 @@ Each tick, in this order:
 2. Decrement fleet ETAs / move along edges.
 3. **Edge encounters** (ambush vs passers). On a pirate **win**: loot
    (§8), reduce pirate strength from the defender, **forced `recall`**.
-4. **Arrivals**: `trade` or `take` (including colony population).
+4. **Arrivals**: `trade`, **confiscation** (§7.7), or `take`
+   (including colony population).
 5. Pirate idle timeout → forced `recall` if due (skipped if already
    recalling from a win this tick).
 6. AFK / hold-last-policy bookkeeping.
@@ -223,7 +224,8 @@ trade. Therefore:
 ### 7.6 Breaks
 
 - Pirate takes the fleet: see §8. Other fleets on the pair keep
-  cycling; the **agreement stays**.
+  cycling; the **agreement stays** unless the pirate is **identified**
+  (§7.7).
 - Recall of a trader: restore cargo if there was no fill; after a fill
   at the far planet the receiver bump already happened and the sender
   is still waiting on the residual.
@@ -231,12 +233,41 @@ trade. Therefore:
   Either the exchange check fails or they finish the current hop and
   stop.
 - Closed agreement: in-flight traders keep moving; **exchange** stops
-  until both open it again.
+  until both open it again (unless confiscation applies).
+
+### 7.7 Attack while trading
+
+If a player **attacks** someone they have a trade agreement with, and
+the attack is **attributed** (the victim knows who):
+
+1. The **agreement ends** immediately. No new exchanges.
+2. **Ships arriving from that player** are **confiscated** with **all
+   contents** (hulls and wealth/resource cargo). They do not trade,
+   bounce, or return. The victim’s planet receives the cargo and the
+   interned hulls.
+
+`take` on a planet they own is attributed. So is any other combat
+where the attacker’s identity is known.
+
+**Exception: pirate ambush.** A pirate attack does **not** by itself
+name the attacker. The victim may not know who did it. Then (1) and
+(2) do **not** fire: agreements stay up, inbound traders from everyone
+still try to exchange, and only the fleet that lost the ambush is
+gone (§8). If a later event **identifies** the pirate (they `take` a
+named world, they drop fog, etc.), treat that as an attributed attack
+from that moment: end the agreement and confiscate **subsequent**
+arrivals from them. Do not retroactively seize ships that already
+completed a legal exchange.
+
+Confiscation is not a wealth probe: the newspaper reports “seized a
+fleet from X,” not the victim’s treasury.
 
 ## 8. Pirates
 
 `ambush` parks a fleet on **one** edge, not the whole galaxy. Anyone
 whose transit uses that edge this tick meets them before the node.
+The ambush event is **unattributed** to other players by default: they
+see a lost fleet, not a name (§7.7).
 
 ### 8.1 Loot (trader)
 
@@ -372,6 +403,8 @@ Do not subclass GTK from Cwhip.
 - Refused `trade` on arrival with no agreement: bounce, wait, or
   convert to `take` — pick one and keep it.
 - Whether agreement is player–player or planet–planet.
+- What (if anything) besides a named `take` identifies a pirate so
+  §7.7 can fire.
 - Hunger vs idle-tick for pirate timeout; default *N* in the setup
   file.
 - Win condition (last owner vs score vs agreed).
@@ -388,7 +421,9 @@ Do not subclass GTK from Cwhip.
    leak wealth; pirate win loots 100% cargo and recalls; failed take
    pays defender bump; surviving colony on a winning `take` populates,
    dead colony does not; screened destroyers lose fewer hulls than the
-   same destroyers alone; setup file rejected while locked.
+   same destroyers alone; attributed `take` while trading ends the
+   agreement and confiscates inbound hulls+cargo; unattributed pirate
+   ambush does not; setup file rejected while locked.
 3. Driver + SQLite, one writer.
 4. CLI or GTK list debugger (policy + newspaper + admin setup).
 5. REST with opaque bodies when a second process needs the driver.

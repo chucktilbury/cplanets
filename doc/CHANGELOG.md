@@ -15,6 +15,9 @@
   destroyers.
 - Dispatch wealth is by hull **weight** (scouts almost free, colonies
   dearer), not by hull count.
+- Attributed attack on a trade partner ends the agreement and
+  confiscates inbound ships and cargo; pirate ambush is unattributed
+  and does not.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

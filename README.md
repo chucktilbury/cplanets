@@ -16,7 +16,7 @@ The planet grid is a computer generated graphic with "hot spots" for planets. A 
 
 ## Multi-player
 
-The game is a turn-based multi-player game that can also be played stand-alone. Multi-player is based on a REST based protocol to a central server. Players can join the game before play begins and if they quit or become AFK, their turn times out by a decreasing increment until they return. 
+The game is a turn-based multi-player game that can also be played stand-alone. A **server** executable owns the universe; **human** and **AI** clients talk to it over TCP with a REST-shaped protocol (no HTTP server in v1; compressed binary on a local network). A formal REST façade may come later. Players can join the game before play begins and if they quit or become AFK, their turn times out by a decreasing increment until they return. 
 
 ## Building and Installation
 

@@ -21,6 +21,8 @@
 - Setup-file chance that a pirate victim learns who it was; any fleet
   may recall before arrival; custom designs with development (mostly
   wealth) vs production (mostly resources).
+- Hull reclaim only at a shipyard planet; resource return percent is
+  a setup item (development wealth is not refunded).
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

@@ -177,9 +177,18 @@ class names are starting designs; a “frigate” is a light screen, a
 “destroyer” a heavier gun, unless the player files something else in
 that band.
 
-Scrapping a design does not refund development. Existing hulls keep
-their stats until destroyed or scrapped hull-by-hull. Production of a
-scrapped design stops.
+**Reclaim** (scrap hulls for resources) is only allowed **on a planet
+that has a shipyard**. Hulls still in space, in transit, or parked on
+a world without a yard cannot be reclaimed there; move them to a
+shipyard planet first (or `recall` toward one).
+
+The **percent of production resources** returned is a **setup-file**
+item. Development wealth is **not** reclaimed. Destroyed hulls return
+nothing.
+
+Closing a design does not refund development. Existing hulls keep
+their stats until destroyed or reclaimed hull-by-hull. Production of
+a closed design stops.
 
 ## 6. Tick order
 
@@ -428,7 +437,8 @@ options are policy on the same visibility flags.
 ## 12. Scenario setup file and admin
 
 Trade bump, attack bump, dispatch weight, pirate attrition, **pirate
-identify chance**, design development/production curves, cover
+identify chance**, design development/production curves, **reclaim
+percent**, cover
 rules, voyage cost, idle *N*, and other magnitudes are set in a
 **setup file before the game starts**.
 
@@ -483,7 +493,9 @@ Do not subclass GTK from Cwhip.
    agreement and confiscates inbound hulls+cargo; unattributed pirate
    ambush does not, identify-chance roll can; mid-flight `recall`
    turns a fleet around; design development is mostly wealth,
-   production mostly resources; setup file rejected while locked.
+   production mostly resources; hull reclaim only at a shipyard for a
+   setup percent of production resources; setup file rejected while
+   locked.
 3. Driver + SQLite, one writer.
 4. CLI or GTK list debugger (policy + newspaper + admin setup).
 5. REST with opaque bodies when a second process needs the driver.

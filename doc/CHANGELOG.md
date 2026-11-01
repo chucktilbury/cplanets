@@ -30,6 +30,11 @@
   and speed drive ETA and cost; ambush at midpoint; pirate loot
   credited on return; capture-use chance (else destroyed); home
   yard and unknown rocks.
+- Empire pool (no per-planet logistics); stranded fleets move after
+  setup N ticks; two pirates at a midpoint war, passers unharmed;
+  closed game ends at one player; ongoing map is fully created, own
+  all worlds, sandbox until contact; newspaper + known-competitor
+  messages; pirate role stuck while ambush fleets wait.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

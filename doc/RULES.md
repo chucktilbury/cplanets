@@ -7,10 +7,11 @@ intent. **If they disagree, this document wins.**
 CPlanets is loosely inspired by Spaceward Ho! (Delta Tao). It is not a
 clone of that game, of Konquest, or of VGA Planets.
 
-Numeric knobs live in a **scenario setup file** (§12), not in code.
+Numeric knobs live in a **scenario setup file** (§14), not in code.
 This document states *what* happens; the file states *how much*.
 
-Do not warn the player about legal-but-stupid orders (self-trade,
+Keep the machine **simple to play**. Do not add logistics the player
+has to memorize. Do not warn about legal-but-stupid orders (self-trade,
 warships outrunning their own traders, unescorted colonies). Let them
 figure it out.
 
@@ -40,9 +41,18 @@ REST is how a client talks to the driver. It is not a stdlib REST
 framework. **Common file formats are deferred.** Bodies are buffers.
 The setup file is application-owned.
 
-New players start in a **partition** of the same machine. Coupling
-partitions is a later tick. AFK: last policy is held; turn timeout
-shrinks until they return. Clock: **simultaneous turns**.
+**All worlds exist when the game starts.** How many, and the mix of
+useful vs poor rocks, is setup. New players may join later into their
+**own sandbox** (a partition of that same map). Partitions **do not
+couple** until that player **makes contact** by exploration and/or
+conquest. Then they compete like everyone else. AFK: last policy is
+held; turn timeout shrinks until they return. Clock: **simultaneous
+turns**.
+
+**Stocks are an empire pool** (wealth, resources, tech on the player).
+Shipping metal to a specific yard to build is interesting and too
+much to learn; it is **out**. Loading, cover, production, and reclaim
+all hit the same pools.
 
 ## 3. State
 
@@ -53,8 +63,9 @@ shrinks until they return. Clock: **simultaneous turns**.
   **explored** (per player), **population**, **productive**, **shipyard**,
   parked hulls, **defenses** (e.g. satellites). Quality is **unknown**
   until the rock is **explored or taken**.
-- **Player**: wealth, power, experience, technology, **role**, last
-  policy, detection/range from tech, **designs**.
+- **Player**: empire **wealth** and **resources**, power, experience,
+  technology, **role**, last policy, detection/range from tech,
+  **designs**, known competitors.
 - **Design**: speed, range, weapons, shields, size, cargo hold,
   colony/defense flags; development already paid. Speed and range
   feed **development and production cost**, and feed **ETA**.
@@ -63,7 +74,9 @@ shrinks until they return. Clock: **simultaneous turns**.
   escorts, ETA, ticks traveled, owner. Pirate loot rides on the
   pirate fleet until it **returns**.
 - **Agreement**: pair, standing size `S`, open/closed.
-- **Events**: newspaper.
+- **Events**: newspaper (including **broadcasts**).
+- **Messages**: broadcast, or pick a **known competitor** for a
+  private send.
 
 **Homeworld:** already **productive**, with the **first shipyard**
 given. A few rocks sit within **scout range**.
@@ -84,8 +97,13 @@ Roles are coefficients on the same tick.
 | Trader | Better trade profit; weak take. |
 | Hermit | Better own-worlds; weak trade and take. |
 
-Role changes are **sticky**. Only pirate (while the role is live) may
-`ambush`.
+Role change is **fairly fluid**, with one hard stop: you **cannot
+stop being a pirate** while you still have fleets **waiting on
+ambush**. Recall or resolve those first.
+
+**Still open:** trader toward A and pirate toward B at once; whether
+A or B can learn your role without you telling them. Until that is
+settled, a player has **one** role.
 
 ## 5. Fleets, orders, dispatch
 
@@ -150,17 +168,22 @@ production of it stops.
 Otherwise they are **destroyed** (Ho default). If usable, they are
 interned hulls of that design, not a free development of a new one.
 
-## 6. Range, speed, ETA, ambush point
+## 6. Range, speed, ETA, stranding, ambush point
 
 **Range** and **speed** are hull attributes. They affect development
 and production cost. **ETA** is distance and speed. A hop cannot
 exceed the hull’s **range from an occupied world** of yours (home,
-populated possession, or a rock you are sitting on). This replaces
-Ho-style fuel; you do not track tanks.
+populated possession, or a rock you are sitting on).
 
-**Ambush** happens at the **middle of the trajectory** (midpoint of
-the A–B hop), not at an arbitrary point along the edge. Changing that
-is interesting and probably too much complexity.
+Ho refuels by **occupying the world where ships are stranded**, and
+lets you **reclaim** stranded hulls. This game does **not** require
+that occupy-to-save. If a fleet is stranded (cannot hop), after **N
+ticks** it can move again. **N is a setup item.** That is the fuel
+replacement. Once they can move, they `recall` to sender or proceed;
+reclaim is still the usual yard trip, not a special mid-space scrap.
+
+**Ambush** is at the **middle of the trajectory** (midpoint of the
+A–B hop). Changing that is probably too much complexity.
 
 ## 7. Tick order
 
@@ -168,15 +191,19 @@ is interesting and probably too much complexity.
 2. Cancellations (same-tick recall of not-yet-departed orders).
 3. Other `recall` (turn toward **sender**; recompute ETA).
 4. Decrement ETA / move.
-5. **Midpoint ambush** if a fleet is at the middle this tick. Pirate
-   **win**: loot is **loaded onto the pirate fleet**; pirate
-   **forced `recall`** to **their sender**; maybe identify (§9).
-   Loot is **credited when that pirate fleet returns**, not at the
-   fight.
+5. **Midpoint:** if **two pirate** fleets share the point, they
+   **war each other**; **passers are unharmed**; winner `recall`s
+   home with **almost nothing**. Else if a pirate meets a passer:
+   pirate **win** loads loot onto the pirate fleet; forced `recall`
+   to sender; maybe identify (§9). Loot **credits when that pirate
+   returns**. If a pirate **loses** with loot aboard to a
+   **non-pirate**, the **winner** takes the loot (credits on *their*
+   return). Two pirates do not stack an ambush on the same edge.
 6. **Arrivals** at nodes: `trade` cycle, confiscation, `take` /
    occupy, colony populate, sit.
-7. Pirate idle timeout → forced `recall` to sender.
-8. AFK bookkeeping; partition coupling; events.
+7. Stranded-tick countdown; pirate idle timeout → forced `recall`
+   to sender.
+8. AFK; contact (exploration/conquest couples partitions); events.
 
 ## 8. Trade
 
@@ -257,12 +284,19 @@ loaded** (full both ways, so direction does not change the hold).
 Dispatch already sunk is not transferred.
 
 **Loot is collected when the pirate fleet returns** to its **sender**
-from that victory. If the pirate is destroyed before they get home,
-the loot does not credit (it was still on the fleet).
+from that victory.
 
-After a successful attack: strength reduced (setup, from defender
-strength); **forced `recall` to sender**. Idle timeout also recalls
-to sender. Recalling pirates are not fully stationed.
+**Two pirates on the same midpoint** do not both rob traffic. They
+**fight each other**. Ships passing through are **unharmed**. The
+winner goes home with **almost nothing** (setup leftover).
+
+If a pirate **loses** a fight while carrying loot to a **non-pirate**
+winner, that winner carries the loot and credits it on **their**
+return to sender. That is not the two-pirate case.
+
+After a successful robbery: strength reduced (setup); **forced
+`recall` to sender**. Idle timeout also recalls. Recalling pirates
+are not fully stationed.
 
 ## 11. Taking, occupying, defending, colony
 
@@ -316,40 +350,57 @@ Coefficients in the setup file.
 destroyers without a screen are more vulnerable. Colony hulls do not
 screen. Losses are **per design**.
 
-## 13. Visibility
+## 13. Visibility, newspaper, messages
 
 Detection/range from tech. Unexplored rocks: known to exist in range
-or not, **quality unknown** until explore or take. UI is a view of
-flags the driver already set.
+or not, **quality unknown** until explore or take. **Contact**
+(explore and/or conquest of another partition) adds them to **known
+competitors**.
+
+The newspaper carries **broadcasts**. To send a **private** message,
+pick from the **known competitors** list. No contact, no name on the
+list.
+
+UI is a view of flags the driver already set.
 
 ## 14. Scenario setup and admin
 
 Includes: trade/attack bumps, dispatch weight, pirate attrition,
-pirate identify chance, design curves, reclaim percent, **capture-use
-probability**, cover, voyage cost, idle *N*, starting scout-range
-map. Admin edits before start; **locked** in progress.
+pirate identify chance, design curves, reclaim percent, capture-use
+probability, cover, voyage cost, idle *N*, **stranded-ticks N**,
+**world count**, **useful vs poor mix**, starting scout-range,
+**scenario mode** (closed last-player vs ongoing). Admin edits before
+start; **locked** in progress. Ongoing games still lock *coefficients*;
+new players may join sandboxes without rewriting the map.
 
-## 15. Client and UI (not rules)
+## 15. Ending and the ongoing map
+
+**Closed game:** ends when **only one player is left**. “Everyone is
+in trade agreements” is **not** a win; it is unsatisfactory.
+
+**Ongoing game (the big model):** the map is already fully created.
+The object is to **own all the worlds**. Long-lived trade agreements
+are a good idea, not a victory screen. New players get a sandbox
+until they **contact** others by exploration and/or conquest.
+
+## 16. Client and UI (not rules)
 
 Map, hot spots, pan/zoom, colors, dotted lines = ETA + order. Sliders.
-No warning dialogs for dumb legal orders. GTK growth: `DrawingArea`,
-pointer, `queueDraw`, later `Scale`. No Cwhip GTK subclass framework.
+Known-competitor list, newspaper, compose-to-pick. No warning dialogs
+for dumb legal orders. GTK growth: `DrawingArea`, pointer,
+`queueDraw`, later `Scale`. No Cwhip GTK subclass framework.
 
-## 16. Open
+## 17. Open
 
 - Exact combat/production formulas (values are setup fields).
-- Role-change cooldown and whether a change is public.
+- **Per-partner role** (trader to A, pirate to B) and whether anyone
+  learns your role without being told.
 - Agreement player–player vs planet–planet.
 - Identify visible to anyone but the victim.
-- Win condition.
-- Messages / relationships beyond trade.
 - Seeded RNG (not `SecureRandom`).
 - Setup file syntax.
-- Where **stocks** sit (empire pool vs per-planet) for loading,
-  cover, and reclaim credit.
-- If a pirate carrying loot is themselves ambushed before return.
 
-## 17. Implementation order
+## 18. Implementation order
 
 1. Library + setup snapshot; CLI N-tick AI.
 2. Tests: home yard + scout-range rocks; unowned take no fight;
@@ -358,7 +409,10 @@ pointer, `queueDraw`, later `Scale`. No Cwhip GTK subclass framework.
    cycle; self-trade cost only; cargo 100 needs 10×10 holds;
    same-tick recall cancels; recall always to sender then reclaim
    only at yard; pirate loot credited on pirate return; identify
-   chance; capture-use roll vs destroy; setup lock.
+   chance; capture-use roll vs destroy; two pirates at midpoint war
+   and passers live; stranded move after N ticks; last player wins a
+   closed game; contact couples partitions; empire pool only; setup
+   lock.
 3. Driver + SQLite.
 4. Debugger UI (no dumb-order warnings).
 5. REST opaque bodies.

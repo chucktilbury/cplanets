@@ -10,6 +10,9 @@
   cargo and wealth-only return profit, pirate 100% cargo loot and
   forced return after a win, colony-before-production, defender attack
   bump / productivity loss / tech bump, and a locked admin setup file.
+- Combat is per class: colony hulls are weakly defended and populate
+  a taken world only if they survive; frigates tend to die but screen
+  destroyers.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

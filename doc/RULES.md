@@ -73,10 +73,11 @@ Minimum records:
 - **Pirate station**: fleet on an edge `(A, B)` with idle-tick counter.
 - **Events**: what the newspaper shows after a tick.
 
-Ship classes (defense, scout, freighter, warships, colony) constrain
-cost and attribute caps. Cost rises with quality and falls with tech.
-Shipyards are a planetary resource that consume resources and wealth.
-A shipyard on a non-productive planet cannot produce ships (§9).
+Ship classes (defense, scout, freighter, frigate, destroyer, cruiser,
+carrier, colony) constrain cost, caps, and **who dies first in a
+fight** (§10). Cost rises with quality and falls with tech. Shipyards
+are a planetary resource that consume resources and wealth. A shipyard
+on a non-productive planet cannot produce ships (§9).
 
 ## 4. Roles
 
@@ -268,8 +269,13 @@ having a working world.
 ### 9.1 Colony and production
 
 - After a successful `take`, the attacker **owns** the planet.
-- The planet is **not populated** until a **colony ship** is present
-  (in the taking fleet or a later arrival).
+- The planet is **populated on that same arrival** only if at least
+  one **colony hull survives** the fight.
+- Colony ships are **weakly defended**. They tend to die in battle even
+  when the fleet wins, so a same-turn colonize is a gamble. The usual
+  play is a follow-up colony after the shooting stops.
+- If no colony survives (or none was sent), the world stays
+  unpopulated until a later colony arrival.
 - **Unpopulated ⇒ not productive.**
 - **Not productive ⇒ no ship production** (shipyard idle). Other
   production that requires population is also off.
@@ -293,10 +299,31 @@ The successful defender:
 
 ## 10. Combat
 
-Planet `take` and edge ambush share a combat function. Inputs: hulls,
-weapons, shields, tech, role, strengths. Outputs: winner, surviving
-hulls, events. Coefficients (including pirate attrition and attack
-bump) come from the setup file. Exact functional form is open (§13).
+Planet `take` and edge ambush share a combat function. Inputs: hulls
+**by class**, weapons, shields, tech, role, strengths. Outputs: winner,
+**surviving hulls by class**, events. Coefficients (including pirate
+attrition, attack bump, and per-class toughness) come from the setup
+file. Exact functional form is open (§14).
+
+### 10.1 Mixed fleets
+
+A fleet is not one strength number. **Weaker hulls tend to die first;
+stronger hulls without a screen take more of the hit.**
+
+- A **frigate** is weaker than a **destroyer** and tends to die in
+  battle.
+- Without frigates (or other screens), **destroyers are more
+  vulnerable**. Heavier ships need lighter ships in front of them.
+- **Colony** hulls are among the weakest in a fight (§9.1). They do
+  not screen warships; they are cargo you hope is still there after
+  the shooting.
+
+That mix is the interesting decision: cheap screens vs massed heavies
+vs bringing a colony into the assault. Combat must allocate losses
+**per class**, not as a single stack scaled down. Setup-file weights
+say how much a screen actually protects the next class; the rule is
+that a homogeneous heavy fleet is worse than the same tonnage with a
+screen.
 
 ## 11. Visibility
 
@@ -342,8 +369,6 @@ Do not subclass GTK from Cwhip.
 - Whether agreement is player–player or planet–planet.
 - Hunger vs idle-tick for pirate timeout; default *N* in the setup
   file.
-- Whether a taking fleet that includes a colony populates in the same
-  arrival as the win.
 - Win condition (last owner vs score vs agreed).
 - Messages and relationships beyond trade agreements.
 - Seeded RNG package (not `SecureRandom`).
@@ -356,8 +381,9 @@ Do not subclass GTK from Cwhip.
 2. Tests: same seed, hermit vs conqueror diverge; trade cargo round
    trip (wealth profit, no resource profit); failed cover does not
    leak wealth; pirate win loots 100% cargo and recalls; failed take
-   pays defender bump; colony required for production; setup file
-   rejected while locked.
+   pays defender bump; surviving colony on a winning `take` populates,
+   dead colony does not; screened destroyers lose fewer hulls than the
+   same destroyers alone; setup file rejected while locked.
 3. Driver + SQLite, one writer.
 4. CLI or GTK list debugger (policy + newspaper + admin setup).
 5. REST with opaque bodies when a second process needs the driver.

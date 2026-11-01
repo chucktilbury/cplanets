@@ -8,7 +8,7 @@ A player has attributes such as wealth, power, experience, and technology level.
 
 A player uses a fleet of ships to explore and conquer the galaxy. Ships are classed by attributes such as speed, range, weapons, shields, size, and cost. Cost increases by the quality of attributes and decreases by technology level. Ship classes include planetary defense, scout, freighter, frigate, destroyer, cruiser, carrier, and colony. Ship classes control the cost and balance of attributes. Ships are created using a shipyard. Shipyards are a planetary resource that consumes other resources and wealth. 
 
-Players can form relationships and broadcast messages and send messages directly to other players. Players can send freighters to trade unspecified resources with other players, which increases the wealth of both sides, but has no effect on the resource level of the player. Players can choose roles in the game such as neutral, conqueror, pirate, trader, or hermit. Players can change roles at will. A player's chosen role basically changes the balance of the efficiency of how their wealth is used to build worlds, extract resources, and develop technology. 
+Players can form relationships and broadcast messages and send messages directly to other players. Freighters run standing trade cycles under a bilateral size agreement; pirates can station on a lane and ambush. Roles (neutral, conqueror, pirate, trader, hermit) retune how wealth becomes worlds, resources, and technology. Working rules — tick order, orders, trade escrow, cover without wealth probes, pirate recall/timeout — are in [doc/RULES.md](doc/RULES.md). That file is the spec if it disagrees with this overview. 
 
 ## User interface
 
@@ -34,6 +34,7 @@ build
 ../bin/hello
 ```
 
+- [Game rules and machine](doc/RULES.md)
 - [Building](doc/BUILDING.md)
 - [Syntax](doc/SYNTAX.md)
 - [Project shell](doc/PROJECT-SHELL.md)

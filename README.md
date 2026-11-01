@@ -1,6 +1,6 @@
 # CPlanets
 
-`CPlanets` is a territory game where a player tries to conquer the playing space by outmaneuvering all opponents. Opponents can be any mix of robotic or human players. Game play is turn based. When it is your turn, you allocate resources and explore the map to increase your power and find new resources. The idea for this game is loosely inspired by the 1990's Macintosh game Spaceward HO! by DeltaTau Software. 
+`CPlanets` is a territory game where a player tries to conquer the playing space by outmaneuvering all opponents. Opponents can be any mix of robotic or human players. Game play is turn based. When it is your turn, you allocate resources and explore the map to increase your power and find new resources. The idea for this game is loosely inspired by the 1990's Macintosh game Spaceward HO! by Delta Tau Software. 
 
 The playing field is an array of "planets", called a "galaxy", where the planets have different attributes that are based upon their livability and available resources. A player expends resources on planets to increase livability while resources are used up. The player wins by exploring them and using their available resources wisely. 
 

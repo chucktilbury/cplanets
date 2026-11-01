@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `doc/PLAN.md`: end-to-end build order, short-file layout, unit /
+  function / functional tests, and line-count estimates for v1
+  (library, server, list client, AI) plus later canvas and HTTP.
+
 - Add `doc/RULES.md`: working spec for the state machine, fleet orders,
   trade, pirates, taking planets, driver/client split, and
   implementation order. Point the README at it as the document that

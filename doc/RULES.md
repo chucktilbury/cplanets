@@ -406,6 +406,8 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 - Seeded RNG (not `SecureRandom`).
 - Setup file syntax.
 
+Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
+
 ## 18. Implementation order
 
 1. Library + setup snapshot; CLI N-tick AI.

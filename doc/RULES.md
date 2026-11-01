@@ -24,22 +24,29 @@ the tick. You can leave the machine running on the last policy, come
 back, read the event list, and adjust.
 
 The GUI is a **debugger** for that machine. It never ticks. Stand-alone
-play is the same machine with AI policies. Online play is the same
-machine with a **driver** as the only writer.
+and online use the same **server**; humans and AIs are **clients**.
 
 ## 2. Architecture
 
+Three **executables**, one shared library:
+
 | Piece | Job |
 | --- | --- |
-| Shared library | `State`, `tick`, event log. No GUI, no HTTP. |
+| Shared library | `State`, `tick`, event log, **message types**. No GUI. |
+| **Server** | Only writer: SQLite, apply policies, `tick`, persist. TCP listener. |
+| **Human client** | GTK debugger: show state, edit policy, submit turn. |
+| **AI client** | Stand-alone process, **same protocol**. Own config (later its own dialogs), not the human settings file. |
 | Setup file | Scenario coefficients, locked once a game is in progress. |
-| Driver | Load state, apply submitted policies, tick, persist, append events. |
-| Store | Serialized universe (SQLite is the intended store). One writer: the driver. |
-| Client | GTK (or CLI) as instrumentation. REST later: opaque request bodies. |
 
-REST is how a client talks to the driver. It is not a stdlib REST
-framework. **Common file formats are deferred.** Bodies are buffers.
-The setup file is application-owned.
+Clients **never** tick and **never** open the universe DB.
+
+**Wire (v1):** TCP, **REST-shaped** (verbs + paths + body: `GET` state, `PUT` policy, `POST` turn, `GET` events) **without an HTTP server**. Frame the messages yourself. On a local network, bodies are **compressed binary**, not JSON. **Common file formats stay deferred.** Version the envelope.
+
+**Later:** a formal HTTP REST façade on the **same commands**. Do not grow a second rule engine to serve the web.
+
+Stand-alone play is still this: start a server, attach a human client and/or AI clients. In-process AI that bypasses TCP is a test fake only if it uses the same message types.
+
+Simultaneous turns: server **collects** policies, then ticks, then clients pull (or accept a “turn ready” frame). AFK = last policy held.
 
 **All worlds exist when the game starts.** How many, and the mix of
 useful vs poor rocks, is setup. New players may join later into their
@@ -412,7 +419,8 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
    and passers live; stranded move after N ticks; last player wins a
    closed game; contact couples partitions; empire pool only; setup
    lock.
-3. Driver + SQLite.
-4. Debugger UI (no dumb-order warnings).
-5. REST opaque bodies.
-6. `DrawingArea`.
+3. Server executable + TCP framed protocol + SQLite.
+4. Human client (GTK debugger, no dumb-order warnings).
+5. AI client (own config; same protocol).
+6. Optional HTTP REST façade.
+7. `DrawingArea`.

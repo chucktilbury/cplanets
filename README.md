@@ -35,6 +35,7 @@ build
 ```
 
 - [Game rules and machine](doc/RULES.md)
+- [Implementation plan](doc/PLAN.md)
 - [Building](doc/BUILDING.md)
 - [Syntax](doc/SYNTAX.md)
 - [Project shell](doc/PROJECT-SHELL.md)

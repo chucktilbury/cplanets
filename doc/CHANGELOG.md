@@ -15,6 +15,28 @@
   destroyers.
 - Dispatch wealth is by hull **weight** (scouts almost free, colonies
   dearer), not by hull count.
+- Attributed attack on a trade partner ends the agreement and
+  confiscates inbound ships and cargo; pirate ambush is unattributed
+  and does not.
+- Setup-file chance that a pirate victim learns who it was; any fleet
+  may recall before arrival; custom designs with development (mostly
+  wealth) vs production (mostly resources).
+- Hull reclaim only at a shipyard planet; resource return percent is
+  a setup item (development wealth is not refunded).
+- Resolve spec conflicts: recall always to sender (same-tick =
+  cancel); reclaim is a later shipyard trip; trade holds full both
+  ways with escorts cycling; sender-only loading cost; war fleets
+  stay, unowned takes are free, parked ships/defenses fight; range
+  and speed drive ETA and cost; ambush at midpoint; pirate loot
+  credited on return; capture-use chance (else destroyed); home
+  yard and unknown rocks.
+- Empire pool (no per-planet logistics); stranded fleets move after
+  setup N ticks; two pirates at a midpoint war, passers unharmed;
+  closed game ends at one player; ongoing map is fully created, own
+  all worlds, sandbox until contact; newspaper + known-competitor
+  messages; pirate role stuck while ambush fleets wait.
+- Roles are empire-wide allocation coefficients (the Neutral /
+  Conqueror / Pirate / Trader / Hermit matrix), not per-partner.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

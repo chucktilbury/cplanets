@@ -7,9 +7,13 @@ intent. **If they disagree, this document wins.**
 CPlanets is loosely inspired by Spaceward Ho! (Delta Tao). It is not a
 clone of that game, of Konquest, or of VGA Planets.
 
-Numeric knobs (trade bump, attack bump, pirate strength loss, and the
-rest) live in a **scenario setup file** (§12), not in code. This document
-states *what* happens; the file states *how much*.
+Numeric knobs live in a **scenario setup file** (§14), not in code.
+This document states *what* happens; the file states *how much*.
+
+Keep the machine **simple to play**. Do not add logistics the player
+has to memorize. Do not warn about legal-but-stupid orders (self-trade,
+warships outrunning their own traders, unescorted colonies). Let them
+figure it out.
 
 ## 1. What the game is
 
@@ -19,13 +23,9 @@ fleet orders, role, trade agreements. They do not issue tactics inside
 the tick. You can leave the machine running on the last policy, come
 back, read the event list, and adjust.
 
-The GUI is a **debugger** for that machine: show allowed state, edit
-policy, step or run-ahead. It never ticks. Stand-alone play is the same
-machine with AI policies. Online play is the same machine with a
-**driver** as the only writer.
-
-Winning or losing against AIs is whether that trajectory stays above
-the others, plus noise from the seeded RNG.
+The GUI is a **debugger** for that machine. It never ticks. Stand-alone
+play is the same machine with AI policies. Online play is the same
+machine with a **driver** as the only writer.
 
 ## 2. Architecture
 
@@ -37,52 +37,61 @@ the others, plus noise from the seeded RNG.
 | Store | Serialized universe (SQLite is the intended store). One writer: the driver. |
 | Client | GTK (or CLI) as instrumentation. REST later: opaque request bodies. |
 
-REST is how a client talks to the driver (`GET` visible state, `PUT`
-policy, `POST` turn, `GET` events). It is not a stdlib “REST framework.”
-HTTP framing may come later; **common file formats (JSON, etc.) are
-deferred.** Bodies are buffers the application interprets. The setup
-file is a scenario document the driver loads; it is not a stdlib format
-package.
+REST is how a client talks to the driver. It is not a stdlib REST
+framework. **Common file formats are deferred.** Bodies are buffers.
+The setup file is application-owned.
 
-New players start in a **partition** of the same machine: same rules, no
-other wills yet. Meeting others is a later tick that couples partitions
-(open a border / wormhole). Isolation is not a second game.
+**All worlds exist when the game starts.** How many, and the mix of
+useful vs poor rocks, is setup. New players may join later into their
+**own sandbox** (a partition of that same map). Partitions **do not
+couple** until that player **makes contact** by exploration and/or
+conquest. Then they compete like everyone else. AFK: last policy is
+held; turn timeout shrinks until they return. Clock: **simultaneous
+turns**.
 
-AFK: last policy is held. Turn timeout shrinks until they return; the
-universe keeps ticking.
-
-Clock: **simultaneous turns** — collect policies, then one tick. That
-preserves walk-away play. A wall-clock heartbeat is out of scope.
+**Stocks are an empire pool** (wealth, resources, tech on the player).
+Shipping metal to a specific yard to build is interesting and too
+much to learn; it is **out**. Loading, cover, production, and reclaim
+all hit the same pools.
 
 ## 3. State
 
-Minimum records:
-
-- **Scenario**: coefficients from the setup file (trade bump, attack
-  bump, pirate attrition, dispatch **weight** per class, …). Immutable
+- **Scenario**: setup coefficients (bumps, weights, identify chance,
+  design curves, reclaim percent, capture-use chance, …). Immutable
   after lock.
 - **Galaxy**: planets with livability, resources, efficiencies, owner,
-  **population**, **productive** flag, visibility per player.
-- **Player**: wealth, power, experience, technology, **role**, last
-  policy, detection range from tech.
-- **Fleet**: hull count and class mix, origin, destination (or edge for
-  ambush), ETA, **order**, **cargo** (wealth and resources sent, if
-  any), owner.
-- **Agreement**: pair of players (or planets), standing trade size `S`,
-  open/closed.
-- **Pirate station**: fleet on an edge `(A, B)` with idle-tick counter.
-- **Events**: what the newspaper shows after a tick.
+  **explored** (per player), **population**, **productive**, **shipyard**,
+  parked hulls, **defenses** (e.g. satellites). Quality is **unknown**
+  until the rock is **explored or taken**.
+- **Player**: empire **wealth** and **resources**, power, experience,
+  technology, **role**, last policy, detection/range from tech,
+  **designs**, known competitors.
+- **Design**: speed, range, weapons, shields, size, cargo hold,
+  colony/defense flags; development already paid. Speed and range
+  feed **development and production cost**, and feed **ETA**.
+- **Fleet**: hulls by design, **sender** (dispatch planet), destination
+  or ambush midpoint, order, cargo (full hold both ways on trade),
+  escorts, ETA, ticks traveled, owner. Pirate loot rides on the
+  pirate fleet until it **returns**.
+- **Agreement**: pair, standing size `S`, open/closed.
+- **Events**: newspaper (including **broadcasts**).
+- **Messages**: broadcast, or pick a **known competitor** for a
+  private send.
 
-Ship classes (defense, scout, freighter, frigate, destroyer, cruiser,
-carrier, colony) constrain cost, caps, and **who dies first in a
-fight** (§10). Cost rises with quality and falls with tech. Shipyards
-are a planetary resource that consume resources and wealth. A shipyard
-on a non-productive planet cannot produce ships (§9).
+**Homeworld:** already **productive**, with the **first shipyard**
+given. A few rocks sit within **scout range**.
+
+Named classes are **default designs** and size bands. Combat uses
+actual stats. A shipyard on a non-productive planet cannot **produce**.
+Parked hulls and defenses can still **fight**.
 
 ## 4. Roles
 
-Roles are **coefficients** on the same tick: how wealth turns into
-worlds, extraction, and technology.
+Roles are **not per-partner**. They are **one** empire-wide stance:
+how **you** allocate resources and how **you** get them. They are not
+a diplomatic face toward A vs B. You cannot be a trader to A and a
+pirate to B. Agreements, ambush, and `take` are separate orders; the
+role only retunes the coefficients on the tick.
 
 | Role | Intent |
 | --- | --- |
@@ -92,304 +101,318 @@ worlds, extraction, and technology.
 | Trader | Better trade profit; weak take. |
 | Hermit | Better own-worlds; weak trade and take. |
 
-Role changes must be **sticky** (cooldown, reputation, or delayed
-reveal). Changing at will every tick would make everyone a pirate in
-combat and a trader on the wealth step.
+Role change is **fairly fluid**, with one hard stop: you **cannot
+stop being a pirate** while you still have fleets **waiting on
+ambush**. Recall or resolve those first. Only pirate (while the role
+is live) may `ambush`.
+
+## 5. Fleets, orders, dispatch
+
+| Order | What happens |
+| --- | --- |
+| `take` | Go to a rock. Unowned: occupy without a fight. Owned by another with ships/defenses: combat. War fleets **stay** until moved. |
+| `trade` | Cargo (+ escorts) to the far planet and **back**, then cycle. |
+| `ambush` | Sit at the **midpoint** of a trajectory. |
+| `recall` | Return to the **sender**. Same-tick recall of a not-yet-departed order is **cancellation**. |
+| `explore` | Reveal quality of a rock in range (scout). Taking also reveals. |
+| sit / move | On a **possession**, a fleet may sit or be given a new destination. |
+
+**Trade fleets cycle. War fleets do not.** After a `take`, warships
+stay on that world whether or not it is productive, until the player
+moves or recalls them.
+
+Escorts on a **trade** mission are part of that fleet: they go out
+**full cargo both ways** with the cargo ships and **return with them**,
+then cycle. They are not a `take`.
+
+### 5.1 Dispatch and loading (sender only)
+
+When a fleet **actually leaves** (not a cancelled same-tick order):
+
+- **Wealth dispatch** from hull **weight** (design size/flags). Scouts
+  almost nothing; colonies more. Sum of the mix. **Sunk.**
+- **Trade only:** sender also pays **loading** (wealth cargo + resource
+  cargo for `S`). **Only the sender** sees this. Receiver unload/reload
+  for the return is **not** a separate cost; it is rolled into the
+  **profit bump**. Complexity.
+
+If the sender cannot pay, the fleet does not leave.
+
+**Cargo vs hulls:** `S` is cargo amount. If you want 100 and each hold
+is 10, you need **10 cargo hulls**, plus whatever escort you bring.
+
+### 5.2 Recall vs reclaim
+
+**Recall target is always the sender** (the planet that dispatched).
+Ships do not teleport. ETA is ticks already spent on the outbound
+leg. Dispatch stays sunk. Pirates can still hit a recalling fleet.
+
+**Same-tick recall = cancellation.** Send and recall before the fleet
+has left: the order never happens. No dispatch, no loading.
+
+**Reclaim is not mid-space scrap.** Recall brings hulls home. At the
+sender they can join a **new fleet** and be sent to a **shipyard
+planet** to reclaim. Reclaim is only on a world **that has a shipyard**.
+The **percent of production resources** returned is a setup item.
+Development wealth is never returned. Destroyed hulls return nothing.
+
+### 5.3 Designs and shipyards
+
+Set parameters (speed, range, weapons, shields, size, cargo, colony,
+defense, …) within caps. **Development** once, **mostly wealth**.
+**Production** per hull at a productive shipyard, **mostly resources**.
+Speed and range raise both costs. Hulls keep their stats until
+destroyed or reclaimed. Closing a design does not refund development;
+production of it stops.
+
+**Captured hulls:** setup **probability** they can actually be used.
+Otherwise they are **destroyed** (Ho default). If usable, they are
+interned hulls of that design, not a free development of a new one.
+
+## 6. Range, speed, ETA, stranding, ambush point
+
+**Range** and **speed** are hull attributes. They affect development
+and production cost. **ETA** is distance and speed. A hop cannot
+exceed the hull’s **range from an occupied world** of yours (home,
+populated possession, or a rock you are sitting on).
+
+Ho refuels by **occupying the world where ships are stranded**, and
+lets you **reclaim** stranded hulls. This game does **not** require
+that occupy-to-save. If a fleet is stranded (cannot hop), after **N
+ticks** it can move again. **N is a setup item.** That is the fuel
+replacement. Once they can move, they `recall` to sender or proceed;
+reclaim is still the usual yard trip, not a special mid-space scrap.
+
+**Ambush** is at the **middle of the trajectory** (midpoint of the
+A–B hop). Changing that is probably too much complexity.
+
+## 7. Tick order
+
+1. Production on productive planets; shipyard builds.
+2. Cancellations (same-tick recall of not-yet-departed orders).
+3. Other `recall` (turn toward **sender**; recompute ETA).
+4. Decrement ETA / move.
+5. **Midpoint:** if **two pirate** fleets share the point, they
+   **war each other**; **passers are unharmed**; winner `recall`s
+   home with **almost nothing**. Else if a pirate meets a passer:
+   pirate **win** loads loot onto the pirate fleet; forced `recall`
+   to sender; maybe identify (§9). Loot **credits when that pirate
+   returns**. If a pirate **loses** with loot aboard to a
+   **non-pirate**, the **winner** takes the loot (credits on *their*
+   return). Two pirates do not stack an ambush on the same edge.
+6. **Arrivals** at nodes: `trade` cycle, confiscation, `take` /
+   occupy, colony populate, sit.
+7. Stranded-tick countdown; pirate idle timeout → forced `recall`
+   to sender.
+8. AFK; contact (exploration/conquest couples partitions); events.
 
-Only pirate (while the role is live) may `ambush`. A role flip this tick
-does not place fleets on every lane.
+## 8. Trade
 
-## 5. Fleets, orders, and dispatch cost
+Standing cycle if both agree on `S`.
 
-A fleet is **edge-state**, not a picture. Orders:
+### 8.1 Agreement
 
-| Order | Where | On resolution |
-| --- | --- | --- |
-| `take` | Arrival at a planet | Combat. Ownership may change; population is separate (§9). |
-| `trade` | Arrival at the far planet, then return | Cargo / cover / cycle (§7). |
-| `ambush` | Occupy edge `(A, B)` | Meet transits on that edge before they reach a node. |
-| `recall` | Leave ambush toward a planet | Transit; not full ambush advantage. |
+Pair plus `S`. Both accept. Changing `S` is a new agreement. Do not
+clip `S` to “what they can afford.” Holds must **cover `S`** with
+enough cargo hulls or the fleet does not leave as a trade of size `S`.
 
-`take` vs `trade` is the same hull, different transition. The client
-sets the order; the driver inflicts it.
+### 8.2 Cargo both ways
 
-Several fleets may share a planet pair. They are separate records (can
-be out of phase). There is no required `TradeRoute` object: a route is
-an agreement plus every fleet whose ends match.
+A cargo ship is **full both ways**. Escorts return with it. Sender
+paid loading on leave. Receiver handling is in the **profit bump**
+only.
 
-### 5.1 Dispatch cost (every fleet)
+On arrival at the far planet, if they can cover `S`, exchange
+happens (receiver inbound wealth bump, smaller than sender return
+profit). If not, no exchange; fleet still turns around, still full
+for the purpose of pirate loot.
 
-When a fleet **leaves**, the sender pays a **wealth cost based on hull
-weight**, not head-count. Each class has a weight in the setup file.
-**Scouts cost almost nothing. Colony ships cost more.** Frigates,
-destroyers, and heavier hulls sit on that same ladder. Fleet dispatch
-is the sum of per-hull weights in the mix.
+On return to **sender**, if filled: sender **wealth profit** (trade
+bump). **No resource profit** beyond the hold that went out and comes
+back as a full cargo ship (capacity unchanged as a yield mechanic).
+If not filled: restore as per setup (voyage cost optional). Dispatch
+never refunded. Then the **cycle** repeats (pay dispatch/loading
+again) until recalled, agreement closed, or the hulls are reassigned.
 
-That cost is **sunk**. It is not cargo, not refunded on arrival, and
-not restored if the fleet is destroyed.
+Poor sender: does not leave. Poor receiver: failed trip, same event
+shape as other no-deals (**no wealth probe**).
 
-A trade fleet pays that weighted wealth cost **plus** a **resource
-cost** and additional **wealth cargo** (§7). Other orders pay weighted
-hull wealth only, unless a later rule adds cargo.
+### 8.3 Self-trade and other dumb ideas
 
-If the sender cannot pay dispatch (and trade cargo, if any), the fleet
-does not leave.
+Sending a trade mission to **your own possession** is **cost-only**:
+you pay dispatch and loading, you do not get a two-party bump. Same
+family as taking a world and “trading” with it, or sending a **faster
+war fleet** that arrives (or fights) ahead of your own traders. Legal.
+**No warning.**
 
-## 6. Tick order
+### 8.4 Breaks
 
-Each tick, in this order:
+- Pirate fight: cargo stays with whoever the combat says; pirate
+  credits loot **on return to their sender** (§10). Agreement stays
+  unless identified (§9).
+- Recall: back to **sender**; cycle stops for that fleet; loading
+  restores if no fill yet (and not cancelled).
+- Closed agreement: in-flight traders finish moving; exchange stops
+  unless confiscation applies.
+- Role off `trader`: finish hop or fail exchange; do not keep printing
+  as a conqueror.
 
-1. Production on **productive** planets (role coefficients apply).
-2. Decrement fleet ETAs / move along edges.
-3. **Edge encounters** (ambush vs passers). On a pirate **win**: loot
-   (§8), reduce pirate strength from the defender, **forced `recall`**.
-4. **Arrivals**: `trade` or `take` (including colony population).
-5. Pirate idle timeout → forced `recall` if due (skipped if already
-   recalling from a win this tick).
-6. AFK / hold-last-policy bookkeeping.
-7. Partition coupling, if any.
-8. Append events.
+## 9. Attack while trading
 
-Ships cannot be stopped mid-edge except by combat, recall, or loss.
-Fleets do not fight other fleets except on an ambush edge or at a
-planet on `take`.
+If a player **attacks** a trade partner and the attack is
+**attributed**:
 
-## 7. Trade
+1. Agreement **ends**.
+2. Ships **arriving from them** at the **victim’s remaining worlds**
+   are **confiscated** (hulls + contents), subject to capture-use
+   chance (§5.3). They do not trade or bounce.
 
-Trade is a **standing cycle** of send/receive if both parties agree.
+`take` on a planet they own is attributed.
 
-### 7.1 Agreement
+If the destination **became yours** (you just took it), that arrival
+is **self-trade / sit**, not confiscation at your new rock (§8.3).
 
-An agreement is a pair plus a standing size **`S`**. Both sides must
-accept `S`. Changing `S` is a new agreement, not a per-trip bid.
+**Pirate ambush** does not name the attacker by default. Setup-file
+**small chance** the **victim only** learns who. Then (1)(2) apply
+from that moment, not retroactively. A later named `take` also
+identifies.
 
-The driver only ever moves **`S`**. A fleet on that pair is size `S` or
-it does not leave. Do not clip the shipment down to “whatever they can
-afford” and show the clipped size — that reveals wealth.
+## 10. Pirates
 
-`S` scales how much **wealth cargo** and **resource cargo** are loaded
-(coefficients in the setup file). Hull dispatch cost is separate and
-always sunk.
+`ambush` is at the **midpoint**. On a **win vs a trader**, the pirate
+fleet **carries 100% of the wealth and resource cargo the sender had
+loaded** (full both ways, so direction does not change the hold).
+Dispatch already sunk is not transferred.
 
-### 7.2 Leave (sender)
+**Loot is collected when the pirate fleet returns** to its **sender**
+from that victory.
 
-When the fleet leaves:
+**Two pirates on the same midpoint** do not both rob traffic. They
+**fight each other**. Ships passing through are **unharmed**. The
+winner goes home with **almost nothing** (setup leftover).
 
-1. Pay **hull wealth** dispatch (§5.1). Sunk.
-2. Load **wealth cargo** and **resource cargo** for size `S`. Those
-   amounts leave the sender’s stocks and sit on the fleet. Sender must
-   cover both plus dispatch, or the fleet waits.
+If a pirate **loses** a fight while carrying loot to a **non-pirate**
+winner, that winner carries the loot and credits it on **their**
+return to sender. That is not the two-pirate case.
 
-Sender wealth and resources stay down until resolution. Distance is
-ETA.
+After a successful robbery: strength reduced (setup); **forced
+`recall` to sender**. Idle timeout also recalls. Recalling pirates
+are not fully stationed.
 
-### 7.3 Cover (receiver)
+## 11. Taking, occupying, defending, colony
 
-When the fleet **arrives** at the receiver: if the receiver can cover
-the agreed `S` (wealth and any cover the setup file requires), the
-exchange happens. The receiver takes the inbound **wealth** bump from
-the setup file (smaller than the sender’s return profit). If they
-cannot cover, **no exchange**. The fleet still turns around.
+### 11.1 Unowned
 
-A poor sender cannot load `S` and does not leave (receiver sees a
-missing arrival, not a balance). A poor receiver fails cover (sender
-sees a failed trip, not a balance).
+**Unowned rocks are taken without a fight.** The fleet occupies. Quality
+becomes known. The rock is a **possession** you can sit on or leave.
+It is **not populated** and **not productive** until a **colony**
+survives there. A **new take** can only be populated by a **colony**.
 
-### 7.4 Return (sender)
+### 11.2 Owned by another
 
-On **return**, if the trip was filled: sender receives a **wealth
-profit** (setup **trade bump**, larger than the receiver’s inbound
-bump). There is **no resource profit**. The ship’s capacity has not
-changed; the trip does not grow the resource stockpile beyond bringing
-the hold home empty of extra yield.
+If they have **ships or defenses** (satellites, parked hulls) on it,
+those **defend**. Combat as §12. Attacker loses: fleet gone, dispatch
+sunk. Defender wins: attack bump (wealth/resources from attacker
+size), productivity loss, tech bump if attacker tech was higher.
 
-If the trip was not filled: restore wealth cargo (optionally minus a
-voyage cost from the setup file); still no resource profit.
+If they have **no ships and no defenses**, the world is **undefended**:
+occupy like empty, even if they “own” it. A Ho-shaped play: strip a
+rock, leave **defensive satellites**, abandon with no mobile fleet —
+the next taker still fights the defenses and spends for little.
 
-Hull dispatch is never refunded.
+If **all ships leave** and there are no defenses, it is undefended.
 
-### 7.5 No wealth probe
+### 11.3 Colony
 
-The sender must not discover the receiver’s wealth by offering a large
-trade. Therefore:
+Populate only if a **colony hull survives** (same arrival or a later
+one). Colonies are **weakly defended** and **expensive**; they will
+almost certainly be **escorted**. Escort warships on a colonize/`take`
+are a war fleet: they **stay** unless moved.
 
-- Amount is only the agreed `S`, never an arbitrary per-trip offer.
-- Failed cover, closed lane, and similar failures use the **same**
-  event shape for the sender (“round trip, no deal”), never
-  “insufficient funds: 41.”
-- One failed trip at agreed `S` may leak a single bit (“couldn’t cover
-  `S` this time”). A ladder of probe sizes is forbidden.
+A fleet sent to a **possession** may **sit or move**. Sitting does not
+populate. Only a colony does.
 
-### 7.6 Breaks
+**Unpopulated ⇒ not productive ⇒ no ship production.** Home is the
+exception already productive with a yard.
 
-- Pirate takes the fleet: see §8. Other fleets on the pair keep
-  cycling; the **agreement stays**.
-- Recall of a trader: restore cargo if there was no fill; after a fill
-  at the far planet the receiver bump already happened and the sender
-  is still waiting on the residual.
-- Role off `trader`: do not keep printing wealth as a conqueror.
-  Either the exchange check fails or they finish the current hop and
-  stop.
-- Closed agreement: in-flight traders keep moving; **exchange** stops
-  until both open it again.
+### 11.4 Range hops
 
-## 8. Pirates
+From an occupied world (including sitting on a new take), hull **range**
+limits the next hop. Scouts see a few rocks from home at start.
 
-`ambush` parks a fleet on **one** edge, not the whole galaxy. Anyone
-whose transit uses that edge this tick meets them before the node.
+## 12. Combat
 
-### 8.1 Loot (trader)
+Shared function for planet defense and midpoint ambush. Inputs: hulls
+by design (weapons, shields, size, speed as relevant), tech, role,
+planetary defenses. Outputs: winner, surviving hulls by design.
+Coefficients in the setup file.
 
-If a pirate **wins** against a **trader**, the pirate receives **100%
-of the wealth cargo and resource cargo the sender had loaded**, whether
-the fight is on the way **there** or on the way **back**. Direction
-does not change the loot table. Hull dispatch already sunk by the
-sender is not transferred (it was never on the ship).
+**Weaker hulls die first and screen.** Frigates tend to die;
+destroyers without a screen are more vulnerable. Colony hulls do not
+screen. Losses are **per design**.
 
-The sender’s cargo is gone. If there was no fill yet, the receiver
-never pays cover.
+## 13. Visibility, newspaper, messages
 
-### 8.2 Attrition and return
+Detection/range from tech. Unexplored rocks: known to exist in range
+or not, **quality unknown** until explore or take. **Contact**
+(explore and/or conquest of another partition) adds them to **known
+competitors**.
 
-After a **successful** attack (any ambush win, trader or otherwise):
+The newspaper carries **broadcasts**. To send a **private** message,
+pick from the **known competitors** list. No contact, no name on the
+list.
 
-- Pirate fleet **strength is reduced** by an amount from the setup
-  file based on the **defender’s strength**.
-- The pirate fleet **always `recall`s**. Success does not leave them
-  on the edge.
+UI is a view of flags the driver already set.
 
-Idle **timeout** still exists for uneventful waits: after *N* ticks
-with no intercept, the driver inflicts `recall`. Timeout is a forced
-order, not destruction. The player may `recall` earlier toward a
-planet they still own (or origin).
+## 14. Scenario setup and admin
 
-Recalling fleets are still on the edge and can be jumped; they do not
-keep full ambush advantage.
+Includes: trade/attack bumps, dispatch weight, pirate attrition,
+pirate identify chance, design curves, reclaim percent, capture-use
+probability, cover, voyage cost, idle *N*, **stranded-ticks N**,
+**world count**, **useful vs poor mix**, starting scout-range,
+**scenario mode** (closed last-player vs ongoing). Admin edits before
+start; **locked** in progress. Ongoing games still lock *coefficients*;
+new players may join sandboxes without rewriting the map.
 
-## 9. Taking planets
+## 15. Ending and the ongoing map
 
-`take` is combat at a planet. Winning the fight is **not** the same as
-having a working world.
+**Closed game:** ends when **only one player is left**. “Everyone is
+in trade agreements” is **not** a win; it is unsatisfactory.
 
-### 9.1 Colony and production
+**Ongoing game (the big model):** the map is already fully created.
+The object is to **own all the worlds**. Long-lived trade agreements
+are a good idea, not a victory screen. New players get a sandbox
+until they **contact** others by exploration and/or conquest.
 
-- After a successful `take`, the attacker **owns** the planet.
-- The planet is **populated on that same arrival** only if at least
-  one **colony hull survives** the fight.
-- Colony ships are **weakly defended**. They tend to die in battle even
-  when the fleet wins, so a same-turn colonize is a gamble. The usual
-  play is a follow-up colony after the shooting stops.
-- If no colony survives (or none was sent), the world stays
-  unpopulated until a later colony arrival.
-- **Unpopulated ⇒ not productive.**
-- **Not productive ⇒ no ship production** (shipyard idle). Other
-  production that requires population is also off.
-- A planet does not become productive from ownership or from parking
-  warships.
-
-### 9.2 Attacker loses
-
-The attacker **loses the fleet** and the **dispatch cost** already
-paid. Nothing is refunded.
-
-### 9.3 Defender wins
-
-The successful defender:
-
-- Receives **resources and wealth** based on attacker size (setup
-  **attack bump**).
-- Loses **some planet productivity** (setup).
-- If the attacker’s **tech is higher**, the defender also receives a
-  **tech bump** (setup).
-
-## 10. Combat
-
-Planet `take` and edge ambush share a combat function. Inputs: hulls
-**by class**, weapons, shields, tech, role, strengths. Outputs: winner,
-**surviving hulls by class**, events. Coefficients (including pirate
-attrition, attack bump, and per-class toughness) come from the setup
-file. Exact functional form is open (§14).
-
-### 10.1 Mixed fleets
-
-A fleet is not one strength number. **Weaker hulls tend to die first;
-stronger hulls without a screen take more of the hit.**
-
-- A **frigate** is weaker than a **destroyer** and tends to die in
-  battle.
-- Without frigates (or other screens), **destroyers are more
-  vulnerable**. Heavier ships need lighter ships in front of them.
-- **Colony** hulls are among the weakest in a fight (§9.1). They do
-  not screen warships; they are cargo you hope is still there after
-  the shooting.
-
-That mix is the interesting decision: cheap screens vs massed heavies
-vs bringing a colony into the assault. Combat must allocate losses
-**per class**, not as a single stack scaled down. Setup-file weights
-say how much a screen actually protects the next class; the rule is
-that a homogeneous heavy fleet is worse than the same tonnage with a
-screen.
-
-## 11. Visibility
-
-Detection range grows with technology. Planets (and later fleets on
-known edges) outside range are unknown. Hover/status in the UI is a
-**view** of what the driver already marked visible. Blind or fog
-options are policy on the same visibility flags.
-
-## 12. Scenario setup file and admin
-
-Trade bump, attack bump, dispatch weight per class, pirate attrition, cover
-rules, voyage cost, idle *N*, and other magnitudes are set in a
-**setup file before the game starts**.
-
-The GUI scenario has a designated **admin** who can read and edit that
-file. Other players cannot. When a game is **in progress**, the file
-is **locked**: the driver refuses edits; the admin UI is read-only.
-Unlock is starting a new game (or an explicit abort that ends the
-current one), not a mid-game tweak.
-
-The tick reads coefficients from the locked snapshot, not from a live
-editable buffer.
-
-## 13. Client and UI (not rules)
-
-The map is a generated graphic with planet hot spots, pan/zoom, color
-as a status gradient (e.g. settled vs taken), dotted lines as **ETA +
-order** per fleet. Budgets are sliders. Clicks set orders and
-agreements. Admin-only controls open the setup file before lock.
-None of that is the machine.
-
-Intended GTK growth (in Cwhip, when we get there): `DrawingArea`,
-pointer, `queueDraw`, later `Scale`. Shell widgets already exist.
-Do not subclass GTK from Cwhip.
-
-## 14. Open
-
-- Functional form of combat, production, ship cost, bumps, and pirate
-  attrition (values themselves are setup-file fields).
-- Role-change cooldown and whether a change is public.
-- Refused `trade` on arrival with no agreement: bounce, wait, or
-  convert to `take` — pick one and keep it.
-- Whether agreement is player–player or planet–planet.
-- Hunger vs idle-tick for pirate timeout; default *N* in the setup
-  file.
-- Win condition (last owner vs score vs agreed).
-- Messages and relationships beyond trade agreements.
-- Seeded RNG package (not `SecureRandom`).
-- Setup file syntax (application-owned until common formats exist).
-
-## 15. Implementation order
-
-1. Library: state + `tick` + events; load a setup snapshot; CLI “run
-   *N* turns, all AI.”
-2. Tests: same seed, hermit vs conqueror diverge; trade cargo round
-   trip (wealth profit, no resource profit); failed cover does not
-   leak wealth; pirate win loots 100% cargo and recalls; failed take
-   pays defender bump; surviving colony on a winning `take` populates,
-   dead colony does not; screened destroyers lose fewer hulls than the
-   same destroyers alone; setup file rejected while locked.
-3. Driver + SQLite, one writer.
-4. CLI or GTK list debugger (policy + newspaper + admin setup).
-5. REST with opaque bodies when a second process needs the driver.
-6. `DrawingArea` when hot spots and transit lines are the point.
+## 16. Client and UI (not rules)
+
+Map, hot spots, pan/zoom, colors, dotted lines = ETA + order. Sliders.
+Known-competitor list, newspaper, compose-to-pick. No warning dialogs
+for dumb legal orders. GTK growth: `DrawingArea`, pointer,
+`queueDraw`, later `Scale`. No Cwhip GTK subclass framework.
+
+## 17. Open
+
+- Exact combat/production formulas (values are setup fields).
+- Agreement player–player vs planet–planet.
+- Identify visible to anyone but the victim.
+- Seeded RNG (not `SecureRandom`).
+- Setup file syntax.
+
+## 18. Implementation order
+
+1. Library + setup snapshot; CLI N-tick AI.
+2. Tests: home yard + scout-range rocks; unowned take no fight;
+   undefended owned take; satellites defend after fleet leaves;
+   colony required to populate; trade full both ways + escorts
+   cycle; self-trade cost only; cargo 100 needs 10×10 holds;
+   same-tick recall cancels; recall always to sender then reclaim
+   only at yard; pirate loot credited on pirate return; identify
+   chance; capture-use roll vs destroy; two pirates at midpoint war
+   and passers live; stranded move after N ticks; last player wins a
+   closed game; contact couples partitions; empire pool only; setup
+   lock.
+3. Driver + SQLite.
+4. Debugger UI (no dumb-order warnings).
+5. REST opaque bodies.
+6. `DrawingArea`.

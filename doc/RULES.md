@@ -59,8 +59,8 @@ preserves walk-away play. A wall-clock heartbeat is out of scope.
 Minimum records:
 
 - **Scenario**: coefficients from the setup file (trade bump, attack
-  bump, pirate attrition, dispatch cost per hull, …). Immutable after
-  lock.
+  bump, pirate attrition, dispatch **weight** per class, …). Immutable
+  after lock.
 - **Galaxy**: planets with livability, resources, efficiencies, owner,
   **population**, **productive** flag, visibility per player.
 - **Player**: wealth, power, experience, technology, **role**, last
@@ -120,12 +120,17 @@ an agreement plus every fleet whose ends match.
 ### 5.1 Dispatch cost (every fleet)
 
 When a fleet **leaves**, the sender pays a **wealth cost based on hull
-count**. That cost is **sunk**. It is not cargo, not refunded on
-arrival, and not restored if the fleet is destroyed.
+weight**, not head-count. Each class has a weight in the setup file.
+**Scouts cost almost nothing. Colony ships cost more.** Frigates,
+destroyers, and heavier hulls sit on that same ladder. Fleet dispatch
+is the sum of per-hull weights in the mix.
 
-A trade fleet pays that hull wealth cost **plus** a **resource cost**
-and additional **wealth cargo** (§7). Other orders pay hull wealth
-only, unless a later rule adds cargo.
+That cost is **sunk**. It is not cargo, not refunded on arrival, and
+not restored if the fleet is destroyed.
+
+A trade fleet pays that weighted wealth cost **plus** a **resource
+cost** and additional **wealth cargo** (§7). Other orders pay weighted
+hull wealth only, unless a later rule adds cargo.
 
 If the sender cannot pay dispatch (and trade cargo, if any), the fleet
 does not leave.
@@ -334,7 +339,7 @@ options are policy on the same visibility flags.
 
 ## 12. Scenario setup file and admin
 
-Trade bump, attack bump, dispatch-per-hull, pirate attrition, cover
+Trade bump, attack bump, dispatch weight per class, pirate attrition, cover
 rules, voyage cost, idle *N*, and other magnitudes are set in a
 **setup file before the game starts**.
 

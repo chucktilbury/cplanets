@@ -13,6 +13,8 @@
 - Combat is per class: colony hulls are weakly defended and populate
   a taken world only if they survive; frigates tend to die but screen
   destroyers.
+- Dispatch wealth is by hull **weight** (scouts almost free, colonies
+  dearer), not by hull count.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

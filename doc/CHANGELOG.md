@@ -23,6 +23,13 @@
   wealth) vs production (mostly resources).
 - Hull reclaim only at a shipyard planet; resource return percent is
   a setup item (development wealth is not refunded).
+- Resolve spec conflicts: recall always to sender (same-tick =
+  cancel); reclaim is a later shipyard trip; trade holds full both
+  ways with escorts cycling; sender-only loading cost; war fleets
+  stay, unowned takes are free, parked ships/defenses fight; range
+  and speed drive ETA and cost; ambush at midpoint; pirate loot
+  credited on return; capture-use chance (else destroyed); home
+  yard and unknown rocks.
 - Add `scripts/setup --clean` in either argument order to remove generated
   directories before configuration. Move `build` and `rebuild` into
   `.project_env` as shell functions and retain the standalone `clean` script.

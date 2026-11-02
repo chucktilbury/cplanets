@@ -70,8 +70,10 @@ is a later phase and assumes Cwhip grows `DrawingArea`.
 
 ### A. Skeleton
 
-CMake three (then four) programs, drop `hello`, shared `lib` stub,
-one unit test that links.
+CMake four programs, drop `hello`, shared `lib` stub, one unit program
+that includes `lib/` (Cwhip stages the `SOURCE` directory, so that
+program lives at `src/unit_libIdentity.cw`; CTest wrappers stay in
+`tests/unit/`).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |

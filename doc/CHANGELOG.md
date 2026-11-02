@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replace the hello-world starter with four stub executables
+  (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), a
+  shared `src/lib` identity, and a CTest unit program that links it.
 - Add `doc/PLAN.md`: end-to-end build order, short-file layout, unit /
   function / functional tests, and line-count estimates for v1
   (library, server, list client, AI) plus later canvas and HTTP.

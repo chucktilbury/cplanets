@@ -69,7 +69,7 @@ class SdkDiscoveryTests(unittest.TestCase):
             'function(cwhip_add_program name)\n'
             '    add_custom_target("${name}")\n'
             '    set_target_properties("${name}" PROPERTIES\n'
-            '        CWHIP_EXECUTABLE "${CMAKE_BINARY_DIR}/hello")\n'
+            '        CWHIP_EXECUTABLE "${CMAKE_BINARY_DIR}/${name}")\n'
             'endfunction()\n'
             'include("${CMAKE_CURRENT_LIST_DIR}/CwhipApplicationDefaults.cmake")\n'
             + (f'set(Cwhip_SDK_ABI "{abi}")\n' if abi is not None else "")
@@ -150,28 +150,29 @@ class SdkDiscoveryTests(unittest.TestCase):
     def test_ctest_registers_sdk_executable(self):
         self.run_configure()
         tests = (self.build / "CTestTestfile.cmake").read_text()
-        self.assertIn('add_test([=[hello]=]', tests)
-        self.assertIn(f'"-DHELLO_EXECUTABLE={self.build}/hello"', tests)
-        self.assertIn(f'"{self.project}/tests/check-hello.cmake"', tests)
+        self.assertIn('add_test([=[unit_libIdentity]=]', tests)
+        self.assertIn(f'"-DEXECUTABLE={self.build}/unit_libIdentity"', tests)
+        self.assertIn(f'"{self.project}/tests/unit/libIdentity.cmake"', tests)
+        self.assertIn('add_test([=[smoke_cplanets-tick]=]', tests)
 
     def test_ctest_can_be_disabled(self):
         self.run_configure(extra=("-DBUILD_TESTING=OFF",))
         self.assertFalse((self.build / "CTestTestfile.cmake").exists())
 
-    def test_greeting_check_rejects_bad_output_and_exit_status(self):
-        executable = self.root / "hello"
+    def test_output_check_rejects_bad_output_and_exit_status(self):
+        executable = self.root / "probe"
         for body, success in (
-            ('printf "Hello, world!\\n"', True),
-            ('printf "Hello, world!\\n"; exit 1', False),
-            ('printf "wrong greeting\\n"', False),
-            ('printf "Hello, world!\\n"; printf "error\\n" >&2', False),
+            ('printf "true\\n"', True),
+            ('printf "true\\n"; exit 1', False),
+            ('printf "false\\n"', False),
+            ('printf "true\\n"; printf "error\\n" >&2', False),
         ):
             with self.subTest(body=body):
                 executable.write_text(f"#!/bin/sh\n{body}\n")
                 executable.chmod(0o755)
                 result = subprocess.run(
-                    ["cmake", f"-DHELLO_EXECUTABLE={executable}", "-P",
-                     str(self.project / "tests/check-hello.cmake")],
+                    ["cmake", f"-DEXECUTABLE={executable}", "-DEXPECTED=true\n",
+                     "-P", str(self.project / "tests/check-output.cmake")],
                     cwd=self.root, env=self.env, capture_output=True,
                     text=True, timeout=30,
                 )
@@ -309,13 +310,13 @@ class SdkDiscoveryTests(unittest.TestCase):
                     directory = self.project / name
                     directory.mkdir(parents=True, exist_ok=True)
                     (directory / "stale-output").write_text("generated")
-                source = (self.project / "src/main.cw").read_bytes()
+                source = (self.project / "src/lib/machine.cw").read_bytes()
                 self.run_configure(setup=True, extra=args)
                 self.assertTrue((self.build / "CMakeCache.txt").is_file())
                 self.assertEqual(self.shell_build_type_record.read_text(), expected)
                 for name in ("bin", "build", "lib", "doc/out", "share"):
                     self.assertFalse((self.project / name / "stale-output").exists())
-                self.assertEqual((self.project / "src/main.cw").read_bytes(), source)
+                self.assertEqual((self.project / "src/lib/machine.cw").read_bytes(), source)
                 self.assertTrue((self.project / "doc").is_dir())
 
     def test_setup_without_clean_keeps_existing_outputs(self):

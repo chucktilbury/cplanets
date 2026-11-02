@@ -69,7 +69,7 @@ if(NOT COMMAND cwhip_apply_application_defaults)
 endif()
 cwhip_apply_application_defaults()
 
-project(cwhip_template LANGUAGES C)
+project(cplanets LANGUAGES C)
 
 include(CTest)
 
@@ -97,14 +97,34 @@ if(NOT Cwhip_APPLICATION_OUTPUT_DIRECTORIES)
         "Install an SDK that provides Cwhip_APPLICATION_OUTPUT_DIRECTORIES.")
 endif()
 
-cwhip_add_program(hello
-    SOURCE "${PROJECT_SOURCE_DIR}/src/main.cw"
-    OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}")
-get_target_property(hello_executable hello CWHIP_EXECUTABLE)
-install(PROGRAMS "${hello_executable}" DESTINATION bin)
+function(cplanets_add_program target source)
+    cwhip_add_program(${target}
+        SOURCE "${PROJECT_SOURCE_DIR}/${source}"
+        OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}")
+    get_target_property(_executable ${target} CWHIP_EXECUTABLE)
+    set(${target}_executable "${_executable}" PARENT_SCOPE)
+endfunction()
+
+cplanets_add_program(cplanets-server src/cplanets-server.cw)
+cplanets_add_program(cplanets src/cplanets.cw)
+cplanets_add_program(cplanets-ai src/cplanets-ai.cw)
+cplanets_add_program(cplanets-tick src/cplanets-tick.cw)
+install(PROGRAMS
+    "${cplanets-server_executable}"
+    "${cplanets_executable}"
+    "${cplanets-ai_executable}"
+    "${cplanets-tick_executable}"
+    DESTINATION bin)
 
 if(BUILD_TESTING)
-    add_test(NAME hello COMMAND "${CMAKE_COMMAND}"
-        "-DHELLO_EXECUTABLE=${hello_executable}"
-        -P "${PROJECT_SOURCE_DIR}/tests/check-hello.cmake")
+    cplanets_add_program(unit_libIdentity src/unit_libIdentity.cw)
+    add_test(NAME unit_libIdentity COMMAND "${CMAKE_COMMAND}"
+        "-DEXECUTABLE=${unit_libIdentity_executable}"
+        -P "${PROJECT_SOURCE_DIR}/tests/unit/libIdentity.cmake")
+    foreach(program IN ITEMS cplanets-server cplanets cplanets-ai cplanets-tick)
+        add_test(NAME smoke_${program} COMMAND "${CMAKE_COMMAND}"
+            "-DEXECUTABLE=${${program}_executable}"
+            "-DPROGRAM=${program}"
+            -P "${PROJECT_SOURCE_DIR}/tests/check-program.cmake")
+    endforeach()
 endif()

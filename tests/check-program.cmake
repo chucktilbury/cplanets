@@ -1,0 +1,5 @@
+if(NOT DEFINED EXECUTABLE OR NOT DEFINED PROGRAM)
+    message(FATAL_ERROR "check-program.cmake requires EXECUTABLE and PROGRAM")
+endif()
+set(EXPECTED "${PROGRAM}\ncplanets-lib\n")
+include("${CMAKE_CURRENT_LIST_DIR}/check-output.cmake")

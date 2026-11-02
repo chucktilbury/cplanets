@@ -20,8 +20,9 @@ The game is a turn-based multi-player game that can also be played stand-alone. 
 
 ## Building and Installation
 
-This directory contains the example program in `src/main.cw`, CMake that builds
-it into `bin/`, tests in `tests/`, and SDK discovery helpers in `scripts/`.
+This directory contains the shared machine in `src/lib/`, stub executables
+(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), tests in
+`tests/`, and SDK discovery helpers in `scripts/`.
 
 With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`
 from the checkout, then `build` in the project shell. Use `rebuild` for a
@@ -31,7 +32,7 @@ running setup again.
 ```sh
 ./scripts/setup [--clean] [debug|release|profile]
 build
-../bin/hello
+../bin/cplanets-tick
 ```
 
 - [Game rules and machine](doc/RULES.md)

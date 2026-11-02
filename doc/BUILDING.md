@@ -21,7 +21,7 @@ This template depends on the numeric execution work in
 [chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and the
 subsequent numeric-v2 SDK/package migration. Until that SDK is published, use
 an explicitly selected rebuilt development SDK; the old installed SDK is not
-compatible. The hello-world starter has no numeric declarations, native
+compatible. The skeleton programs have no numeric declarations, native
 examples, or checked-in package manifests to migrate.
 
 For applications derived from older templates, use `int64`, `uint64`, and
@@ -47,7 +47,7 @@ package ABI metadata. The SDK application helper generates project metadata
 and a lockfile in the build tree using its own package tool; do not copy an old
 generated project or relabel stale native artifacts.
 
-See [Syntax](SYNTAX.md) for current source spelling and the greeting example.
+See [Syntax](SYNTAX.md) for current source spelling and the lib-identity example.
 The `numeric-v2` ABI marker alone does not identify a compiler's syntax
 revision: use a current rebuilt SDK for this template's callable syntax.
 
@@ -160,16 +160,15 @@ Build and run the example from the project shell:
 ./scripts/setup
 build
 ctest --output-on-failure
-../bin/hello
+../bin/cplanets-tick
 ```
 
-Use `build hello` to build only the example target, or `rebuild [TARGET...]`
-to clean first and then build. These are project-shell Bash functions, so
-they do not exit the shell when a build fails.
+Use `build cplanets-tick` to build only the headless tool, or
+`rebuild [TARGET...]` to clean first and then build. These are project-shell
+Bash functions, so they do not exit the shell when a build fails.
 
-The `hello` CTest smoke test checks the greeting's output and exit status.
-It exercises the callable, parenthesized return, and dictionary in the starter.
-Set `-DBUILD_TESTING=OFF` at configuration time to omit it.
+CTest runs `unit_libIdentity` (shared lib identity) and a smoke test for each
+stub executable. Set `-DBUILD_TESTING=OFF` at configuration time to omit them.
 
 The Cwhip application helper writes generated sources and package metadata
 inside the build tree. The compiled application is written directly to
@@ -193,7 +192,7 @@ cmake -S . -B build \
 build
 ```
 
-The starter Cwhip executable follows `CWHIP_BIN_DIR`. Generated output
+The Cwhip executables follow `CWHIP_BIN_DIR`. Generated output
 directories are ignored by Git.
 
 ## Clean
@@ -232,8 +231,8 @@ SDK search path without requiring an installed CWhip compiler or user input.
 It also rejects old/newer SDK versions and missing or incompatible ABI markers
 before setup can enter a project shell.
 
-To additionally build and run CTest on a temporary copy of the starter, install
-it, execute both its built and installed hello-world binaries, and check generated package ABI
+To additionally build and run CTest on a temporary copy of the project, install
+it, execute the built and installed stub binaries, and check generated package ABI
 metadata and stale-package rejection against a real SDK supporting the
 current syntax:
 

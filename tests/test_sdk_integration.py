@@ -63,27 +63,27 @@ class SdkIntegrationTests(unittest.TestCase):
             directory = project / name
             directory.mkdir(parents=True, exist_ok=True)
             (directory / "stale-output").touch()
-        source = (project / "src/main.cw").read_bytes()
+        source = (project / "src/lib/machine.cw").read_bytes()
         result = self.run_command(
             "/bin/bash", str(project / "scripts/setup"), "--clean", "release",
             shell_input=(
                 'set -e\n'
                 'declare -F build rebuild\n'
                 'cd "$HOME"\n'
-                'build hello\n'
-                '"$_PROJECT_LOC/bin/hello"\n'
-                'rebuild hello\n'
+                'build cplanets-tick\n'
+                '"$_PROJECT_LOC/bin/cplanets-tick"\n'
+                'rebuild cplanets-tick\n'
                 'build\n'
                 'rebuild\n'
                 'ctest --test-dir "$_PROJECT_LOC/build" --output-on-failure --no-tests=error\n'
                 'exit\n'
             ),
         )
-        self.assertIn("Hello, world!\n", result.stdout)
-        self.assertTrue((project / "bin/hello").is_file())
+        self.assertIn("cplanets-tick\ncplanets-lib\n", result.stdout)
+        self.assertTrue((project / "bin/cplanets-tick").is_file())
         for name in ("bin", "build", "lib", "doc/out", "share"):
             self.assertFalse((project / name / "stale-output").exists())
-        self.assertEqual((project / "src/main.cw").read_bytes(), source)
+        self.assertEqual((project / "src/lib/machine.cw").read_bytes(), source)
 
     def test_template_build_install_and_generated_metadata(self):
         project = self.root / "project"
@@ -105,13 +105,14 @@ class SdkIntegrationTests(unittest.TestCase):
             "--no-tests=error",
         )
         self.run_command("cmake", "--install", str(build))
-        for executable in (output / "bin/hello", install / "bin/hello"):
-            result = self.run_command(str(executable))
-            self.assertEqual(result.stdout, "Hello, world!\n")
-            self.assertEqual(result.stderr, "")
+        for name in ("cplanets-server", "cplanets", "cplanets-ai", "cplanets-tick"):
+            for executable in (output / "bin" / name, install / "bin" / name):
+                result = self.run_command(str(executable))
+                self.assertEqual(result.stdout, f"{name}\ncplanets-lib\n")
+                self.assertEqual(result.stderr, "")
         self.assertFalse((project / "bin").exists())
         self.assertFalse((project / "lib").exists())
-        generated = build / "hello-project"
+        generated = build / "cplanets-tick-project"
         self.assertTrue((generated / "cwhip-pkg.toml").is_file())
         lock = tomllib.loads((generated / "cwhip-pkg.lock").read_text())
         self.assertTrue(lock["packages"])

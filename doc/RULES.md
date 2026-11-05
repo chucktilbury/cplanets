@@ -48,7 +48,9 @@ the messages yourself. On a local network, bodies are **compressed
 binary**, not JSON. **Common file formats stay deferred.** Version the
 envelope. Policy `PUT` is the primary client write. There is no
 all-players-ready barrier; a barrier-style `POST turn` / “turn ready”
-is not part of this clock.
+is not part of this clock. **Presence** (AFK vs drop) is a separate
+handshake / keep-alive from policy `PUT` — no PUT does not mean drop
+(see Presence below).
 
 **Later:** a formal HTTP REST façade on the **same commands**. Do not grow a second rule engine to serve the web.
 
@@ -64,8 +66,30 @@ policy**, advances from the **previous published** state with those
 policies, and **publishes** the new state plus a **digest** of events
 (newspaper). Between ticks the server may prepare the next step; that
 prep is engineering and does not change the published rules of `tick`.
-AFK = last policy held. AFK timeout / shrink units are **real time
-and/or tick period** (exact setup field names still thin — §17).
+**AFK** = last policy held (player idle / not updating policy, but
+**still present**). AFK timeout / shrink units are **real time and/or
+tick period** (exact setup field names still thin — §17).
+
+**Presence.** The server distinguishes **AFK** from an **actual drop**
+(lost contact / disconnect) with a **handshake**. Missing policy
+updates alone do **not** mean drop — that is AFK while the session is
+alive. Handshake failure (lost contact) is a drop. Soft vs hard drop
+effects beyond this distinction, who is notified, and heartbeat
+interval are **not** locked here (§17). AFK vs drop is **live session
+contact** only — not a save / rejoin feature (see Session below).
+
+**Session / game instance (v1).** Each game is **stand-alone**. There
+is **no durable status save** and **no rejoin** after leave or drop:
+the player does not reclaim a seat, and there is no reconnect into a
+saved game. While **dropped** during a live game, **last policy
+continues** for the remainder of that **live** process until the game
+ends (same last-policy spirit as AFK). When that live game / process
+ends, participation for that instance is over — start a new
+stand-alone game to play again.
+
+**Future (deferred — plan accordingly):** durable status save and
+rejoin are expected later. Keep server state **SQLite-shaped** so that
+path stays clean. Do **not** implement a save / rejoin API in v1.
 
 **All worlds exist when the game starts.** How many, and the mix of
 useful vs poor rocks, is setup. New players may join later into their
@@ -457,6 +481,14 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
   broader knowledge once identify fires.
 - AFK timeout / shrink: exact setup field names and floor (units =
   real time and/or tick period under §2 clock).
+- **Presence / drop follow-ups** (handshake AFK≠drop and v1 no-rejoin
+  are locked in §2; these details are not):
+  - Heartbeat / handshake interval and miss threshold.
+  - Whether other humans get a digest event (e.g. `dropped`) — and
+    who sees it.
+- **Deferred (not v1):** durable status save / rejoin — plan
+  accordingly (keep SQLite-shaped); no save / rejoin API in v1.
+  v1 reconnect / reclaim is **closed** (no rejoin).
 - Pause under the real-time tick (stand-alone / host): preference not
   locked.
 - Default tick-period magnitude for v1 feel (beyond setup-tunable):
@@ -474,6 +506,11 @@ closed eliminate-all (ongoing = future); clock = server real-time tick
 reduce travel ETA to **zero** (teleport) — magnitudes in setup;
 seeded RNG in `lib` (not `SecureRandom`) — see [PLAN.md](PLAN.md)
 §3.
++ digest, policy anytime, AFK = last policy; **handshake distinguishes
+AFK vs actual drop** (presence ≠ policy PUT); **v1 session** =
+stand-alone game instance, **no status save**, **no rejoin** (drop →
+last policy for live remainder only); seeded RNG in `lib` (not
+`SecureRandom`) — see [PLAN.md](PLAN.md) §3.
 
 Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
 

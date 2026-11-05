@@ -116,7 +116,8 @@ all hit the same pools.
   technology (capability-scaled; §13), **designs**, known competitors.
 - **Design**: speed, range, weapons, shields, size, cargo hold,
   colony/defense flags; development already paid. Speed and range
-  feed **development and production cost**, and feed **ETA**.
+  feed **development and production cost**, and feed **ETA**
+  (technology can further reduce ETA to zero — teleport; §6 / §14).
 - **Fleet**: hulls by design, **sender** (dispatch planet), destination
   or ambush midpoint, order, cargo (full hold both ways on trade),
   escorts, ETA, ticks traveled, owner. Pirate loot rides on the
@@ -192,8 +193,10 @@ is 10, you need **10 cargo hulls**, plus whatever escort you bring.
 ### 5.2 Recall vs reclaim
 
 **Recall target is always the sender** (the planet that dispatched).
-Ships do not teleport. ETA is ticks already spent on the outbound
-leg. Dispatch stays sunk. Pirates can still hit a recalling fleet.
+Return **ETA** is ticks already spent on the outbound leg — or
+**zero** when technology is high enough that travel teleports
+(§6 / §14). Dispatch stays sunk. Pirates can still hit a recalling
+fleet.
 
 **Same-tick recall = cancellation.** Send and recall before the fleet
 has left: the order never happens. No dispatch, no loading.
@@ -220,9 +223,13 @@ interned hulls of that design, not a free development of a new one.
 ## 6. Range, speed, ETA, stranding, ambush point
 
 **Range** and **speed** are hull attributes. They affect development
-and production cost. **ETA** is distance and speed. A hop cannot
-exceed the hull’s **range from an occupied world** of yours (home,
-populated possession, or a rock you are sitting on).
+and production cost. **ETA** is distance and speed, further shaped
+by the player’s **technology**. At a high enough tech factor
+(setup threshold / curve — §14), travel time drops to **zero**:
+the fleet **teleports**. Magnitudes are setup-owned and open until
+tuned (§17). A hop cannot exceed the hull’s **range from an
+occupied world** of yours (home, populated possession, or a rock
+you are sitting on).
 
 Ho refuels by **occupying the world where ships are stranded**, and
 lets you **reclaim** stranded hulls. This game does **not** require
@@ -433,14 +440,16 @@ UI is a view of flags the driver already set.
 
 Includes: trade/attack bumps, dispatch weight, pirate attrition,
 **identify-from-attributes** chance curve, **tech → detection/range**
-curve, design curves, reclaim percent, capture-use probability, cover,
-voyage cost, idle *N*, **stranded-ticks N**, **world count**,
-**useful vs poor mix**, starting scout-range, **tick period**
-(real-time cadence), AFK timeout / shrink (real time and/or tick
-period; field names thin — §17), **scenario mode** (v1 default =
-**closed**; ongoing = future). Admin edits before start; **locked** in
-progress. Future ongoing games would still lock *coefficients*; new
-players may join sandboxes without rewriting the map.
+curve, **tech → travel ETA / teleport** threshold or curve
+(magnitudes open — §17), design curves, reclaim percent,
+capture-use probability, cover, voyage cost, idle *N*,
+**stranded-ticks N**, **world count**, **useful vs poor mix**,
+starting scout-range, **tick period** (real-time cadence), AFK
+timeout / shrink (real time and/or tick period; field names thin —
+§17), **scenario mode** (v1 default = **closed**; ongoing =
+future). Admin edits before start; **locked** in progress. Future
+ongoing games would still lock *coefficients*; new players may join
+sandboxes without rewriting the map.
 
 ## 15. Ending and the ongoing map
 
@@ -465,6 +474,9 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 ## 17. Open
 
 - Exact combat/production formulas (values are setup fields).
+- **Tech → teleport / travel ETA:** threshold vs continuous curve,
+  and magnitudes (when ETA reaches zero). Principle locked in §6;
+  values open.
 - Identify audience after success: victim-only (current default) vs
   broader knowledge once identify fires.
 - AFK timeout / shrink: exact setup field names and floor (units =
@@ -490,6 +502,10 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 **Closed (do not re-open without a new decision):** agreement topology
 = player–player; visibility/identify = capability-scaled; v1 end =
 closed eliminate-all (ongoing = future); clock = server real-time tick
++ digest, policy anytime, AFK = last policy; high technology may
+reduce travel ETA to **zero** (teleport) — magnitudes in setup;
+seeded RNG in `lib` (not `SecureRandom`) — see [PLAN.md](PLAN.md)
+§3.
 + digest, policy anytime, AFK = last policy; **handshake distinguishes
 AFK vs actual drop** (presence ≠ policy PUT); **v1 session** =
 stand-alone game instance, **no status save**, **no rejoin** (drop →

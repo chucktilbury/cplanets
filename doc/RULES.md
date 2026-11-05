@@ -60,15 +60,21 @@ if it uses the same message types. Stand-alone and online share the
 **same server clock**.
 
 **Clock:** the **server** alone calls `tick` on a **configurable
-real-time** cadence (period is a setup item; no default magnitude is
-locked here). At each tick it snapshots every player’s **current
-policy**, advances from the **previous published** state with those
-policies, and **publishes** the new state plus a **digest** of events
-(newspaper). Between ticks the server may prepare the next step; that
-prep is engineering and does not change the published rules of `tick`.
-**AFK** = last policy held (player idle / not updating policy, but
-**still present**). AFK timeout / shrink units are **real time and/or
-tick period** (exact setup field names still thin — §17).
+real-time** cadence. **Tick period** is a setup item in **seconds**.
+**Provisional** allowed range **for now:** **1–30** seconds
+(inclusive); retune min/max after something mostly works. At each tick
+it snapshots every player’s **current policy**, advances from the
+**previous published** state with those policies, and **publishes**
+the new state plus a **digest** of events (newspaper). Between ticks
+the server may prepare the next step; that prep is engineering and
+does not change the published rules of `tick`. **AFK** = last policy
+held (player idle / not updating policy, but **still present**). AFK
+timeout / shrink units are **real time and/or tick period** (exact
+setup field names still thin — §17).
+
+**Pause.** A pause control is fine only when there is **exactly one
+human** player. With **two or more humans**, pause is **not** offered
+(the wall clock keeps running).
 
 **Presence.** The server distinguishes **AFK** from an **actual drop**
 (lost contact / disconnect) with a **handshake**. Missing policy
@@ -83,9 +89,11 @@ is **no durable status save** and **no rejoin** after leave or drop:
 the player does not reclaim a seat, and there is no reconnect into a
 saved game. While **dropped** during a live game, **last policy
 continues** for the remainder of that **live** process until the game
-ends (same last-policy spirit as AFK). When that live game / process
-ends, participation for that instance is over — start a new
-stand-alone game to play again.
+ends (same last-policy spirit as AFK). If **all human players quit**
+(leave / drop with no human remaining), the **server registers the
+end of the game** — do not leave an AI-only zombie match running as a
+live human game. When that live game / process ends, participation for
+that instance is over — start a new stand-alone game to play again.
 
 **Future (deferred — plan accordingly):** durable status save and
 rejoin are expected later. Keep server state **SQLite-shaped** so that
@@ -104,9 +112,11 @@ all hit the same pools.
 
 ## 3. State
 
-- **Scenario**: setup coefficients (bumps, weights, identify chance,
-  design curves, reclaim percent, capture-use chance, …). Immutable
-  after lock.
+- **Scenario**: setup coefficients / mappings (bumps, weights,
+  identify chance, design mappings, reclaim percent, capture-use
+  chance, …). Where older notes say **curve**, read **setup-tunable
+  mapping / coefficients** — not a required fancy math object.
+  Immutable after lock.
 - **Galaxy**: planets with livability, resources, efficiencies, owner,
   **explored** (per player), **population**, **productive**, **shipyard**,
   parked hulls, **defenses** (e.g. satellites). Quality is **unknown**
@@ -174,6 +184,12 @@ Escorts on a **trade** mission are part of that fleet: they go out
 **full cargo both ways** with the cargo ships and **return with them**,
 then cycle. They are not a `take`.
 
+**Mid-dispatch.** Sending a fleet does **not** pause the game. The
+player may still change **other** policy (other fleets, role,
+allocations, agreements, …). That **particular in-flight fleet’s
+order** cannot be rewritten except by **`recall`** (same-tick cancel
+if not yet departed) or resolution that frees it.
+
 ### 5.1 Dispatch and loading (sender only)
 
 When a fleet **actually leaves** (not a cancelled same-tick order):
@@ -222,9 +238,10 @@ Development wealth is never returned. Destroyed hulls return nothing.
 Set parameters (speed, range, weapons, shields, size, cargo, colony,
 defense, …) within caps. **Development** once, **mostly wealth**.
 **Production** per hull at a productive shipyard, **mostly resources**.
-Speed and range raise both costs. Hulls keep their stats until
-destroyed or reclaimed. Closing a design does not refund development;
-production of it stops.
+Speed and range raise both costs. **Neither designing a type nor
+building hulls is instant** — both take **time** (ticks / setup
+durations). Hulls keep their stats until destroyed or reclaimed.
+Closing a design does not refund development; production of it stops.
 
 **Captured hulls:** setup **probability** they can actually be used.
 Otherwise they are **destroyed** (Ho default). If usable, they are
@@ -235,7 +252,7 @@ interned hulls of that design, not a free development of a new one.
 **Range** and **speed** are hull attributes. They affect development
 and production cost. **ETA** is distance and speed, further shaped
 by the player’s **technology**. At a high enough tech factor
-(setup threshold / curve — §14), travel time drops to **zero**:
+(setup threshold / mapping — §14), travel time drops to **zero**:
 the fleet **teleports**. Magnitudes are setup-owned and open until
 tuned (§17). A hop cannot exceed the hull’s **range from an
 occupied world** of yours (home, populated possession, or a rock
@@ -357,12 +374,12 @@ is **self-trade / sit**, not confiscation at your new rock (§8.3).
 **Identify.** Attacks (including pirate ambush) do not always name the
 attacker. There is a setup-tuned chance the **victim** learns where
 the attack came from and/or who did it. That chance **rises as the
-victim’s relevant attributes increase** (setup curve; not a flat tiny
-constant only). Tune so fog remains a **limitation** without making
-attribution feel arbitrarily unfair. Default audience of a successful
-identify is still **victim-only** (whether others can learn is open —
-§17). Then (1)(2) apply from that moment, not retroactively. A later
-named `take` also identifies.
+victim’s relevant attributes increase** (setup mapping /
+coefficients; not a flat tiny constant only). Tune so fog remains a
+**limitation** without making attribution feel arbitrarily unfair.
+Default audience of a successful identify is still **victim-only**
+(whether others can learn is open — §17). Then (1)(2) apply from that
+moment, not retroactively. A later named `take` also identifies.
 
 ## 10. Pirates
 
@@ -478,7 +495,7 @@ does **not** extend range. Raising **technology** increases range.
 Unexplored rocks: known to exist in range or not, **quality unknown**
 until explore or take. Balance visibility as a real **limitation**,
 not so harsh that play is frustrating. Setup exposes knobs for
-range-from-tech (and related curves).
+range-from-tech (and related mappings / coefficients).
 
 **Contact** (explore and/or conquest of another partition) adds them
 to **known competitors**.
@@ -491,27 +508,37 @@ UI is a view of flags the driver already set.
 
 ## 14. Scenario setup and admin
 
-Includes: trade/attack bumps, dispatch weight, pirate attrition,
-**identify-from-attributes** chance curve, **tech → detection/range**
-curve, design curves, reclaim percent, capture-use probability, cover,
-voyage cost, idle *N*, **stranded-ticks N**, **world count**,
-**useful vs poor mix**, starting scout-range, **tick period**
-(real-time cadence), AFK timeout / shrink (real time and/or tick
-period; field names thin — §17), **scenario mode** (v1 default =
-**closed**; ongoing = future), **battle-duration / comparative-strength
-coefficients** (how strength gap maps to engagement length; magnitudes
-open — §17), **productive-planet inherent defense** coefficient
-(baseline defense with zero parked fleet; take never free). Admin
-edits before start; **locked** in progress. Future ongoing games
-would still lock *coefficients*; new players may join sandboxes
-without rewriting the map.
+Expect **many** named knobs — anticipate lots of post-complete tuning;
+prefer setup fields over hard-coded magnitudes. Includes: trade/attack
+bumps, dispatch weight, pirate attrition, **identify-from-attributes**
+chance mapping, **tech → detection/range** mapping, design mappings /
+coefficients, **design-development duration** and **yard-build
+duration** (ticks; neither is instant), reclaim percent, capture-use
+probability, cover, voyage cost, idle *N*, **stranded-ticks N**,
+**world count**, **useful vs poor mix**, starting scout-range,
+**tick period** (real-time cadence in **seconds**; provisional
+allowed range **for now:** **1–30**), AFK timeout / shrink (real time
+and/or tick period; field names thin — §17), **scenario mode** (v1
+default = **closed**; ongoing = future), **battle-duration /
+comparative-strength coefficients** (how strength gap maps to
+engagement length; magnitudes open — §17), **productive-planet
+inherent defense** coefficient (baseline defense with zero parked
+fleet; take never free). Where older notes say **curve**, read
+**setup-tunable mapping / coefficients** — not a required fancy math
+object. Admin edits before start; **locked** in progress. Future
+ongoing games would still lock *coefficients*; new players may join
+sandboxes without rewriting the map.
 
 ## 15. Ending and the ongoing map
 
 **Closed game (v1 default):** the game ends when **one player has
 eliminated all others**. “Everyone is in trade agreements” is **not**
 a win; it is unsatisfactory. First playable fixture default =
-**closed**.
+**closed**. Dropped / AFK last-policy seats (“zombies”) should lose
+to **normal gameplay** in ordinary games (rare survivals OK); it must
+**not** be possible to arrange a zombie that **wins consistently**.
+If **all human players quit**, the **server registers the end of the
+game** (§2 Session).
 
 **Ongoing game (future):** the map continues independently of any one
 player’s participation. The object is to **own all the worlds**.
@@ -546,25 +573,33 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 - **Deferred (not v1):** durable status save / rejoin — plan
   accordingly (keep SQLite-shaped); no save / rejoin API in v1.
   v1 reconnect / reclaim is **closed** (no rejoin).
-- Pause under the real-time tick (stand-alone / host): preference not
-  locked.
-- Default tick-period magnitude for v1 feel (beyond setup-tunable):
-  not locked.
+- Exact default tick period **inside** the provisional 1–30s band for
+  the first fixture (setup choice; band itself is locked in §2 / §14).
 - AI reaction lag binding (every K ticks / wall time vs digest-gated):
   not locked.
-- Livability / power / experience: real tick drivers with setup curves,
-  or display/legacy until later — not closed here.
+- Livability / power / experience: real tick drivers with setup
+  mappings / coefficients, or display/legacy until later — not closed
+  here.
 - Setup file syntax.
+- Tech → teleport mapping shape (step vs continuous) and magnitudes
+  when ETA hits zero.
+- Odd-ETA / ETA-0 ambush edge cases (rounding / whether ambush can
+  fire).
 
 **Closed (do not re-open without a new decision):** agreement topology
 = player–player; visibility/identify = capability-scaled; v1 end =
 closed eliminate-all (ongoing = future); clock = server real-time tick
-+ digest, policy anytime, AFK = last policy; seeded RNG in `lib` (not
-`SecureRandom`) — see [PLAN.md](PLAN.md) §3; **combat spans ticks**
-with duration from **comparative strength**; **recall into/out of a
-fight still under battle rules** (can reverse or share defeat);
-**productive planets have inherent defense** (take never free) —
-magnitudes remain setup/open above.
++ digest, policy anytime, AFK = last policy; **pause only with exactly
+one human**; **tick period** = setup **seconds**, provisional
+**1–30**; **all humans quit → server ends the game**; zombies fall to
+**normal play** (no consistent zombie-win path); mid-dispatch: other
+policy OK, that fleet locked until recall; design/build take time
+(setup/ticks); seeded RNG in `lib` (not `SecureRandom`) — see
+[PLAN.md](PLAN.md) §3; **combat spans ticks** with duration from
+**comparative strength**; **recall into/out of a fight still under
+battle rules** (can reverse or share defeat); **productive planets
+have inherent defense** (take never free) — magnitudes remain
+setup/open above.
 
 Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
 

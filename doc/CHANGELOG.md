@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Revisit `doc/PLAN.md` for viability against locked RULES on main:
+  fold pause / zombies / identify / livability / AI-lag tick /
+  multi-tick combat / tech teleport into existing phases; close
+  simultaneous-turn language; extend the fn/server checklist; sync
+  estimates and CODING file-size notes. No game code.
 - Replace the hello-world starter with four stub executables
   (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), a
   shared `src/lib` identity, and a CTest unit program that links it.

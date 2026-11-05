@@ -161,7 +161,7 @@ is live) may `ambush`.
 | --- | --- |
 | `take` | Go to a rock. Unowned: occupy without a fight. Owned by another with ships/defenses: combat. War fleets **stay** until moved. |
 | `trade` | Cargo (+ escorts) to the far planet and **back**, then cycle. |
-| `ambush` | Sit at the **midpoint** of a trajectory. |
+| `ambush` | Sit at the **midpoint** of a trajectory (in position after half hop ETA; §6). |
 | `recall` | Return to the **sender**. Same-tick recall of a not-yet-departed order is **cancellation**. |
 | `explore` | Reveal quality of a rock in range (scout). Taking also reveals. |
 | sit / move | On a **possession**, a fleet may sit or be given a new destination. |
@@ -238,8 +238,13 @@ ticks** it can move again. **N is a setup item.** That is the fuel
 replacement. Once they can move, they `recall` to sender or proceed;
 reclaim is still the usual yard trip, not a special mid-space scrap.
 
-**Ambush** is at the **middle of the trajectory** (midpoint of the
-A–B hop). Changing that is probably too much complexity.
+**Ambush** is at the **middle of the trajectory** (fixed midpoint of
+the A–B hop). Changing that geometry is probably too much complexity.
+An ambush **cannot happen until the pirate is in position**: the
+pirate fleet reaches that midpoint only after traveling **half the
+hop ETA** in ticks (example: A→B ETA 10 ⇒ in position after 5 ticks).
+Midpoint combat (§7 / §10) fires only then — not before the pirate
+has traveled halfway.
 
 ## 7. Tick order
 
@@ -250,7 +255,8 @@ the server calls `tick` changed (real-time cadence), not this order.
 2. Cancellations (same-tick recall of not-yet-departed orders).
 3. Other `recall` (turn toward **sender**; recompute ETA).
 4. Decrement ETA / move.
-5. **Midpoint:** if **two pirate** fleets share the point, they
+5. **Midpoint** (only fleets **in position** — pirate after half hop
+   ETA; §6): if **two pirate** fleets share the point, they
    **war each other**; **passers are unharmed**; winner `recall`s
    home with **almost nothing**. Else if a pirate meets a passer:
    pirate **win** loads loot onto the pirate fleet; forced `recall`
@@ -344,8 +350,10 @@ named `take` also identifies.
 
 ## 10. Pirates
 
-`ambush` is at the **midpoint**. On a **win vs a trader**, the pirate
-fleet **carries 100% of the wealth and resource cargo the sender had
+`ambush` is at the **midpoint**. An ambush **cannot fire** until the
+pirate fleet is **in position** there — after traveling **half the hop
+ETA** in ticks (§6). On a **win vs a trader**, the pirate fleet
+**carries 100% of the wealth and resource cargo the sender had
 loaded** (full both ways, so direction does not change the hold).
 Dispatch already sunk is not transferred.
 

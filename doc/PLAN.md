@@ -19,7 +19,7 @@ executables.
 
 ```text
 src/lib/          shared machine + messages (no main, no GTK)
-src/server/       TCP + SQLite + turn collect
+src/server/       TCP + SQLite + real-time tick scheduler
 src/client/       human GTK debugger
 src/ai/           stand-alone AI client
 src/tools/        optional CLI “tick N” host for tests
@@ -52,7 +52,7 @@ runs them.
 | --- | --- | --- |
 | **Unit** | One function or transition | `tests/unit/*.cw` links `lib`, prints a bool. Fixed seed. No sleep, no sockets. |
 | **Function** | One rule cluster from RULES.md | `tests/fn/*.cw`: build a tiny galaxy, `tick` N times, check events and stocks. |
-| **Functional** | Executables and the wire | Python + CTest: start server, connect a dummy client, `PUT` policy, `POST` turn, `GET` events. Later: GTK only where we must. |
+| **Functional** | Executables and the wire | Python + CTest: start server, connect a dummy client, `PUT` policy, advance tick(s) / injectable clock, `GET` state + digest/events. Later: GTK only where we must. |
 
 Function tests are the **spec suite** (unowned take, cargo 10×10,
 pirate loot on return, two pirates war, same-tick cancel, …). Unit
@@ -106,7 +106,7 @@ Dispatcher + production + dispatch/loading + recall/cancel + sit/move
 Trade cycle, escorts, self-trade, agreements, confiscation, midpoint
 ambush, two-pirate war, loot on return, identify chance, unowned take,
 defenses, colony, mixed-fleet combat, designs/reclaim, capture-use,
-contact/partitions, last-player end.
+contact/partitions, closed eliminate-all end.
 
 This is the **bulk of the game**. Split by RULES section.
 
@@ -127,8 +127,12 @@ bytes. No listen socket yet.
 
 ### F. Server
 
-TCP accept, one writer, SQLite snapshot, collect policies, tick,
-“turn ready”, AFK last-policy, setup lock, join sandbox.
+TCP accept, one writer, SQLite snapshot, configurable **real-time**
+cadence, snapshot current policies → `tick` from previous published
+state → publish state + **digest**, injectable clock for tests, **no**
+all-ready barrier, AFK last-policy, setup lock, join sandbox.
+(RULES §2 clock; phases below still use “turn” only as legacy wording
+in older checklist lines until rewritten.)
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -213,7 +217,7 @@ Each item is **one** `tests/fn/` program unless noted.
 - Two pirates at midpoint: they war, passer lives
 - Stranded moves after N ticks
 - Capture-use vs destroy
-- Closed game: last player
+- Closed game: one player eliminated all others
 - Contact couples partitions
 - Empire pool only
 - Setup locked in progress
@@ -221,7 +225,7 @@ Each item is **one** `tests/fn/` program unless noted.
 
 Server functional (Python):
 
-- Two clients, simultaneous turn, AFK holds last policy
+- Two clients, policies apply on next tick (no ready barrier); AFK holds last policy
 - AI client + human client on one server
 - Join sandbox; no DB in the client process
 

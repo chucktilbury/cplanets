@@ -48,7 +48,9 @@ the messages yourself. On a local network, bodies are **compressed
 binary**, not JSON. **Common file formats stay deferred.** Version the
 envelope. Policy `PUT` is the primary client write. There is no
 all-players-ready barrier; a barrier-style `POST turn` / “turn ready”
-is not part of this clock.
+is not part of this clock. **Presence** (AFK vs drop) is a separate
+handshake / keep-alive from policy `PUT` — no PUT does not mean drop
+(see Presence below).
 
 **Later:** a formal HTTP REST façade on the **same commands**. Do not grow a second rule engine to serve the web.
 
@@ -64,8 +66,30 @@ policy**, advances from the **previous published** state with those
 policies, and **publishes** the new state plus a **digest** of events
 (newspaper). Between ticks the server may prepare the next step; that
 prep is engineering and does not change the published rules of `tick`.
-AFK = last policy held. AFK timeout / shrink units are **real time
-and/or tick period** (exact setup field names still thin — §17).
+**AFK** = last policy held (player idle / not updating policy, but
+**still present**). AFK timeout / shrink units are **real time and/or
+tick period** (exact setup field names still thin — §17).
+
+**Presence.** The server distinguishes **AFK** from an **actual drop**
+(lost contact / disconnect) with a **handshake**. Missing policy
+updates alone do **not** mean drop — that is AFK while the session is
+alive. Handshake failure (lost contact) is a drop. Soft vs hard drop
+effects beyond this distinction, who is notified, and heartbeat
+interval are **not** locked here (§17). AFK vs drop is **live session
+contact** only — not a save / rejoin feature (see Session below).
+
+**Session / game instance (v1).** Each game is **stand-alone**. There
+is **no durable status save** and **no rejoin** after leave or drop:
+the player does not reclaim a seat, and there is no reconnect into a
+saved game. While **dropped** during a live game, **last policy
+continues** for the remainder of that **live** process until the game
+ends (same last-policy spirit as AFK). When that live game / process
+ends, participation for that instance is over — start a new
+stand-alone game to play again.
+
+**Future (deferred — plan accordingly):** durable status save and
+rejoin are expected later. Keep server state **SQLite-shaped** so that
+path stays clean. Do **not** implement a save / rejoin API in v1.
 
 **All worlds exist when the game starts.** How many, and the mix of
 useful vs poor rocks, is setup. New players may join later into their
@@ -92,7 +116,8 @@ all hit the same pools.
   technology (capability-scaled; §13), **designs**, known competitors.
 - **Design**: speed, range, weapons, shields, size, cargo hold,
   colony/defense flags; development already paid. Speed and range
-  feed **development and production cost**, and feed **ETA**.
+  feed **development and production cost**, and feed **ETA**
+  (technology can further reduce ETA to zero — teleport; §6 / §14).
 - **Fleet**: hulls by design, **sender** (dispatch planet), destination
   or ambush midpoint, order, cargo (full hold both ways on trade),
   escorts, ETA, ticks traveled, owner. Pirate loot rides on the
@@ -168,8 +193,10 @@ is 10, you need **10 cargo hulls**, plus whatever escort you bring.
 ### 5.2 Recall vs reclaim
 
 **Recall target is always the sender** (the planet that dispatched).
-Ships do not teleport. ETA is ticks already spent on the outbound
-leg. Dispatch stays sunk. Pirates can still hit a recalling fleet.
+Return **ETA** is ticks already spent on the outbound leg — or
+**zero** when technology is high enough that travel teleports
+(§6 / §14). Dispatch stays sunk. Pirates can still hit a recalling
+fleet.
 
 **Same-tick recall = cancellation.** Send and recall before the fleet
 has left: the order never happens. No dispatch, no loading.
@@ -206,9 +233,13 @@ interned hulls of that design, not a free development of a new one.
 ## 6. Range, speed, ETA, stranding, ambush point
 
 **Range** and **speed** are hull attributes. They affect development
-and production cost. **ETA** is distance and speed. A hop cannot
-exceed the hull’s **range from an occupied world** of yours (home,
-populated possession, or a rock you are sitting on).
+and production cost. **ETA** is distance and speed, further shaped
+by the player’s **technology**. At a high enough tech factor
+(setup threshold / curve — §14), travel time drops to **zero**:
+the fleet **teleports**. Magnitudes are setup-owned and open until
+tuned (§17). A hop cannot exceed the hull’s **range from an
+occupied world** of yours (home, populated possession, or a rock
+you are sitting on).
 
 Ho refuels by **occupying the world where ships are stranded**, and
 lets you **reclaim** stranded hulls. This game does **not** require
@@ -217,8 +248,13 @@ ticks** it can move again. **N is a setup item.** That is the fuel
 replacement. Once they can move, they `recall` to sender or proceed;
 reclaim is still the usual yard trip, not a special mid-space scrap.
 
-**Ambush** is at the **middle of the trajectory** (midpoint of the
-A–B hop). Changing that is probably too much complexity.
+**Ambush** is at the **middle of the trajectory** (fixed midpoint of
+the A–B hop). Changing that geometry is probably too much complexity.
+An ambush **cannot happen until the pirate is in position**: the
+pirate fleet reaches that midpoint only after traveling **half the
+hop ETA** in ticks (example: A→B ETA 10 ⇒ in position after 5 ticks).
+Midpoint combat (§7 / §10) fires only then — not before the pirate
+has traveled halfway.
 
 ## 7. Tick order
 
@@ -229,7 +265,8 @@ the server calls `tick` changed (real-time cadence), not this order.
 2. Cancellations (same-tick recall of not-yet-departed orders).
 3. Other `recall` (turn toward **sender**; recompute ETA).
 4. Decrement ETA / move.
-5. **Midpoint:** if **two pirate** fleets share the point, they
+5. **Midpoint** (only fleets **in position** — pirate after half hop
+   ETA; §6): if **two pirate** fleets share the point, they
    **war each other**; **passers are unharmed**; winner `recall`s
    home with **almost nothing**. Else if a pirate meets a passer:
    pirate **win** loads loot onto the pirate fleet; forced `recall`
@@ -329,8 +366,10 @@ named `take` also identifies.
 
 ## 10. Pirates
 
-`ambush` is at the **midpoint**. On a **win vs a trader**, the pirate
-fleet **carries 100% of the wealth and resource cargo the sender had
+`ambush` is at the **midpoint**. An ambush **cannot fire** until the
+pirate fleet is **in position** there — after traveling **half the hop
+ETA** in ticks (§6). On a **win vs a trader**, the pirate fleet
+**carries 100% of the wealth and resource cargo the sender had
 loaded** (full both ways, so direction does not change the hold).
 Dispatch already sunk is not transferred.
 
@@ -499,6 +538,14 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
   broader knowledge once identify fires.
 - AFK timeout / shrink: exact setup field names and floor (units =
   real time and/or tick period under §2 clock).
+- **Presence / drop follow-ups** (handshake AFK≠drop and v1 no-rejoin
+  are locked in §2; these details are not):
+  - Heartbeat / handshake interval and miss threshold.
+  - Whether other humans get a digest event (e.g. `dropped`) — and
+    who sees it.
+- **Deferred (not v1):** durable status save / rejoin — plan
+  accordingly (keep SQLite-shaped); no save / rejoin API in v1.
+  v1 reconnect / reclaim is **closed** (no rejoin).
 - Pause under the real-time tick (stand-alone / host): preference not
   locked.
 - Default tick-period magnitude for v1 feel (beyond setup-tunable):

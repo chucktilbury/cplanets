@@ -164,10 +164,16 @@ TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
    **publish** state + **digest** (events / newspaper).
 3. Between ticks the server may prep the next step (engineering only).
 4. **No** all-ready barrier. Policy `PUT` anytime. **AFK = last
-   policy** held.
+   policy** held. **Handshake** distinguishes AFK (present, idle) from
+   **drop** (lost contact); presence ≠ policy PUT (RULES §2).
 5. **Injectable clock** / admin “advance N ticks” for tests (no sleep
    in CI).
 6. Setup lock once in progress; join sandbox partitions.
+7. **Session (v1):** each game is **stand-alone** — **no** durable
+   status save, **no** rejoin API. Drop during a live game → last
+   policy for that live remainder only (RULES §2). **Plan
+   accordingly:** keep state **SQLite-shaped** so a **future** durable
+   save / rejoin path stays clean; do not implement save / rejoin now.
 
 Stand-alone and online share this driver.
 
@@ -289,6 +295,7 @@ Each item is **one** `tests/fn/` program unless noted.
 
 **Pirate / identify (D3)**
 
+- Ambush only after pirate in position (half hop ETA)
 - Pirate loot credits on pirate return
 - Identify chance attributed vs not (scales with attributes)
 - Two pirates at midpoint: they war, passer lives
@@ -316,7 +323,9 @@ Server functional (Python):
 
 - Injectable clock / advance-N-ticks (no wall sleep in CI)
 - Two clients, policies apply on **next tick** (no ready barrier);
-  AFK holds last policy
+  AFK holds last policy; handshake distinguishes drop
+- Drop mid-game: last policy continues for that **live** game; **no**
+  rejoin / no status-save API in v1 (RULES §2)
 - Digest published with each tick; clients `GET` state + events
 - AI client + human client on one server
 - Join sandbox; no DB in the client process
@@ -356,6 +365,10 @@ Follow RULES §17 / store design docs — leave open until the user locks:
 - Default tick-period magnitude for v1 feel
 - AI reaction lag binding preference (K ticks vs wall vs digest-gated)
 - Exact AFK setup field names / floor
+- Presence / drop details: heartbeat interval, peer `dropped` digest
+  notify (RULES §2). v1 reconnect / reclaim is **closed** (no rejoin);
+  drop → last-policy for live remainder is locked. **Deferred:**
+  durable save / rejoin — keep SQLite-shaped; no save API in v1.
 - Identify audience after success (victim-only is current default)
 - Exact combat/production formulas (multi-tick / strength→duration
   magnitudes; productive inherent-defense coefficient values)

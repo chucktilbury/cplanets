@@ -21,7 +21,9 @@ class TemplateRenameTests(unittest.TestCase):
 
     def test_cmake_referenced_scripts_exist(self):
         text = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-        scripts = re.findall(r"\$\{PROJECT_SOURCE_DIR\}/(tests/[\w.-]+)", text)
+        # Nested Phase A wrappers live under tests/unit/*.cmake.
+        scripts = re.findall(
+            r"\$\{PROJECT_SOURCE_DIR\}/(tests/[\w./-]+\.cmake)", text)
         self.assertTrue(scripts)
         for script in scripts:
             self.assertTrue((ROOT / script).is_file(), script)

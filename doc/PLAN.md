@@ -129,10 +129,10 @@ Agreements are **player–player** from the first trade milestone.
 
 | Milestone | Scope |
 | --- | --- |
-| **D1 Take / colony / defenses** | Unowned take (no fight); undefended owned; satellites/parked defend; colony required to populate; dead colony does not; war fleets stay; sit/move on possession. |
+| **D1 Take / colony / defenses** | Unowned take (no fight); undefended owned **non-productive**; productive owned always has inherent defense (take never free); satellites/parked defend; colony required to populate; dead colony does not; war fleets stay; sit/move on possession. |
 | **D2 Trade / agreements** | Player–player agreement + `S`; cargo full both ways; escorts cycle; sender-only loading; self-trade cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-trader breaks. |
 | **D3 Pirate / identify** | Midpoint ambush; loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify chance scales with attributes (victim-only default audience). |
-| **D4 Combat / designs / reclaim** | Shared combat; screened heavies; designs + yard produce/reclaim; capture-use vs destroy; attributed attack ends agreement + confiscation. |
+| **D4 Combat / designs / reclaim** | Shared combat (multi-tick; duration from comparative strength; recall into/out of fight still under battle rules); screened heavies; designs + yard produce/reclaim; capture-use vs destroy; attributed attack ends agreement + confiscation. |
 | **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; empire pool only; setup lock in progress. |
 
 | | Files | Prod LOC | Test LOC |
@@ -274,7 +274,8 @@ Each item is **one** `tests/fn/` program unless noted.
 **Take / colony / defenses (D1)**
 
 - Unowned take: no fight
-- Owned, empty, no defenses: undefended
+- Owned, empty, no defenses, **not productive**: undefended
+- Productive owned (zero fleet): still fights inherent defense — take never free
 - Satellites defend after warships leave
 - Colony required to populate; dead colony does not
 
@@ -294,6 +295,8 @@ Each item is **one** `tests/fn/` program unless noted.
 
 **Combat / designs (D4)**
 
+- Engagement may span ticks; duration from comparative strength (setup)
+- Recall into/out of fight still under battle rules (can reverse or share defeat)
 - Screened heavies lose fewer hulls than heavies alone
 - Recall always to sender; reclaim only at a yard, setup percent
 - Capture-use vs destroy
@@ -354,6 +357,7 @@ Follow RULES §17 / store design docs — leave open until the user locks:
 - AI reaction lag binding preference (K ticks vs wall vs digest-gated)
 - Exact AFK setup field names / floor
 - Identify audience after success (victim-only is current default)
-- Exact combat/production formulas
+- Exact combat/production formulas (multi-tick / strength→duration
+  magnitudes; productive inherent-defense coefficient values)
 - Livability / power / experience as tick drivers vs display
 - Setup file syntax

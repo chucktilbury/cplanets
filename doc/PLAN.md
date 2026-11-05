@@ -5,8 +5,10 @@ Rules win if this file disagrees on game behavior. This file wins on
 **order of work, file shape, and tests**.
 
 Estimates are **Cwhip source lines** (not comments-only, not CMake, not
-Python harness). Ranges assume files stay **short and readable**: about
-**80–180 lines per `.cw` file**, split when a file mixes two jobs.
+Python harness). Ranges assume files stay **short and readable**: usual
+target about **~200 lines** per `.cw` file, soft ceiling **~400**
+(prefer short; split when a file mixes two jobs). Over **1000** lines
+must become submodules — see [CODING.md](CODING.md).
 Tests are **separate programs**, not assertions stuffed into production
 files.
 
@@ -278,9 +280,9 @@ canvas, no HTTP.
 About **90–150 `.cw` files** at v1 if we keep them short, plus ~10–20
 Python functional tests.
 
-If files are allowed to grow to 400–600 lines, file count drops by
-roughly a third and LOC does **not**; bugs get harder to bisect. Prefer
-more files.
+If files regularly push past the soft **~400** ceiling, file count
+drops and LOC does **not**; bugs get harder to bisect. Prefer more
+files — see [CODING.md](CODING.md).
 
 ## 6. Function-test checklist (spec suite)
 

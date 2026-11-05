@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Phase A polish (CPL-21): drop leftover hello sources (`src/main.cw`,
+  `tests/check-greeting.cmake`); give every `.cw` stub a CODING file
+  header, changelog, and full method comments on `Machine.identity`.
+  Four CMake programs + `unit_libIdentity` remain the scaffold. Fix
+  `test_template_rename` so it accepts nested `tests/unit/*.cmake`
+  paths from the Phase A layout.
 - Revisit `doc/PLAN.md` for viability against locked RULES on main:
   fold pause / zombies / identify / livability / AI-lag tick /
   multi-tick combat / tech teleport into existing phases; close

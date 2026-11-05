@@ -17,11 +17,13 @@ figure it out.
 
 ## 1. What the game is
 
-The game is a **state machine**. A turn is `tick(state, policies, rng) →
-(state, events)`. Players (human or AI) hold a **policy**: allocations,
-fleet orders, role, trade agreements. They do not issue tactics inside
-the tick. You can leave the machine running on the last policy, come
-back, read the event list, and adjust.
+The game is a **state machine**. One step is `tick(state, policies,
+rng) → (state, events)`. Players (human or AI) hold a **policy**:
+allocations, fleet orders, role, trade agreements. They may update that
+policy **whenever they want**; they do not wait for other players. They
+do not issue tactics inside the tick. You can leave the machine running
+on the last policy, come back, read the digest (events / newspaper), and
+adjust.
 
 The GUI is a **debugger** for that machine. It never ticks. Stand-alone
 and online use the same **server**; humans and AIs are **clients**.
@@ -33,28 +35,43 @@ Three **executables**, one shared library:
 | Piece | Job |
 | --- | --- |
 | Shared library | `State`, `tick`, event log, **message types**. No GUI. |
-| **Server** | Only writer: SQLite, apply policies, `tick`, persist. TCP listener. |
-| **Human client** | GTK debugger: show state, edit policy, submit turn. |
+| **Server** | Only writer: SQLite, apply policies, call `tick`, persist, publish. TCP listener. |
+| **Human client** | GTK debugger: show state, edit policy, read digest. |
 | **AI client** | Stand-alone process, **same protocol**. Own config (later its own dialogs), not the human settings file. |
 | Setup file | Scenario coefficients, locked once a game is in progress. |
 
 Clients **never** tick and **never** open the universe DB.
 
-**Wire (v1):** TCP, **REST-shaped** (verbs + paths + body: `GET` state, `PUT` policy, `POST` turn, `GET` events) **without an HTTP server**. Frame the messages yourself. On a local network, bodies are **compressed binary**, not JSON. **Common file formats stay deferred.** Version the envelope.
+**Wire (v1):** TCP, **REST-shaped** (verbs + paths + body: `GET` state,
+`PUT` policy, `GET` events / digest) **without an HTTP server**. Frame
+the messages yourself. On a local network, bodies are **compressed
+binary**, not JSON. **Common file formats stay deferred.** Version the
+envelope. Policy `PUT` is the primary client write. There is no
+all-players-ready barrier; a barrier-style `POST turn` / “turn ready”
+is not part of this clock.
 
 **Later:** a formal HTTP REST façade on the **same commands**. Do not grow a second rule engine to serve the web.
 
-Stand-alone play is still this: start a server, attach a human client and/or AI clients. In-process AI that bypasses TCP is a test fake only if it uses the same message types.
+Stand-alone play is still this: start a server, attach a human client
+and/or AI clients. In-process AI that bypasses TCP is a test fake only
+if it uses the same message types. Stand-alone and online share the
+**same server clock**.
 
-Simultaneous turns: server **collects** policies, then ticks, then clients pull (or accept a “turn ready” frame). AFK = last policy held.
+**Clock:** the **server** alone calls `tick` on a **configurable
+real-time** cadence (period is a setup item; no default magnitude is
+locked here). At each tick it snapshots every player’s **current
+policy**, advances from the **previous published** state with those
+policies, and **publishes** the new state plus a **digest** of events
+(newspaper). Between ticks the server may prepare the next step; that
+prep is engineering and does not change the published rules of `tick`.
+AFK = last policy held. AFK timeout / shrink units are **real time
+and/or tick period** (exact setup field names still thin — §17).
 
 **All worlds exist when the game starts.** How many, and the mix of
 useful vs poor rocks, is setup. New players may join later into their
 **own sandbox** (a partition of that same map). Partitions **do not
 couple** until that player **makes contact** by exploration and/or
-conquest. Then they compete like everyone else. AFK: last policy is
-held; turn timeout shrinks until they return. Clock: **simultaneous
-turns**.
+conquest. Then they compete like everyone else.
 
 **Stocks are an empire pool** (wealth, resources, tech on the player).
 Shipping metal to a specific yard to build is interesting and too
@@ -71,8 +88,8 @@ all hit the same pools.
   parked hulls, **defenses** (e.g. satellites). Quality is **unknown**
   until the rock is **explored or taken**.
 - **Player**: empire **wealth** and **resources**, power, experience,
-  technology, **role**, last policy, detection/range from tech,
-  **designs**, known competitors.
+  technology, **role**, last policy, **detection/range** from
+  technology (capability-scaled; §13), **designs**, known competitors.
 - **Design**: speed, range, weapons, shields, size, cargo hold,
   colony/defense flags; development already paid. Speed and range
   feed **development and production cost**, and feed **ETA**.
@@ -80,13 +97,13 @@ all hit the same pools.
   or ambush midpoint, order, cargo (full hold both ways on trade),
   escorts, ETA, ticks traveled, owner. Pirate loot rides on the
   pirate fleet until it **returns**.
-- **Agreement**: pair, standing size `S`, open/closed.
+- **Agreement**: **player–player** pair, standing size `S`, open/closed.
 - **Events**: newspaper (including **broadcasts**).
 - **Messages**: broadcast, or pick a **known competitor** for a
   private send.
 
 **Homeworld:** already **productive**, with the **first shipyard**
-given. A few rocks sit within **scout range**.
+given. At start, only a **few** planets sit within **scout range**.
 
 Named classes are **default designs** and size bands. Combat uses
 actual stats. A shipyard on a non-productive planet cannot **produce**.
@@ -195,6 +212,9 @@ A–B hop). Changing that is probably too much complexity.
 
 ## 7. Tick order
 
+Intra-tick sequence below is unchanged by the §2 clock: only **when**
+the server calls `tick` changed (real-time cadence), not this order.
+
 1. Production on productive planets; shipyard builds.
 2. Cancellations (same-tick recall of not-yet-departed orders).
 3. Other `recall` (turn toward **sender**; recompute ETA).
@@ -219,9 +239,11 @@ Standing cycle if both agree on `S`.
 
 ### 8.1 Agreement
 
-Pair plus `S`. Both accept. Changing `S` is a new agreement. Do not
-clip `S` to “what they can afford.” Holds must **cover `S`** with
-enough cargo hulls or the fleet does not leave as a trade of size `S`.
+An agreement is between two **players** (empires), not two planets. It
+is the pair plus standing size `S`. Both players accept. Changing `S`
+is a new agreement. Do not clip `S` to “what they can afford.” Holds
+must **cover `S`** with enough cargo hulls or the fleet does not leave
+as a trade of size `S`.
 
 ### 8.2 Cargo both ways
 
@@ -270,19 +292,24 @@ If a player **attacks** a trade partner and the attack is
 **attributed**:
 
 1. Agreement **ends**.
-2. Ships **arriving from them** at the **victim’s remaining worlds**
-   are **confiscated** (hulls + contents), subject to capture-use
-   chance (§5.3). They do not trade or bounce.
+2. Ships arriving from that **player** at the **victim’s remaining
+   worlds** are **confiscated** (hulls + contents), subject to
+   capture-use chance (§5.3). They do not trade or bounce.
 
 `take` on a planet they own is attributed.
 
 If the destination **became yours** (you just took it), that arrival
 is **self-trade / sit**, not confiscation at your new rock (§8.3).
 
-**Pirate ambush** does not name the attacker by default. Setup-file
-**small chance** the **victim only** learns who. Then (1)(2) apply
-from that moment, not retroactively. A later named `take` also
-identifies.
+**Identify.** Attacks (including pirate ambush) do not always name the
+attacker. There is a setup-tuned chance the **victim** learns where
+the attack came from and/or who did it. That chance **rises as the
+victim’s relevant attributes increase** (setup curve; not a flat tiny
+constant only). Tune so fog remains a **limitation** without making
+attribution feel arbitrarily unfair. Default audience of a successful
+identify is still **victim-only** (whether others can learn is open —
+§17). Then (1)(2) apply from that moment, not retroactively. A later
+named `take` also identifies.
 
 ## 10. Pirates
 
@@ -360,36 +387,49 @@ screen. Losses are **per design**.
 
 ## 13. Visibility, newspaper, messages
 
-Detection/range from tech. Unexplored rocks: known to exist in range
-or not, **quality unknown** until explore or take. **Contact**
-(explore and/or conquest of another partition) adds them to **known
-competitors**.
+**Visibility** is capability-scaled. Detection/range comes from the
+player’s **technology**. At start, only a few planets sit in scout
+range. **Exploration** reveals rocks already inside that range; it
+does **not** extend range. Raising **technology** increases range.
+Unexplored rocks: known to exist in range or not, **quality unknown**
+until explore or take. Balance visibility as a real **limitation**,
+not so harsh that play is frustrating. Setup exposes knobs for
+range-from-tech (and related curves).
 
-The newspaper carries **broadcasts**. To send a **private** message,
-pick from the **known competitors** list. No contact, no name on the
-list.
+**Contact** (explore and/or conquest of another partition) adds them
+to **known competitors**.
+
+The newspaper / **digest** carries **broadcasts** and the events
+published after each tick. To send a **private** message, pick from
+the **known competitors** list. No contact, no name on the list.
 
 UI is a view of flags the driver already set.
 
 ## 14. Scenario setup and admin
 
 Includes: trade/attack bumps, dispatch weight, pirate attrition,
-pirate identify chance, design curves, reclaim percent, capture-use
-probability, cover, voyage cost, idle *N*, **stranded-ticks N**,
-**world count**, **useful vs poor mix**, starting scout-range,
-**scenario mode** (closed last-player vs ongoing). Admin edits before
-start; **locked** in progress. Ongoing games still lock *coefficients*;
-new players may join sandboxes without rewriting the map.
+**identify-from-attributes** chance curve, **tech → detection/range**
+curve, design curves, reclaim percent, capture-use probability, cover,
+voyage cost, idle *N*, **stranded-ticks N**, **world count**,
+**useful vs poor mix**, starting scout-range, **tick period**
+(real-time cadence), AFK timeout / shrink (real time and/or tick
+period; field names thin — §17), **scenario mode** (v1 default =
+**closed**; ongoing = future). Admin edits before start; **locked** in
+progress. Future ongoing games would still lock *coefficients*; new
+players may join sandboxes without rewriting the map.
 
 ## 15. Ending and the ongoing map
 
-**Closed game:** ends when **only one player is left**. “Everyone is
-in trade agreements” is **not** a win; it is unsatisfactory.
+**Closed game (v1 default):** the game ends when **one player has
+eliminated all others**. “Everyone is in trade agreements” is **not**
+a win; it is unsatisfactory. First playable fixture default =
+**closed**.
 
-**Ongoing game (the big model):** the map is already fully created.
-The object is to **own all the worlds**. Long-lived trade agreements
-are a good idea, not a victory screen. New players get a sandbox
-until they **contact** others by exploration and/or conquest.
+**Ongoing game (future):** the map continues independently of any one
+player’s participation. The object is to **own all the worlds**.
+Long-lived trade agreements are a good idea, not a victory screen. New
+players may join sandboxes until they **contact** others by
+exploration and/or conquest. Not the first playable fixture’s default.
 
 ## 16. Client and UI (not rules)
 
@@ -401,16 +441,33 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 ## 17. Open
 
 - Exact combat/production formulas (values are setup fields).
-- Agreement player–player vs planet–planet.
-- Identify visible to anyone but the victim.
-- Seeded RNG (not `SecureRandom`).
+- Identify audience after success: victim-only (current default) vs
+  broader knowledge once identify fires.
+- AFK timeout / shrink: exact setup field names and floor (units =
+  real time and/or tick period under §2 clock).
+- Pause under the real-time tick (stand-alone / host): preference not
+  locked.
+- Default tick-period magnitude for v1 feel (beyond setup-tunable):
+  not locked.
+- AI reaction lag binding (every K ticks / wall time vs digest-gated):
+  not locked.
+- Livability / power / experience: real tick drivers with setup curves,
+  or display/legacy until later — not closed here.
 - Setup file syntax.
+
+**Closed (do not re-open without a new decision):** agreement topology
+= player–player; visibility/identify = capability-scaled; v1 end =
+closed eliminate-all (ongoing = future); clock = server real-time tick
++ digest, policy anytime, AFK = last policy; seeded RNG in `lib` (not
+`SecureRandom`) — see [PLAN.md](PLAN.md) §3.
 
 Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
 
 ## 18. Implementation order
 
-1. Library + setup snapshot; CLI N-tick AI.
+Aligns with [PLAN.md](PLAN.md) §7 (AI before list GTK):
+
+1. Library + setup snapshot; CLI N-tick host.
 2. Tests: home yard + scout-range rocks; unowned take no fight;
    undefended owned take; satellites defend after fleet leaves;
    colony required to populate; trade full both ways + escorts
@@ -418,11 +475,12 @@ Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
    same-tick recall cancels; recall always to sender then reclaim
    only at yard; pirate loot credited on pirate return; identify
    chance; capture-use roll vs destroy; two pirates at midpoint war
-   and passers live; stranded move after N ticks; last player wins a
-   closed game; contact couples partitions; empire pool only; setup
-   lock.
-3. Server executable + TCP framed protocol + SQLite.
-4. Human client (GTK debugger, no dumb-order warnings).
-5. AI client (own config; same protocol).
+   and passers live; stranded move after N ticks; closed game —
+   eliminate all others; contact couples partitions; empire pool
+   only; setup lock.
+3. Server executable + TCP framed protocol + SQLite (real-time
+   cadence; snapshot policies → `tick` → publish state + digest).
+4. AI client (own config; same protocol).
+5. Human client (GTK list debugger, no dumb-order warnings).
 6. Optional HTTP REST façade.
-7. `DrawingArea`.
+7. `DrawingArea` (when GTK can draw).

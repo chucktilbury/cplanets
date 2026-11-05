@@ -74,12 +74,22 @@ tick period** (exact setup field names still thin — §17).
 (lost contact / disconnect) with a **handshake**. Missing policy
 updates alone do **not** mean drop — that is AFK while the session is
 alive. Handshake failure (lost contact) is a drop. Soft vs hard drop
-effects beyond this distinction, who is notified, heartbeat interval,
-and reconnect / reclaim are **not** locked here (§17).
+effects beyond this distinction, who is notified, and heartbeat
+interval are **not** locked here (§17). AFK vs drop is **live session
+contact** only — not a save / rejoin feature (see Session below).
 
-**Recommendation (needs user OK — not locked):** while dropped, last
-policy continues until reclaim and/or the AFK / drop timeout path
-(same last-policy spirit as AFK).
+**Session / game instance (v1).** Each game is **stand-alone**. There
+is **no durable status save** and **no rejoin** after leave or drop:
+the player does not reclaim a seat, and there is no reconnect into a
+saved game. While **dropped** during a live game, **last policy
+continues** for the remainder of that **live** process until the game
+ends (same last-policy spirit as AFK). When that live game / process
+ends, participation for that instance is over — start a new
+stand-alone game to play again.
+
+**Future (deferred — plan accordingly):** durable status save and
+rejoin are expected later. Keep server state **SQLite-shaped** so that
+path stays clean. Do **not** implement a save / rejoin API in v1.
 
 **All worlds exist when the game starts.** How many, and the mix of
 useful vs poor rocks, is setup. New players may join later into their
@@ -459,14 +469,14 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
   broader knowledge once identify fires.
 - AFK timeout / shrink: exact setup field names and floor (units =
   real time and/or tick period under §2 clock).
-- **Presence / drop follow-ups** (handshake AFK≠drop is locked in §2;
-  these details are not):
+- **Presence / drop follow-ups** (handshake AFK≠drop and v1 no-rejoin
+  are locked in §2; these details are not):
   - Heartbeat / handshake interval and miss threshold.
   - Whether other humans get a digest event (e.g. `dropped`) — and
     who sees it.
-  - Reconnect / reclaim after a drop.
-  - Confirm §2 recommendation: drop continues **last policy** until
-    reclaim / timeout (recommendation only until OK’d).
+- **Deferred (not v1):** durable status save / rejoin — plan
+  accordingly (keep SQLite-shaped); no save / rejoin API in v1.
+  v1 reconnect / reclaim is **closed** (no rejoin).
 - Pause under the real-time tick (stand-alone / host): preference not
   locked.
 - Default tick-period magnitude for v1 feel (beyond setup-tunable):
@@ -481,7 +491,9 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 = player–player; visibility/identify = capability-scaled; v1 end =
 closed eliminate-all (ongoing = future); clock = server real-time tick
 + digest, policy anytime, AFK = last policy; **handshake distinguishes
-AFK vs actual drop** (presence ≠ policy PUT); seeded RNG in `lib` (not
+AFK vs actual drop** (presence ≠ policy PUT); **v1 session** =
+stand-alone game instance, **no status save**, **no rejoin** (drop →
+last policy for live remainder only); seeded RNG in `lib` (not
 `SecureRandom`) — see [PLAN.md](PLAN.md) §3.
 
 Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).

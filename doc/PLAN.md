@@ -8,7 +8,11 @@ Estimates are **Cwhip source lines** (not comments-only, not CMake, not
 Python harness). Ranges assume files stay **short and readable**: usual
 target about **~200 lines** per `.cw` file, soft ceiling **~400**
 (prefer short; split when a file mixes two jobs). Over **1000** lines
-must become submodules — see [CODING.md](CODING.md).
+must become submodules — see [CODING.md](CODING.md). CODING owns
+**headers, full method comments, indent, and line wrapping**; those
+count toward the soft **physical-line** ceiling, so expect **earlier
+splits** and a **higher file count** than LOC alone suggests — prefer
+more short files over packing helpers.
 Tests are **separate programs**, not assertions stuffed into production
 files.
 
@@ -107,29 +111,33 @@ auto-config from AI reaction lag**, still setup-tunable), AI reaction
 lag, AFK timeout/shrink (real time and/or tick period; field names may
 stay thin until RULES names them), stranded N, **identify
 attacker-side** and **defender-side** mappings (separate),
-tech→detection/range mapping, design/build duration knobs, reclaim
-percent, capture-use chance, world count/mix, livability→**1–10**
-display mapping. Prefer **many** named knobs for post-complete tuning
-— combat, production, and other tunables live **outside code**. Win
-condition = **eliminate all others**; all-humans-quit also ends the
-live game. Scenario mode default = closed. **Future (plan
-accordingly, not v1):** server **setup GUI dialog hierarchy** for
-these knobs (RULES §14).
+tech→detection/range mapping, **tech→teleport / ETA→0** mapping,
+design/build duration knobs, reclaim percent, capture-use chance,
+world count/mix, livability→**1–10** display mapping, battle-duration
+/ comparative-strength coefficients, productive inherent-defense
+coefficient. Prefer **many** named knobs for post-complete tuning —
+combat, production, and other tunables live **outside code**. Where
+older notes say **curve**, read **setup-tunable mapping /
+coefficients** (not fancy math). Win condition = **eliminate all
+others**; all-humans-quit also ends the live game. Scenario mode
+default = closed. **Future (plan accordingly, not v1):** server
+**setup GUI dialog hierarchy** for these knobs (RULES §14).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
-| Likely | 12 | 900 | 500 |
-| High | 18 | 1 400 | 800 |
+| Likely | 14 | 1 000 | 550 |
+| High | 20 | 1 500 | 900 |
 
 ### C. Tick core (no net)
 
 Dispatcher + production + dispatch/loading + recall/cancel + sit/move
-+ range/ETA + stranded-N. Pure `tick` per RULES §7; no scheduler.
++ range/ETA (incl. high-tech **ETA→0 teleport** via setup mapping) +
+stranded-N. Pure `tick` per RULES §7; no scheduler.
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
-| Likely | 14 | 1 200 | 900 |
-| High | 20 | 1 800 | 1 400 |
+| Likely | 15 | 1 300 | 1 000 |
+| High | 22 | 2 000 | 1 500 |
 
 ### D. Trade, pirate, take (milestones)
 
@@ -142,13 +150,13 @@ Agreements are **player–player** from the first trade milestone.
 | **D1 Take / colony / defenses** | Unowned take (no fight); undefended owned **non-productive**; productive owned always has inherent defense (take never free); satellites/parked defend; colony required to populate; dead colony does not; war fleets stay; sit/move on possession. |
 | **D2 Trade / agreements** | Player–player agreement + `S`; cargo full both ways; escorts cycle; sender-only loading; self-trade cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-trader breaks. |
 | **D3 Pirate / identify** | Midpoint ambush; loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify asymmetry (attacker advantage + defender fair chance; separate setup knobs; scales with attributes; victim-only default audience). |
-| **D4 Combat / designs / reclaim** | Shared combat (multi-tick; duration from comparative strength; recall into/out of fight still under battle rules); in-flight fleet locked until recall; designs + yard produce/reclaim take time (not instant); screened heavies; capture-use vs destroy; attributed attack ends agreement + confiscation. |
-| **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; all-humans-quit ends game; empire pool only; setup lock in progress. |
+| **D4 Combat / designs / reclaim** | Shared combat (multi-tick; duration from comparative strength; recall into/out of fight still under battle rules); mid-dispatch: other policy OK, that in-flight fleet locked until recall; designs + yard produce/reclaim take time (not instant); screened heavies; capture-use vs destroy; attributed attack ends agreement + confiscation. |
+| **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; all-humans-quit ends game; zombies fall to normal play (no consistent zombie-win path); empire pool only; setup lock in progress. |
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
-| Likely | 28 | 2 800 | 2 400 |
-| High | 40 | 4 200 | 3 600 |
+| Likely | 30 | 3 100 | 2 600 |
+| High | 44 | 4 600 | 3 900 |
 
 (Estimates are for D1–D5 together; do not start D3 until D2’s trade
 fn suite passes.)
@@ -175,10 +183,12 @@ TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
    `tick` from the **previous published** state → persist →
    **publish** state + **digest** (events / newspaper).
 3. Between ticks the server may prep the next step (engineering only).
-4. **No** all-ready barrier. Policy `PUT` anytime. **AFK = last
-   policy** held. **Handshake** distinguishes AFK (present, idle) from
-   **drop** (lost contact); presence ≠ policy PUT (RULES §2).
-   **Pause** only when exactly **one human** is in the game.
+4. **No** all-ready barrier (not simultaneous-turn collect). Policy
+   `PUT` anytime. **AFK = last policy** held. **Handshake**
+   distinguishes AFK (present, idle) from **drop** (lost contact);
+   presence ≠ policy PUT (RULES §2). **Pause** only when exactly
+   **one human** is in the game; with **two or more humans**, pause
+   is **not** offered (wall clock keeps running).
 5. **Injectable clock** / admin “advance N ticks” for tests (no sleep
    in CI).
 6. Setup lock once in progress; join sandbox partitions. Setup knobs
@@ -188,16 +198,17 @@ TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
 7. **Session (v1):** each game is **stand-alone** — **no** durable
    status save, **no** rejoin API. Drop during a live game → last
    policy for that live remainder only (RULES §2). If **all human
-   players quit**, register **end of game**. **Plan accordingly:**
-   keep state **SQLite-shaped** so a **future** durable save / rejoin
-   path stays clean; do not implement save / rejoin now.
+   players quit**, register **end of game** (do not leave an AI-only
+   zombie match running). **Plan accordingly:** keep state
+   **SQLite-shaped** so a **future** durable save / rejoin path stays
+   clean; do not implement save / rejoin now.
 
 Stand-alone and online share this driver.
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
-| Likely | 10 | 900 | 350 fn + 400 Python |
-| High | 16 | 1 500 | 600 + 700 |
+| Likely | 11 | 1 000 | 400 fn + 450 Python |
+| High | 18 | 1 600 | 650 + 800 |
 
 ### G. Human client (list debugger)
 
@@ -210,8 +221,8 @@ dialog** for humans: livability/quality on a **1–10** scale; dialog
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
-| Likely | 18 | 1 800 | 200 unit + 400 GTK/functional |
-| High | 28 | 2 800 | 400 + 800 |
+| Likely | 20 | 1 900 | 250 unit + 450 GTK/functional |
+| High | 30 | 2 900 | 450 + 850 |
 
 ### H. AI client
 
@@ -242,8 +253,8 @@ surprise fires within a rate band.
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
-| Likely | 8 | 600 | 350 |
-| High | 14 | 1 000 | 600 |
+| Likely | 9 | 700 | 400 |
+| High | 16 | 1 100 | 700 |
 
 ### I. Map canvas (after GTK `DrawingArea`)
 
@@ -268,17 +279,21 @@ Do not grow a second rule engine.
 ## 5. Totals
 
 **v1 playable** = A–H (library, tests, server, list client, AI). No
-canvas, no HTTP.
+canvas, no HTTP. No new phase is required for locks already on
+`origin/main` (pause, zombies, identify asymmetry, livability dialog,
+AI-lag tick auto-config, multi-tick combat, tech teleport) — they
+fold into B–H above.
 
 | Scope | Prod LOC | Test LOC | Total |
 | --- | ---: | ---: | ---: |
-| v1 likely | ~8 900 | ~7 300 | **~16 000** |
-| v1 high | ~13 900 | ~11 300 | **~25 000** |
-| + canvas likely | +800 | +200 | **~17 000** |
+| v1 likely | ~9 700 | ~6 600 | **~16 300** |
+| v1 high | ~14 900 | ~10 600 | **~25 500** |
+| + canvas likely | +800 | +200 | **~17 100** |
 | + HTTP likely | +400 | +250 | **~16 700** |
 
-About **90–150 `.cw` files** at v1 if we keep them short, plus ~10–20
-Python functional tests.
+About **100–170 `.cw` files** at v1 if we keep them short (CODING full
+method comments push toward the high end of the file count), plus
+~10–25 Python functional tests.
 
 If files regularly push past the soft **~400** ceiling, file count
 drops and LOC does **not**; bugs get harder to bisect. Prefer more
@@ -293,12 +308,16 @@ Each item is **one** `tests/fn/` program unless noted.
 - Home is productive with a yard; rocks in scout range; quality unknown
 - Tech raises detection/range; explore fills view inside range (does not
   extend range)
+- High tech may reduce travel **ETA to zero** (teleport) via setup
+  mapping; magnitudes open
 - Empire pool only
 - Setup locked in progress
 - Closed-scenario fixture names every §14 knob (incl. tick period
   seconds 1–30 provisional, may auto-config from AI lag, separate
-  identify attacker/defender mappings, tech-range mappings,
-  design/build durations, livability→1–10 display)
+  identify attacker/defender mappings, tech-range + tech→teleport
+  mappings, design/build durations, battle-duration /
+  comparative-strength + productive inherent-defense coefficients,
+  livability→1–10 display)
 
 **Take / colony / defenses (D1)**
 
@@ -328,7 +347,8 @@ Each item is **one** `tests/fn/` program unless noted.
 
 - Engagement may span ticks; duration from comparative strength (setup)
 - Recall into/out of fight still under battle rules (can reverse or share defeat)
-- In-flight fleet order locked until recall; other policy edits OK
+- Mid-dispatch: in-flight fleet order locked until recall; **other**
+  policy edits still OK (game keeps running)
 - Design development and yard builds take time (setup/ticks; not instant)
 - Screened heavies lose fewer hulls than heavies alone
 - Recall always to sender; reclaim only at a yard, setup percent
@@ -350,12 +370,16 @@ Each item is **one** `tests/fn/` program unless noted.
 Server functional (Python):
 
 - Injectable clock / advance-N-ticks (no wall sleep in CI)
-- Two clients, policies apply on **next tick** (no ready barrier);
-  AFK holds last policy; handshake distinguishes drop
+- Two clients, policies apply on **next tick** (no ready / simultaneous
+  barrier); AFK holds last policy; handshake distinguishes drop
+- **Pause** offered with exactly one human; **not** offered with two
+  or more humans (clock keeps running)
 - Drop mid-game: last policy continues for that **live** game; **no**
   rejoin / no status-save API in v1 (RULES §2)
+- All humans quit → server ends the game (no AI-only zombie live match)
 - Digest published with each tick; clients `GET` state + events
-- AI client + human client on one server
+- AI client + human client on one server; AI lag may suggest tick
+  auto-config (still setup-tunable)
 - Join sandbox; no DB in the client process
 - Clients never call `tick`
 - Human explored-planet dialog (1–10 livability/quality; may change
@@ -383,34 +407,45 @@ Aligns with RULES §18 (AI before list GTK).
 
 - Not calendar time (Cwhip GTK bindings and DrawingArea are extra
   cwhip work).
-- Not a promise that combat formulas stay small; setup-file math can
-  add a few hundred lines in D.
+- Not a promise that combat formulas stay small; setup-file math and
+  multi-tick combat can add a few hundred lines in D — totals above
+  already bias toward that.
 - Not counting generated C, SQLite SQL strings beyond a thin wrapper,
   or template CMake already in the tree.
+- Not a second clock model: simultaneous-turn / all-ready barrier
+  language is **closed**; do not reintroduce it in phases or tests.
 
 ## 9. Still thin (do not invent in PLAN)
 
-Follow RULES §17 / store design docs — leave open until the user locks:
+Follow RULES §17 / store design docs — leave open until the user locks.
+Do **not** invent magnitudes, formulas, or bindings here.
 
-- Exact default tick period **inside** provisional 1–30s band (band
-  locked; pause = one-human only locked; auto-config-from-AI-lag
-  **direction** locked, mapping open)
+**Locked on `origin/main` (do not reopen in PLAN):** server real-time
+tick + digest driver; policy anytime / AFK = last policy; pause =
+one-human only; tick period seconds provisional 1–30 (may auto-config
+from AI lag, still setup-tunable); no save / rejoin v1; all-humans-quit
+ends game; zombies → normal play; mid-dispatch fleet lock;
+design/build take time; knobs outside code; identify asymmetry
+direction; livability **display** 1–10 + explored human dialog;
+multi-tick combat + productive inherent defense; tech may ETA→0;
+ambush only after half-hop in position; CODING file-size / full
+method comments.
+
+Still open:
+
+- Exact default tick period **inside** provisional 1–30s band
+  (auto-config-from-AI-lag **mapping** open)
 - AI reaction lag **binding shape** (K ticks vs wall vs digest-gated)
-  and lag magnitudes (direction: may drive tick auto-config — locked)
+  and lag magnitudes
 - Exact AFK setup field names / floor
 - Presence / drop details: heartbeat interval, peer `dropped` digest
-  notify (RULES §2). v1 reconnect / reclaim is **closed** (no rejoin);
-  drop → last-policy for live remainder is locked; all-humans-quit
-  ends game. **Deferred:** durable save / rejoin — keep SQLite-shaped;
-  no save API in v1.
+  notify (RULES §2)
 - Identify **magnitudes** for separate attacker/defender knobs;
   identify **audience** after success (victim-only is current default)
 - Exact combat/production formulas (multi-tick / strength→duration
-  magnitudes; productive inherent-defense coefficient values) —
-  knobs-outside-code principle locked
+  magnitudes; productive inherent-defense coefficient values)
 - Tech→teleport mapping shape / magnitudes; ETA-0 ambush edge
-- Livability / power / experience as **tick drivers** (display 1–10
-  + explored human dialog locked)
+- Livability / power / experience as **tick drivers** (display locked)
 - Setup file syntax
-- **Deferred:** server setup GUI dialog hierarchy (plan accordingly;
-  not v1)
+- **Deferred:** durable save / rejoin (keep SQLite-shaped; no API in
+  v1); server setup GUI dialog hierarchy (plan accordingly; not v1)

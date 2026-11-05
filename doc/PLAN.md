@@ -100,14 +100,19 @@ home yard, scout-range rocks, unknown quality, world count/mix.
 Empire pools. Seeded rng.
 
 **Closed-scenario default fixture** (v1): every RULES §14 knob named —
-including tick period (**seconds**; provisional clamp **1–30**), AFK
-timeout/shrink (real time and/or tick period; field names may stay
-thin until RULES names them), stranded N, identify-from-attributes
-mapping, tech→detection/range mapping, design/build duration knobs,
-reclaim percent, capture-use chance, world count/mix. Prefer **many**
-named knobs for post-complete tuning. Win condition = **eliminate all
-others**; all-humans-quit also ends the live game. Scenario mode
-default = closed.
+including tick period (**seconds**; provisional clamp **1–30**; **may
+auto-config from AI reaction lag**, still setup-tunable), AI reaction
+lag, AFK timeout/shrink (real time and/or tick period; field names may
+stay thin until RULES names them), stranded N, **identify
+attacker-side** and **defender-side** mappings (separate),
+tech→detection/range mapping, design/build duration knobs, reclaim
+percent, capture-use chance, world count/mix, livability→**1–10**
+display mapping. Prefer **many** named knobs for post-complete tuning
+— combat, production, and other tunables live **outside code**. Win
+condition = **eliminate all others**; all-humans-quit also ends the
+live game. Scenario mode default = closed. **Future (plan
+accordingly, not v1):** server **setup GUI dialog hierarchy** for
+these knobs (RULES §14).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -134,7 +139,7 @@ Agreements are **player–player** from the first trade milestone.
 | --- | --- |
 | **D1 Take / colony / defenses** | Unowned take (no fight); undefended owned **non-productive**; productive owned always has inherent defense (take never free); satellites/parked defend; colony required to populate; dead colony does not; war fleets stay; sit/move on possession. |
 | **D2 Trade / agreements** | Player–player agreement + `S`; cargo full both ways; escorts cycle; sender-only loading; self-trade cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-trader breaks. |
-| **D3 Pirate / identify** | Midpoint ambush; loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify chance scales with attributes (victim-only default audience). |
+| **D3 Pirate / identify** | Midpoint ambush; loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify asymmetry (attacker advantage + defender fair chance; separate setup knobs; scales with attributes; victim-only default audience). |
 | **D4 Combat / designs / reclaim** | Shared combat (multi-tick; duration from comparative strength; recall into/out of fight still under battle rules); in-flight fleet locked until recall; designs + yard produce/reclaim take time (not instant); screened heavies; capture-use vs destroy; attributed attack ends agreement + confiscation. |
 | **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; all-humans-quit ends game; empire pool only; setup lock in progress. |
 
@@ -162,7 +167,8 @@ events/digest. **No** all-players-ready / `POST turn` barrier verb.
 TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
 
 1. Configurable **real-time** cadence (tick period from setup,
-   **seconds**; provisional allowed range **1–30**).
+   **seconds**; provisional allowed range **1–30**; **may auto-config
+   from AI reaction lag**, still setup-tunable — RULES §2).
 2. At each fire: snapshot every player’s **current policy** →
    `tick` from the **previous published** state → persist →
    **publish** state + **digest** (events / newspaper).
@@ -173,7 +179,10 @@ TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
    **Pause** only when exactly **one human** is in the game.
 5. **Injectable clock** / admin “advance N ticks” for tests (no sleep
    in CI).
-6. Setup lock once in progress; join sandbox partitions.
+6. Setup lock once in progress; join sandbox partitions. Setup knobs
+   (combat/production/identify/…) live in the scenario file; **future**
+   server **setup GUI dialog hierarchy** — plan accordingly, not v1
+   (RULES §14).
 7. **Session (v1):** each game is **stand-alone** — **no** durable
    status save, **no** rejoin API. Drop during a live game → last
    policy for that live remainder only (RULES §2). If **all human
@@ -193,7 +202,9 @@ Stand-alone and online share this driver.
 Windows, planet list, fleet list, newspaper/digest, policy editors, no
 map canvas. No dumb-order warnings. Talks TCP only — never ticks,
 never opens the DB. Capability-scaled visibility is a **view of flags
-the driver already set**, not a second fog engine.
+the driver already set**, not a second fog engine. **Explored planet
+dialog** for humans: livability/quality on a **1–10** scale; dialog
+**may change** as the rock is populated/productive (RULES §13 / §16).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -220,10 +231,12 @@ gameplay-principles):
 | Surprise rate | Rare legal oddities → capped band |
 
 Reaction lag is in **ticks or wall time** (RULES §17 still open on
-binding preference — expose both until locked). Surprise must be
-**legal-only**, same visibility as humans, **reproducible** under
-seeded RNG. Fn tests: given seed + config, known policy shape; over N
-updates, surprise fires within a rate band.
+exact binding shape — expose both until locked). **Direction locked:**
+AI lag **may** drive tick-period **auto-config**; tick period stays
+**setup-tunable** (RULES §2 / §14). Surprise must be **legal-only**,
+same visibility as humans, **reproducible** under seeded RNG. Fn
+tests: given seed + config, known policy shape; over N updates,
+surprise fires within a rate band.
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -281,8 +294,9 @@ Each item is **one** `tests/fn/` program unless noted.
 - Empire pool only
 - Setup locked in progress
 - Closed-scenario fixture names every §14 knob (incl. tick period
-  seconds 1–30 provisional, identify/tech-range mappings,
-  design/build durations)
+  seconds 1–30 provisional, may auto-config from AI lag, separate
+  identify attacker/defender mappings, tech-range mappings,
+  design/build durations, livability→1–10 display)
 
 **Take / colony / defenses (D1)**
 
@@ -304,7 +318,8 @@ Each item is **one** `tests/fn/` program unless noted.
 
 - Ambush only after pirate in position (half hop ETA)
 - Pirate loot credits on pirate return
-- Identify chance attributed vs not (scales with attributes)
+- Identify: attacker advantage + defender fair chance; separate
+  setup knobs; attributed vs not (scales with attributes)
 - Two pirates at midpoint: they war, passer lives
 
 **Combat / designs (D4)**
@@ -341,6 +356,9 @@ Server functional (Python):
 - AI client + human client on one server
 - Join sandbox; no DB in the client process
 - Clients never call `tick`
+- Human explored-planet dialog (1–10 livability/quality; may change
+  when populated/productive) — UI view of known quality, not a
+  second rules engine
 
 ## 7. Suggested build order
 
@@ -373,17 +391,24 @@ Aligns with RULES §18 (AI before list GTK).
 Follow RULES §17 / store design docs — leave open until the user locks:
 
 - Exact default tick period **inside** provisional 1–30s band (band
-  locked; pause = one-human only locked)
-- AI reaction lag binding preference (K ticks vs wall vs digest-gated)
+  locked; pause = one-human only locked; auto-config-from-AI-lag
+  **direction** locked, mapping open)
+- AI reaction lag **binding shape** (K ticks vs wall vs digest-gated)
+  and lag magnitudes (direction: may drive tick auto-config — locked)
 - Exact AFK setup field names / floor
 - Presence / drop details: heartbeat interval, peer `dropped` digest
   notify (RULES §2). v1 reconnect / reclaim is **closed** (no rejoin);
   drop → last-policy for live remainder is locked; all-humans-quit
   ends game. **Deferred:** durable save / rejoin — keep SQLite-shaped;
   no save API in v1.
-- Identify audience after success (victim-only is current default)
+- Identify **magnitudes** for separate attacker/defender knobs;
+  identify **audience** after success (victim-only is current default)
 - Exact combat/production formulas (multi-tick / strength→duration
-  magnitudes; productive inherent-defense coefficient values)
+  magnitudes; productive inherent-defense coefficient values) —
+  knobs-outside-code principle locked
 - Tech→teleport mapping shape / magnitudes; ETA-0 ambush edge
-- Livability / power / experience as tick drivers vs display
+- Livability / power / experience as **tick drivers** (display 1–10
+  + explored human dialog locked)
 - Setup file syntax
+- **Deferred:** server setup GUI dialog hierarchy (plan accordingly;
+  not v1)

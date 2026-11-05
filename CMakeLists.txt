@@ -117,10 +117,19 @@ install(PROGRAMS
     DESTINATION bin)
 
 if(BUILD_TESTING)
-    cplanets_add_program(unit_libIdentity src/unit_libIdentity.cw)
-    add_test(NAME unit_libIdentity COMMAND "${CMAKE_COMMAND}"
-        "-DEXECUTABLE=${unit_libIdentity_executable}"
-        -P "${PROJECT_SOURCE_DIR}/tests/unit/libIdentity.cmake")
+    set(cplanets_unit_programs
+        unit_libIdentity
+        unit_rng
+        unit_scenarioFixture
+        unit_setupLoad
+        unit_galaxyStart
+        unit_empirePools)
+    foreach(unit IN LISTS cplanets_unit_programs)
+        cplanets_add_program(${unit} src/${unit}.cw)
+        add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
+            "-DEXECUTABLE=${${unit}_executable}"
+            -P "${PROJECT_SOURCE_DIR}/tests/unit/${unit}.cmake")
+    endforeach()
     foreach(program IN ITEMS cplanets-server cplanets cplanets-ai cplanets-tick)
         add_test(NAME smoke_${program} COMMAND "${CMAKE_COMMAND}"
             "-DEXECUTABLE=${${program}_executable}"

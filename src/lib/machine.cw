@@ -11,6 +11,8 @@
  * Changelog:
  *   2026-11-05  Initial stub (identity only).
  *   2026-11-05  CODING file header and full method comments.
+ *   2026-11-05  Phase B: identity unchanged; scenario/RNG live
+ *               beside this file under src/lib/.
  */
 
 /*

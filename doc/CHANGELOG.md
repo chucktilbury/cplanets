@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Phase B (CPL-23): scenario setup snapshot with every RULES §14 knob
+  named (closed default fixture), seeded lib RNG, galaxy start
+  (home yard, scout-range rocks, unknown quality, world count/mix),
+  empire pools, and application-text setup loader
+  (`scenarios/closed-default.setup`). Unit programs: `unit_rng`,
+  `unit_scenarioFixture`, `unit_setupLoad`, `unit_galaxyStart`,
+  `unit_empirePools`. No network and no tick rules yet.
+
 - Phase A polish (CPL-21): drop leftover hello sources (`src/main.cw`,
   `tests/check-greeting.cmake`); give every `.cw` stub a CODING file
   header, changelog, and full method comments on `Machine.identity`.

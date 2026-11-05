@@ -62,15 +62,19 @@ if it uses the same message types. Stand-alone and online share the
 **Clock:** the **server** alone calls `tick` on a **configurable
 real-time** cadence. **Tick period** is a setup item in **seconds**.
 **Provisional** allowed range **for now:** **1–30** seconds
-(inclusive); retune min/max after something mostly works. At each tick
-it snapshots every player’s **current policy**, advances from the
-**previous published** state with those policies, and **publishes**
-the new state plus a **digest** of events (newspaper). Between ticks
-the server may prepare the next step; that prep is engineering and
-does not change the published rules of `tick`. **AFK** = last policy
-held (player idle / not updating policy, but **still present**). AFK
-timeout / shrink units are **real time and/or tick period** (exact
-setup field names still thin — §17).
+(inclusive); retune min/max after something mostly works. Tick period
+**may auto-config from AI reaction lag** (AI lag in part controls how
+long a tick feels / how fast the machine runs); it remains
+**setup-tunable** — an explicit setup value may still override any
+auto-config suggestion. At each tick it snapshots every player’s
+**current policy**, advances from the **previous published** state
+with those policies, and **publishes** the new state plus a **digest**
+of events (newspaper). Between ticks the server may prepare the next
+step; that prep is engineering and does not change the published rules
+of `tick`. **AFK** = last policy held (player idle / not updating
+policy, but **still present**). AFK timeout / shrink units are **real
+time and/or tick period** (exact setup field names still thin —
+§17).
 
 **Pause.** A pause control is fine only when there is **exactly one
 human** player. With **two or more humans**, pause is **not** offered
@@ -371,15 +375,24 @@ If a player **attacks** a trade partner and the attack is
 If the destination **became yours** (you just took it), that arrival
 is **self-trade / sit**, not confiscation at your new rock (§8.3).
 
-**Identify.** Attacks (including pirate ambush) do not always name the
-attacker. There is a setup-tuned chance the **victim** learns where
-the attack came from and/or who did it. That chance **rises as the
-victim’s relevant attributes increase** (setup mapping /
-coefficients; not a flat tiny constant only). Tune so fog remains a
-**limitation** without making attribution feel arbitrarily unfair.
-Default audience of a successful identify is still **victim-only**
-(whether others can learn is open — §17). Then (1)(2) apply from that
-moment, not retroactively. A later named `take` also identifies.
+**Identify** (jargon): learning **who** is on the other side of an
+attack — the attacker discovering their target’s identity, and/or the
+defender discovering where the attack came from and/or who did it.
+Attacks (including pirate ambush) do not always name either side.
+
+**Asymmetry (locked direction):** the **attacker** should have an
+**advantage** discovering who they are attacking. The **defender**
+should still have a **fair chance** of discovering the attacker as
+well. Those are **separate setup-tunable parameters** (attacker-side
+identify knobs vs defender-side identify knobs) — do not collapse them
+into one chance. Each side’s chance may still **rise with that side’s
+relevant attributes** (setup mappings / coefficients; not a flat tiny
+constant only). Tune so fog remains a **limitation** without making
+attribution feel arbitrarily unfair; do **not** invent magnitudes
+here. Default audience of a successful **defender** identify is still
+**victim-only** (whether others can learn is open — §17). Then (1)(2)
+apply from that moment, not retroactively. A later named `take` also
+identifies.
 
 ## 10. Pirates
 
@@ -497,6 +510,16 @@ until explore or take. Balance visibility as a real **limitation**,
 not so harsh that play is frustrating. Setup exposes knobs for
 range-from-tech (and related mappings / coefficients).
 
+**Planet quality display (livability and related):** once a rock is
+**explored** (or taken — quality becomes known), surface livability
+and related quality fields to the human on a **standard 1–10 scale**
+(enough granularity to be useful, not burdensome). Exact numeric
+mapping from internal values → 1–10 is setup-owned; do not invent
+magnitudes here. Whether livability / power / experience also **drive
+the tick** (vs display) remains open (§17). Human UI: explored rock
+**pops a dialog**; that dialog **may change** as the planet becomes
+**populated** and **productive** (§16).
+
 **Contact** (explore and/or conquest of another partition) adds them
 to **known competitors**.
 
@@ -508,26 +531,35 @@ UI is a view of flags the driver already set.
 
 ## 14. Scenario setup and admin
 
-Expect **many** named knobs — anticipate lots of post-complete tuning;
-prefer setup fields over hard-coded magnitudes. Includes: trade/attack
-bumps, dispatch weight, pirate attrition, **identify-from-attributes**
-chance mapping, **tech → detection/range** mapping, design mappings /
-coefficients, **design-development duration** and **yard-build
-duration** (ticks; neither is instant), reclaim percent, capture-use
-probability, cover, voyage cost, idle *N*, **stranded-ticks N**,
-**world count**, **useful vs poor mix**, starting scout-range,
-**tick period** (real-time cadence in **seconds**; provisional
-allowed range **for now:** **1–30**), AFK timeout / shrink (real time
-and/or tick period; field names thin — §17), **scenario mode** (v1
-default = **closed**; ongoing = future), **battle-duration /
-comparative-strength coefficients** (how strength gap maps to
-engagement length; magnitudes open — §17), **productive-planet
-inherent defense** coefficient (baseline defense with zero parked
-fleet; take never free). Where older notes say **curve**, read
-**setup-tunable mapping / coefficients** — not a required fancy math
-object. Admin edits before start; **locked** in progress. Future
-ongoing games would still lock *coefficients*; new players may join
-sandboxes without rewriting the map.
+**Combat, production, and other tunable parameters live outside
+code** — in this setup file (coefficients / mappings), not hard-coded
+magnitudes. Expect **many** named knobs; anticipate lots of
+post-complete tuning. Includes: trade/attack bumps, dispatch weight,
+pirate attrition, **identify attacker-side** and **identify
+defender-side** chance mappings (separate knobs; §9 asymmetry),
+**tech → detection/range** mapping, design mappings / coefficients,
+**design-development duration** and **yard-build duration** (ticks;
+neither is instant), reclaim percent, capture-use probability, cover,
+voyage cost, idle *N*, **stranded-ticks N**, **world count**,
+**useful vs poor mix**, starting scout-range, **tick period**
+(real-time cadence in **seconds**; provisional allowed range **for
+now:** **1–30**; **may auto-config from AI reaction lag**, still
+setup-tunable — §2), **AI reaction lag** (and any auto-link to tick
+period), AFK timeout / shrink (real time and/or tick period; field
+names thin — §17), **scenario mode** (v1 default = **closed**;
+ongoing = future), **battle-duration / comparative-strength
+coefficients** (how strength gap maps to engagement length;
+magnitudes open — §17), **productive-planet inherent defense**
+coefficient (baseline defense with zero parked fleet; take never
+free), **livability (and related) → 1–10 display** mapping. Where
+older notes say **curve**, read **setup-tunable mapping /
+coefficients** — not a required fancy math object. Admin edits before
+start; **locked** in progress. Future ongoing games would still lock
+*coefficients*; new players may join sandboxes without rewriting the
+map. **Future (plan accordingly, not v1):** a **server setup GUI**
+with a **dialog hierarchy** for editing these knobs — keep the setup
+surface organized so that path stays clean; do not ship that GUI in
+v1 unless PLAN already schedules it.
 
 ## 15. Ending and the ongoing map
 
@@ -553,16 +585,27 @@ Known-competitor list, newspaper, compose-to-pick. No warning dialogs
 for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 `queueDraw`, later `Scale`. No Cwhip GTK subclass framework.
 
+**Explored planet dialog (human client):** when a planet has been
+**explored** for that human, **pop up a dialog** showing quality /
+livability and related fields on the **1–10** display scale (§13).
+That dialog **may change** as the planet becomes **populated** and
+**productive** (same rock, richer / different content — not a second
+rules engine). AI clients use their own config path; they do not need
+this human dialog.
+
 ## 17. Open
 
 - Exact combat/production formulas (values are setup fields), including
   the closed-form strength function, per-tick attrition, and the
   strength-gap → duration mapping (0/1-tick short fights allowed in
-  principle; no magnitude locked).
+  principle; no magnitude locked). Principle that combat/production
+  knobs live **outside code** (§14) is locked.
 - When a recalling fleet counts as fully in an open engagement
   (arrival tick vs partial participation): thin until a formula pass.
-- Identify audience after success: victim-only (current default) vs
-  broader knowledge once identify fires.
+- Identify **magnitudes** and mapping shapes for the separate
+  attacker-side / defender-side knobs (§9 asymmetry direction locked;
+  values open). Identify **audience** after a successful defender
+  identify: victim-only (current default) vs broader knowledge.
 - AFK timeout / shrink: exact setup field names and floor (units =
   real time and/or tick period under §2 clock).
 - **Presence / drop follow-ups** (handshake AFK≠drop and v1 no-rejoin
@@ -575,26 +618,38 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
   v1 reconnect / reclaim is **closed** (no rejoin).
 - Exact default tick period **inside** the provisional 1–30s band for
   the first fixture (setup choice; band itself is locked in §2 / §14).
-- AI reaction lag binding (every K ticks / wall time vs digest-gated):
-  not locked.
-- Livability / power / experience: real tick drivers with setup
-  mappings / coefficients, or display/legacy until later — not closed
-  here.
+  Auto-config-from-AI-lag **direction** is locked (§2); the exact
+  auto-config mapping is open.
+- AI reaction lag **binding shape** (every K ticks / wall time vs
+  digest-gated) and numeric lag defaults: still thin; direction that
+  lag **may** drive tick auto-config is locked (§2 / §14).
+- Livability / power / experience as **tick drivers** (vs display):
+  still open. **Display** side is locked: explored → human dialog;
+  **1–10** scale; dialog may change when populated/productive
+  (§13 / §16).
 - Setup file syntax.
 - Tech → teleport mapping shape (step vs continuous) and magnitudes
   when ETA hits zero.
 - Odd-ETA / ETA-0 ambush edge cases (rounding / whether ambush can
   fire).
+- **Deferred (not v1 unless PLAN schedules it):** server **setup GUI
+  dialog hierarchy** for the many §14 knobs — plan accordingly
+  (§14).
 
 **Closed (do not re-open without a new decision):** agreement topology
-= player–player; visibility/identify = capability-scaled; v1 end =
-closed eliminate-all (ongoing = future); clock = server real-time tick
-+ digest, policy anytime, AFK = last policy; **pause only with exactly
-one human**; **tick period** = setup **seconds**, provisional
-**1–30**; **all humans quit → server ends the game**; zombies fall to
-**normal play** (no consistent zombie-win path); mid-dispatch: other
-policy OK, that fleet locked until recall; design/build take time
-(setup/ticks); seeded RNG in `lib` (not `SecureRandom`) — see
+= player–player; visibility/identify = capability-scaled with
+**identify asymmetry** (attacker advantage + defender fair chance +
+**separate** setup knobs); v1 end = closed eliminate-all (ongoing =
+future); clock = server real-time tick + digest, policy anytime, AFK
+= last policy; **pause only with exactly one human**; **tick period**
+= setup **seconds**, provisional **1–30**, **may auto-config from AI
+lag**, still **setup-tunable**; **all humans quit → server ends the
+game**; zombies fall to **normal play** (no consistent zombie-win
+path); mid-dispatch: other policy OK, that fleet locked until recall;
+design/build take time (setup/ticks); combat/production/other tunables
+live in **setup outside code**; explored planet **human dialog** on
+**1–10** livability/quality scale (may change when populated /
+productive); seeded RNG in `lib` (not `SecureRandom`) — see
 [PLAN.md](PLAN.md) §3; **combat spans ticks** with duration from
 **comparative strength**; **recall into/out of a fight still under
 battle rules** (can reverse or share defeat); **productive planets

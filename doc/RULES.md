@@ -159,10 +159,10 @@ is live) may `ambush`.
 
 | Order | What happens |
 | --- | --- |
-| `take` | Go to a rock. Unowned: occupy without a fight. Owned by another with ships/defenses: combat. War fleets **stay** until moved. |
+| `take` | Go to a rock. Unowned: occupy without a fight. Owned by another: combat when ships, defenses, or (if **productive**) inherent planetary defense apply — §11 / §12. War fleets **stay** until moved. |
 | `trade` | Cargo (+ escorts) to the far planet and **back**, then cycle. |
-| `ambush` | Sit at the **midpoint** of a trajectory (in position after half hop ETA; §6). |
-| `recall` | Return to the **sender**. Same-tick recall of a not-yet-departed order is **cancellation**. |
+| `ambush` | Sit at the **midpoint** of a trajectory. |
+| `recall` | Return to the **sender**. Same-tick recall of a not-yet-departed order is **cancellation**. Recall into or out of a fight still subjects those fleets to battle rules (§12). |
 | `explore` | Reveal quality of a rock in range (scout). Taking also reveals. |
 | sit / move | On a **possession**, a fleet may sit or be given a new destination. |
 
@@ -200,6 +200,16 @@ fleet.
 
 **Same-tick recall = cancellation.** Send and recall before the fleet
 has left: the order never happens. No dispatch, no loading.
+
+**Recall and combat.** Recalling does **not** exempt a fleet from
+battle rules. Fleets recalled **out of** an engagement, and fleets
+recalled **into** one (heading home to a sender under attack, or
+joining while a fight is still open), still **participate** under
+§12. A recall wave can **undo a defeat in progress** or **share
+defeat** with the side they join — outcome follows comparative
+strength over the remaining engagement, not a free escape or free
+reinforcement. Exact timing of when a recalling fleet counts as in
+the fight is setup / formula open (§17); the principle is locked.
 
 **Reclaim is not mid-space scrap.** Recall brings hulls home. At the
 sender they can join a **new fleet** and be sent to a **shipyard
@@ -264,11 +274,17 @@ the server calls `tick` changed (real-time cadence), not this order.
    returns**. If a pirate **loses** with loot aboard to a
    **non-pirate**, the **winner** takes the loot (credits on *their*
    return). Two pirates do not stack an ambush on the same edge.
+   Midpoint fights use the same multi-tick combat machine as planet
+   defense (§12) when duration is not instant.
 6. **Arrivals** at nodes: `trade` cycle, confiscation, `take` /
-   occupy, colony populate, sit.
-7. Stranded-tick countdown; pirate idle timeout → forced `recall`
+   occupy (may **open** or **join** an engagement — §11 / §12),
+   colony populate, sit.
+7. **Ongoing combat:** each open engagement advances one tick of
+   resolution by **comparative strength** (§12) until it ends.
+   Recalls into/out of the fight still count under battle rules.
+8. Stranded-tick countdown; pirate idle timeout → forced `recall`
    to sender.
-8. AFK; contact (exploration/conquest couples partitions); events.
+9. AFK; contact (exploration/conquest couples partitions); events.
 
 ## 8. Trade
 
@@ -388,12 +404,21 @@ those **defend**. Combat as §12. Attacker loses: fleet gone, dispatch
 sunk. Defender wins: attack bump (wealth/resources from attacker
 size), productivity loss, tech bump if attacker tech was higher.
 
-If they have **no ships and no defenses**, the world is **undefended**:
-occupy like empty, even if they “own” it. A Ho-shaped play: strip a
-rock, leave **defensive satellites**, abandon with no mobile fleet —
-the next taker still fights the defenses and spends for little.
+**Productive planets always defend.** A **productive** owned world has
+**inherent planetary defensive capability** even with **zero parked
+fleet** and no satellite layer yet. Taking a productive planet is
+**never free** — the attacker always fights that baseline (plus any
+ships/satellites present). Magnitude is a setup coefficient (§14);
+do not treat “empty productive” as occupy-like-empty.
 
-If **all ships leave** and there are no defenses, it is undefended.
+**Undefended owned (non-productive only).** If the rock is **owned**
+but **not productive**, and they have **no ships and no defenses**,
+the world is **undefended**: occupy like empty. A Ho-shaped play:
+strip a rock, leave **defensive satellites**, abandon with no mobile
+fleet — the next taker still fights the defenses and spends for
+little. If **all ships leave** a **non-productive** possession and
+there are no defenses, it is undefended. That strip-and-empty path
+does **not** make a **productive** world free to take.
 
 ### 11.3 Colony
 
@@ -417,12 +442,32 @@ limits the next hop. Scouts see a few rocks from home at start.
 
 Shared function for planet defense and midpoint ambush. Inputs: hulls
 by design (weapons, shields, size, speed as relevant), tech, role,
-planetary defenses. Outputs: winner, surviving hulls by design.
-Coefficients in the setup file.
+planetary defenses (including a productive world’s **inherent**
+baseline — §11.2). Outputs: winner, surviving hulls by design, and
+whether the engagement is still **open**. Coefficients in the setup
+file.
+
+**Multi-tick engagements.** Battles may span **more than one tick**.
+An engagement stays open across ticks until resolved by **comparative
+strength over time** — not a mandatory one-shot resolution on the
+arrival tick. Duration is driven by how the fleets (and planetary
+defense) **compare in strength**: a large gap may collapse the fight
+in **zero or one** tick; a closer fight lasts longer. Exact mapping
+from strength gap → ticks (and whether “0/1” is a hard short-circuit)
+is **setup / formula open** (§17); the principle is locked.
+
+**Recall into / out of a fight.** Fleets under `recall` still fight
+under these rules (§5.2). Example shape (illustrative, not a
+scripted sequence): send a fleet → get attacked → recall all fleets
+→ take a defeat in progress → **recalled fleets can undo that defeat
+or also be defeated** according to the same comparative-strength
+resolution. No free escape by recalling mid-fight; no free win by
+recalling in — only what battle rules grant.
 
 **Weaker hulls die first and screen.** Frigates tend to die;
 destroyers without a screen are more vulnerable. Colony hulls do not
-screen. Losses are **per design**.
+screen. Losses are **per design**. Per-tick attrition rates and the
+closed-form strength function remain open (§17).
 
 ## 13. Visibility, newspaper, messages
 
@@ -448,16 +493,18 @@ UI is a view of flags the driver already set.
 
 Includes: trade/attack bumps, dispatch weight, pirate attrition,
 **identify-from-attributes** chance curve, **tech → detection/range**
-curve, **tech → travel ETA / teleport** threshold or curve
-(magnitudes open — §17), design curves, reclaim percent,
-capture-use probability, cover, voyage cost, idle *N*,
-**stranded-ticks N**, **world count**, **useful vs poor mix**,
-starting scout-range, **tick period** (real-time cadence), AFK
-timeout / shrink (real time and/or tick period; field names thin —
-§17), **scenario mode** (v1 default = **closed**; ongoing =
-future). Admin edits before start; **locked** in progress. Future
-ongoing games would still lock *coefficients*; new players may join
-sandboxes without rewriting the map.
+curve, design curves, reclaim percent, capture-use probability, cover,
+voyage cost, idle *N*, **stranded-ticks N**, **world count**,
+**useful vs poor mix**, starting scout-range, **tick period**
+(real-time cadence), AFK timeout / shrink (real time and/or tick
+period; field names thin — §17), **scenario mode** (v1 default =
+**closed**; ongoing = future), **battle-duration / comparative-strength
+coefficients** (how strength gap maps to engagement length; magnitudes
+open — §17), **productive-planet inherent defense** coefficient
+(baseline defense with zero parked fleet; take never free). Admin
+edits before start; **locked** in progress. Future ongoing games
+would still lock *coefficients*; new players may join sandboxes
+without rewriting the map.
 
 ## 15. Ending and the ongoing map
 
@@ -481,10 +528,12 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 
 ## 17. Open
 
-- Exact combat/production formulas (values are setup fields).
-- **Tech → teleport / travel ETA:** threshold vs continuous curve,
-  and magnitudes (when ETA reaches zero). Principle locked in §6;
-  values open.
+- Exact combat/production formulas (values are setup fields), including
+  the closed-form strength function, per-tick attrition, and the
+  strength-gap → duration mapping (0/1-tick short fights allowed in
+  principle; no magnitude locked).
+- When a recalling fleet counts as fully in an open engagement
+  (arrival tick vs partial participation): thin until a formula pass.
 - Identify audience after success: victim-only (current default) vs
   broader knowledge once identify fires.
 - AFK timeout / shrink: exact setup field names and floor (units =
@@ -510,15 +559,12 @@ for dumb legal orders. GTK growth: `DrawingArea`, pointer,
 **Closed (do not re-open without a new decision):** agreement topology
 = player–player; visibility/identify = capability-scaled; v1 end =
 closed eliminate-all (ongoing = future); clock = server real-time tick
-+ digest, policy anytime, AFK = last policy; high technology may
-reduce travel ETA to **zero** (teleport) — magnitudes in setup;
-seeded RNG in `lib` (not `SecureRandom`) — see [PLAN.md](PLAN.md)
-§3.
-+ digest, policy anytime, AFK = last policy; **handshake distinguishes
-AFK vs actual drop** (presence ≠ policy PUT); **v1 session** =
-stand-alone game instance, **no status save**, **no rejoin** (drop →
-last policy for live remainder only); seeded RNG in `lib` (not
-`SecureRandom`) — see [PLAN.md](PLAN.md) §3.
++ digest, policy anytime, AFK = last policy; seeded RNG in `lib` (not
+`SecureRandom`) — see [PLAN.md](PLAN.md) §3; **combat spans ticks**
+with duration from **comparative strength**; **recall into/out of a
+fight still under battle rules** (can reverse or share defeat);
+**productive planets have inherent defense** (take never free) —
+magnitudes remain setup/open above.
 
 Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
 
@@ -528,13 +574,16 @@ Aligns with [PLAN.md](PLAN.md) §7 (AI before list GTK):
 
 1. Library + setup snapshot; CLI N-tick host.
 2. Tests: home yard + scout-range rocks; unowned take no fight;
-   undefended owned take; satellites defend after fleet leaves;
-   colony required to populate; trade full both ways + escorts
-   cycle; self-trade cost only; cargo 100 needs 10×10 holds;
-   same-tick recall cancels; recall always to sender then reclaim
-   only at yard; pirate loot credited on pirate return; identify
-   chance; capture-use roll vs destroy; two pirates at midpoint war
-   and passers live; stranded move after N ticks; closed game —
+   undefended owned **non-productive** take; productive owned
+   (even zero fleet) never free; satellites defend after fleet
+   leaves; multi-tick engagement advances until strength resolves;
+   recall into/out of fight still under battle rules; colony
+   required to populate; trade full both ways + escorts cycle;
+   self-trade cost only; cargo 100 needs 10×10 holds; same-tick
+   recall cancels; recall always to sender then reclaim only at
+   yard; pirate loot credited on pirate return; identify chance;
+   capture-use roll vs destroy; two pirates at midpoint war and
+   passers live; stranded move after N ticks; closed game —
    eliminate all others; contact couples partitions; empire pool
    only; setup lock.
 3. Server executable + TCP framed protocol + SQLite (real-time

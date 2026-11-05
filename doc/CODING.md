@@ -4,6 +4,15 @@ Locked style for CPlanets source (`.cw` and related app code).
 Behavior stays in [RULES.md](RULES.md); work shape stays in
 [PLAN.md](PLAN.md). This file wins on **how source is written**.
 
+Created: 2026-11-05
+Author: Auto
+
+Changelog:
+- 2026-11-05  Initial file (style guide + PLAN file-size sync).
+- 2026-11-05  Require full method comments for all methods; drop
+  one-liner private-helper softening. Rationale: agent-written code
+  is denser than typical human code — comments carry readability.
+
 ## File size
 
 - **Usual target:** about **~200 physical lines** when practical.
@@ -50,14 +59,16 @@ Example:
 
 ## Class and method comments
 
+**Rationale:** agent-written code is often denser than typical human
+code — respectable, but harder to skim. Full method comments carry
+the narrative humans need to read that density.
+
 - **Every class:** a multi-line comment describing what it does and
   how it fits the program.
-- **Every method:** describe function, parameters, and return value.
-  - **Public / library API:** always use a full method doc block.
-  - **Private helpers:** still need a description; it may be brief.
-  - Tiny private helpers may use a short one-liner instead of a full
-    method block when that keeps noise down — still describe what the
-    helper does.
+- **Every method** (public API and private helpers alike): a **full**
+  method comment covering **purpose**, **parameters**, and **return
+  value**. Do **not** substitute a bare one-liner for the method
+  block.
 
 ## Formatting
 

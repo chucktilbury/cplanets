@@ -164,7 +164,8 @@ TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
    **publish** state + **digest** (events / newspaper).
 3. Between ticks the server may prep the next step (engineering only).
 4. **No** all-ready barrier. Policy `PUT` anytime. **AFK = last
-   policy** held.
+   policy** held. **Handshake** distinguishes AFK (present, idle) from
+   **drop** (lost contact); presence ≠ policy PUT (RULES §2).
 5. **Injectable clock** / admin “advance N ticks” for tests (no sleep
    in CI).
 6. Setup lock once in progress; join sandbox partitions.
@@ -353,6 +354,9 @@ Follow RULES §17 / store design docs — leave open until the user locks:
 - Default tick-period magnitude for v1 feel
 - AI reaction lag binding preference (K ticks vs wall vs digest-gated)
 - Exact AFK setup field names / floor
+- Presence / drop details: heartbeat interval, peer `dropped` digest
+  notify, reconnect/reclaim; drop last-policy-until-timeout
+  (RULES §2 recommendation — needs user OK)
 - Identify audience after success (victim-only is current default)
 - Exact combat/production formulas
 - Livability / power / experience as tick drivers vs display

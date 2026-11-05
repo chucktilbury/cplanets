@@ -319,7 +319,9 @@ Server functional (Python):
 
 - Injectable clock / advance-N-ticks (no wall sleep in CI)
 - Two clients, policies apply on **next tick** (no ready barrier);
-  AFK holds last policy
+  AFK holds last policy; handshake distinguishes drop
+- Drop mid-game: last policy continues for that **live** game; **no**
+  rejoin / no status-save API in v1 (RULES §2)
 - Digest published with each tick; clients `GET` state + events
 - AI client + human client on one server
 - Join sandbox; no DB in the client process

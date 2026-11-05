@@ -1,0 +1,215 @@
+/*
+ * src/lib/setupParse.cw — load scenario from application text.
+ *
+ * Setup file syntax is still open in RULES §17; this loader accepts
+ * a simple line-oriented key = value form (not JSON/TOML/HTTP).
+ * Unknown keys are ignored; known keys overlay closed defaults.
+ *
+ * Created: 2026-11-05
+ * Author: Auto
+ *
+ * Changelog:
+ *   2026-11-05  Initial key=value setup loader.
+ */
+
+include "scenario.cw"
+
+/*
+ * SetupParse turns application text into a Scenario snapshot.
+ *
+ * Starts from Scenario() closed defaults, then overlays each
+ * recognized key. Always clampTickPeriod() before returning.
+ */
+class SetupParse {
+    /*
+     * Construct a stateless parser helper.
+     *
+     * Purpose: match other Phase B value objects; all work lives in
+     * parseText / applyPair.
+     *
+     * Parameters: none.
+     *
+     * Returns: an empty SetupParse instance.
+     */
+    SetupParse() {
+    }
+
+    /*
+     * Parse a full setup document into a Scenario.
+     *
+     * Purpose: load admin/application text without a stdlib format.
+     * Blank lines and # comments are skipped.
+     *
+     * Parameters:
+     *   text — entire setup body (newline-separated key = value).
+     *
+     * Returns: Scenario with overlays applied and tick period clamped.
+     */
+    Scenario parseText(String text) {
+        Scenario scenario = Scenario()
+        list lines = text.split("\n")
+        int64 index = 0
+        while (index < lines.length) {
+            String line = lines[index]
+            line = line.trim()
+            if (line.length > 0 and not line.startsWith("#")) {
+                applyLine(scenario, line)
+            }
+            index = index + 1
+        }
+        scenario.clampTickPeriod()
+        return(scenario)
+    }
+
+    /*
+     * Apply one physical line to a scenario.
+     *
+     * Purpose: split on the first '=' and dispatch key/value.
+     *
+     * Parameters:
+     *   scenario — mutable snapshot.
+     *   line — trimmed non-comment line.
+     *
+     * Returns: nothing.
+     */
+    void applyLine(Scenario scenario, String line) {
+        list parts = line.split("=")
+        if (parts.length < 2) {
+            return()
+        }
+        String key = parts[0]
+        String val = parts[1]
+        key = key.trim()
+        val = val.trim()
+        applyPair(scenario, key, val)
+    }
+
+    /*
+     * Overlay one recognized setup key onto a scenario.
+     *
+     * Purpose: name every §14 knob the closed fixture ships so text
+     * and code stay aligned. Unknown keys are no-ops.
+     *
+     * Parameters:
+     *   scenario — mutable snapshot.
+     *   key — setup field name.
+     *   val — trimmed value text.
+     *
+     * Returns: nothing.
+     */
+    void applyPair(Scenario scenario, String key, String val) {
+        if (key.equals("scenario_mode")) {
+            scenario.scenarioMode = val
+        } else (key.equals("tick_period_seconds")) {
+            scenario.tickPeriodSeconds = val.toInt64()
+        } else (key.equals("tick_auto_config_from_ai_lag")) {
+            scenario.tickAutoConfigFromAiLag = parseBool(val)
+        } else (key.equals("ai_reaction_lag_ticks")) {
+            scenario.aiReactionLagTicks = val.toInt64()
+        } else (key.equals("ai_reaction_lag_seconds")) {
+            scenario.aiReactionLagSeconds = val.toFp64()
+        } else (key.equals("afk_timeout_seconds")) {
+            scenario.afkTimeoutSeconds = val.toFp64()
+        } else (key.equals("afk_shrink_factor")) {
+            scenario.afkShrinkFactor = val.toFp64()
+        } else (key.equals("world_count")) {
+            scenario.worldCount = val.toInt64()
+        } else (key.equals("useful_mix")) {
+            scenario.usefulMix = val.toFp64()
+        } else (key.equals("scout_range")) {
+            scenario.scoutRange = val.toFp64()
+        } else (key.equals("galaxy_radius")) {
+            scenario.galaxyRadius = val.toFp64()
+        } else (key.equals("identify_attacker_base")) {
+            scenario.identifyAttackerBase = val.toFp64()
+        } else (key.equals("identify_attacker_per_attr")) {
+            scenario.identifyAttackerPerAttr = val.toFp64()
+        } else (key.equals("identify_defender_base")) {
+            scenario.identifyDefenderBase = val.toFp64()
+        } else (key.equals("identify_defender_per_attr")) {
+            scenario.identifyDefenderPerAttr = val.toFp64()
+        } else (key.equals("tech_range_base")) {
+            scenario.techRangeBase = val.toFp64()
+        } else (key.equals("tech_range_per_tech")) {
+            scenario.techRangePerTech = val.toFp64()
+        } else (key.equals("tech_teleport_threshold")) {
+            scenario.techTeleportThreshold = val.toFp64()
+        } else (key.equals("tech_teleport_enabled")) {
+            scenario.techTeleportEnabled = parseBool(val)
+        } else (key.equals("design_develop_ticks")) {
+            scenario.designDevelopTicks = val.toInt64()
+        } else (key.equals("yard_build_ticks")) {
+            scenario.yardBuildTicks = val.toInt64()
+        } else (key.equals("design_speed_cost_coeff")) {
+            scenario.designSpeedCostCoeff = val.toFp64()
+        } else (key.equals("design_range_cost_coeff")) {
+            scenario.designRangeCostCoeff = val.toFp64()
+        } else (key.equals("reclaim_percent")) {
+            scenario.reclaimPercent = val.toFp64()
+        } else (key.equals("capture_use_chance")) {
+            scenario.captureUseChance = val.toFp64()
+        } else (key.equals("cover_factor")) {
+            scenario.coverFactor = val.toFp64()
+        } else (key.equals("voyage_cost")) {
+            scenario.voyageCost = val.toFp64()
+        } else (key.equals("pirate_idle_ticks")) {
+            scenario.pirateIdleTicks = val.toInt64()
+        } else (key.equals("stranded_ticks_n")) {
+            scenario.strandedTicksN = val.toInt64()
+        } else (key.equals("trade_bump")) {
+            scenario.tradeBump = val.toFp64()
+        } else (key.equals("attack_bump")) {
+            scenario.attackBump = val.toFp64()
+        } else (key.equals("dispatch_weight_scout")) {
+            scenario.dispatchWeightScout = val.toFp64()
+        } else (key.equals("dispatch_weight_colony")) {
+            scenario.dispatchWeightColony = val.toFp64()
+        } else (key.equals("pirate_attrition")) {
+            scenario.pirateAttrition = val.toFp64()
+        } else (key.equals("pirate_leftover")) {
+            scenario.pirateLeftover = val.toFp64()
+        } else (key.equals("battle_strength_duration_coeff")) {
+            scenario.battleStrengthDurationCoeff = val.toFp64()
+        } else (key.equals("battle_short_circuit_gap")) {
+            scenario.battleShortCircuitGap = val.toFp64()
+        } else (key.equals("productive_inherent_defense")) {
+            scenario.productiveInherentDefense = val.toFp64()
+        } else (key.equals("livability_internal_min")) {
+            scenario.livabilityInternalMin = val.toFp64()
+        } else (key.equals("livability_internal_max")) {
+            scenario.livabilityInternalMax = val.toFp64()
+        } else (key.equals("livability_display_min")) {
+            scenario.livabilityDisplayMin = val.toInt64()
+        } else (key.equals("livability_display_max")) {
+            scenario.livabilityDisplayMax = val.toInt64()
+        } else (key.equals("start_wealth")) {
+            scenario.startWealth = val.toFp64()
+        } else (key.equals("start_resources")) {
+            scenario.startResources = val.toFp64()
+        } else (key.equals("start_tech")) {
+            scenario.startTech = val.toFp64()
+        } else (key.equals("start_power")) {
+            scenario.startPower = val.toFp64()
+        } else (key.equals("start_experience")) {
+            scenario.startExperience = val.toFp64()
+        }
+    }
+
+    /*
+     * Parse a bool from setup text.
+     *
+     * Purpose: accept true/false/1/0 without a stdlib bool parser.
+     *
+     * Parameters:
+     *   val — trimmed token.
+     *
+     * Returns: true for "true"/"1" (case-sensitive true), else false
+     * for "false"/"0"; other tokens also false.
+     */
+    bool parseBool(String val) {
+        if (val.equals("true") or val.equals("1")) {
+            return(true)
+        }
+        return(false)
+    }
+}

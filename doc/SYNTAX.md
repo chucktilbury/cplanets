@@ -5,6 +5,14 @@ returns a managed `String` with `return(expression)`. The unit program
 `src/unit_libIdentity.cw` captures that method in a `String<>` callable
 and prints whether it equals `cplanets-lib`.
 
+Phase B adds scenario/state helpers beside that identity stub:
+`rng.cw`, `scenario.cw`, `setupParse.cw`, `planet.cw`, `player.cw`,
+`galaxy.cw`, and `state.cw`. Setup text is application `key = value`
+lines (not a stdlib format); see `scenarios/closed-default.setup`.
+Unit programs `unit_rng`, `unit_scenarioFixture`, `unit_setupLoad`,
+`unit_galaxyStart`, and `unit_empirePools` print a bool line like
+`unit_libIdentity`.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its
@@ -15,6 +23,12 @@ identifier.
 Cwhip stages each program from the directory of its `SOURCE` file, so unit
 programs that include `lib/` live under `src/` (see `src/unit_libIdentity.cw`).
 CTest wrappers live in `tests/unit/`.
+
+Multi-line method parameter lists must keep `) {` on the same line; a
+bare `)` line followed by `{` on the next line fails to parse. `range`
+is a reserved type constructor — do not use it as a parameter or local
+name. Unsuffixed float literals are `fp32`; compare `fp64` fields with
+`0.4f64`-style literals.
 
 ## Migration checklist
 

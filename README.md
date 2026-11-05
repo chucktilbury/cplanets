@@ -20,9 +20,11 @@ The game is a multi-player game that can also be played stand-alone; stand-alone
 
 ## Building and Installation
 
-This directory contains the shared machine in `src/lib/`, stub executables
-(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), tests in
-`tests/`, and SDK discovery helpers in `scripts/`.
+This directory contains the shared machine in `src/lib/` (scenario,
+seeded RNG, start galaxy, empire pools), stub executables
+(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), the
+closed default setup text in `scenarios/`, tests in `tests/`, and SDK
+discovery helpers in `scripts/`.
 
 With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`
 from the checkout, then `build` in the project shell. Use `rebuild` for a

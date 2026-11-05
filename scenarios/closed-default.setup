@@ -1,0 +1,58 @@
+# CPlanets closed-scenario default fixture (RULES §14 / PLAN §4.B).
+# Application text: key = value. Magnitudes are placeholders.
+# scenario_mode default = closed (eliminate all others).
+
+scenario_mode = closed
+tick_period_seconds = 5
+tick_auto_config_from_ai_lag = true
+ai_reaction_lag_ticks = 1
+ai_reaction_lag_seconds = 2.0
+afk_timeout_seconds = 120.0
+afk_shrink_factor = 1.0
+
+world_count = 24
+useful_mix = 0.35
+scout_range = 3.0
+galaxy_radius = 20.0
+
+identify_attacker_base = 0.35
+identify_attacker_per_attr = 0.05
+identify_defender_base = 0.20
+identify_defender_per_attr = 0.04
+
+tech_range_base = 3.0
+tech_range_per_tech = 0.5
+tech_teleport_threshold = 10.0
+tech_teleport_enabled = true
+
+design_develop_ticks = 5
+yard_build_ticks = 3
+design_speed_cost_coeff = 1.0
+design_range_cost_coeff = 1.0
+
+reclaim_percent = 0.50
+capture_use_chance = 0.25
+cover_factor = 1.0
+voyage_cost = 0.0
+pirate_idle_ticks = 10
+stranded_ticks_n = 5
+trade_bump = 1.20
+attack_bump = 1.0
+dispatch_weight_scout = 0.1
+dispatch_weight_colony = 5.0
+pirate_attrition = 0.30
+pirate_leftover = 0.05
+battle_strength_duration_coeff = 1.0
+battle_short_circuit_gap = 3.0
+productive_inherent_defense = 1.0
+
+livability_internal_min = 0.0
+livability_internal_max = 100.0
+livability_display_min = 1
+livability_display_max = 10
+
+start_wealth = 1000.0
+start_resources = 500.0
+start_tech = 1.0
+start_power = 1.0
+start_experience = 0.0

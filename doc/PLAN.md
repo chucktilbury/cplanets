@@ -100,11 +100,14 @@ home yard, scout-range rocks, unknown quality, world count/mix.
 Empire pools. Seeded rng.
 
 **Closed-scenario default fixture** (v1): every RULES §14 knob named —
-including tick period, AFK timeout/shrink (real time and/or tick
-period; field names may stay thin until RULES names them), stranded N,
-identify-from-attributes curve, tech→detection/range curve, reclaim
-percent, capture-use chance, world count/mix. Win condition =
-**eliminate all others**. Scenario mode default = closed.
+including tick period (**seconds**; provisional clamp **1–30**), AFK
+timeout/shrink (real time and/or tick period; field names may stay
+thin until RULES names them), stranded N, identify-from-attributes
+mapping, tech→detection/range mapping, design/build duration knobs,
+reclaim percent, capture-use chance, world count/mix. Prefer **many**
+named knobs for post-complete tuning. Win condition = **eliminate all
+others**; all-humans-quit also ends the live game. Scenario mode
+default = closed.
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -132,8 +135,8 @@ Agreements are **player–player** from the first trade milestone.
 | **D1 Take / colony / defenses** | Unowned take (no fight); undefended owned **non-productive**; productive owned always has inherent defense (take never free); satellites/parked defend; colony required to populate; dead colony does not; war fleets stay; sit/move on possession. |
 | **D2 Trade / agreements** | Player–player agreement + `S`; cargo full both ways; escorts cycle; sender-only loading; self-trade cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-trader breaks. |
 | **D3 Pirate / identify** | Midpoint ambush; loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify chance scales with attributes (victim-only default audience). |
-| **D4 Combat / designs / reclaim** | Shared combat (multi-tick; duration from comparative strength; recall into/out of fight still under battle rules); screened heavies; designs + yard produce/reclaim; capture-use vs destroy; attributed attack ends agreement + confiscation. |
-| **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; empire pool only; setup lock in progress. |
+| **D4 Combat / designs / reclaim** | Shared combat (multi-tick; duration from comparative strength; recall into/out of fight still under battle rules); in-flight fleet locked until recall; designs + yard produce/reclaim take time (not instant); screened heavies; capture-use vs destroy; attributed attack ends agreement + confiscation. |
+| **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; all-humans-quit ends game; empire pool only; setup lock in progress. |
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -158,7 +161,8 @@ events/digest. **No** all-players-ready / `POST turn` barrier verb.
 
 TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
 
-1. Configurable **real-time** cadence (tick period from setup).
+1. Configurable **real-time** cadence (tick period from setup,
+   **seconds**; provisional allowed range **1–30**).
 2. At each fire: snapshot every player’s **current policy** →
    `tick` from the **previous published** state → persist →
    **publish** state + **digest** (events / newspaper).
@@ -166,14 +170,16 @@ TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
 4. **No** all-ready barrier. Policy `PUT` anytime. **AFK = last
    policy** held. **Handshake** distinguishes AFK (present, idle) from
    **drop** (lost contact); presence ≠ policy PUT (RULES §2).
+   **Pause** only when exactly **one human** is in the game.
 5. **Injectable clock** / admin “advance N ticks” for tests (no sleep
    in CI).
 6. Setup lock once in progress; join sandbox partitions.
 7. **Session (v1):** each game is **stand-alone** — **no** durable
    status save, **no** rejoin API. Drop during a live game → last
-   policy for that live remainder only (RULES §2). **Plan
-   accordingly:** keep state **SQLite-shaped** so a **future** durable
-   save / rejoin path stays clean; do not implement save / rejoin now.
+   policy for that live remainder only (RULES §2). If **all human
+   players quit**, register **end of game**. **Plan accordingly:**
+   keep state **SQLite-shaped** so a **future** durable save / rejoin
+   path stays clean; do not implement save / rejoin now.
 
 Stand-alone and online share this driver.
 
@@ -274,8 +280,9 @@ Each item is **one** `tests/fn/` program unless noted.
   extend range)
 - Empire pool only
 - Setup locked in progress
-- Closed-scenario fixture names every §14 knob (incl. tick period,
-  identify curve, tech-range curve)
+- Closed-scenario fixture names every §14 knob (incl. tick period
+  seconds 1–30 provisional, identify/tech-range mappings,
+  design/build durations)
 
 **Take / colony / defenses (D1)**
 
@@ -304,6 +311,8 @@ Each item is **one** `tests/fn/` program unless noted.
 
 - Engagement may span ticks; duration from comparative strength (setup)
 - Recall into/out of fight still under battle rules (can reverse or share defeat)
+- In-flight fleet order locked until recall; other policy edits OK
+- Design development and yard builds take time (setup/ticks; not instant)
 - Screened heavies lose fewer hulls than heavies alone
 - Recall always to sender; reclaim only at a yard, setup percent
 - Capture-use vs destroy
@@ -313,6 +322,8 @@ Each item is **one** `tests/fn/` program unless noted.
 
 - Contact couples partitions
 - Closed game: one player eliminated all others
+- All humans quit → server ends the game
+- Zombies fall to normal play (no consistent zombie-win path)
 - Stranded moves after N ticks
 
 **Wire**
@@ -361,16 +372,18 @@ Aligns with RULES §18 (AI before list GTK).
 
 Follow RULES §17 / store design docs — leave open until the user locks:
 
-- Pause under real-time tick (stand-alone / host)
-- Default tick-period magnitude for v1 feel
+- Exact default tick period **inside** provisional 1–30s band (band
+  locked; pause = one-human only locked)
 - AI reaction lag binding preference (K ticks vs wall vs digest-gated)
 - Exact AFK setup field names / floor
 - Presence / drop details: heartbeat interval, peer `dropped` digest
   notify (RULES §2). v1 reconnect / reclaim is **closed** (no rejoin);
-  drop → last-policy for live remainder is locked. **Deferred:**
-  durable save / rejoin — keep SQLite-shaped; no save API in v1.
+  drop → last-policy for live remainder is locked; all-humans-quit
+  ends game. **Deferred:** durable save / rejoin — keep SQLite-shaped;
+  no save API in v1.
 - Identify audience after success (victim-only is current default)
 - Exact combat/production formulas (multi-tick / strength→duration
   magnitudes; productive inherent-defense coefficient values)
+- Tech→teleport mapping shape / magnitudes; ETA-0 ambush edge
 - Livability / power / experience as tick drivers vs display
 - Setup file syntax

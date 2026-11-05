@@ -131,7 +131,7 @@ Agreements are **player–player** from the first trade milestone.
 | --- | --- |
 | **D1 Take / colony / defenses** | Unowned take (no fight); undefended owned; satellites/parked defend; colony required to populate; dead colony does not; war fleets stay; sit/move on possession. |
 | **D2 Trade / agreements** | Player–player agreement + `S`; cargo full both ways; escorts cycle; sender-only loading; self-trade cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-trader breaks. |
-| **D3 Pirate / identify** | Midpoint ambush; loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify chance scales with attributes (victim-only default audience). |
+| **D3 Pirate / identify** | Midpoint ambush (in position after half hop ETA); loot on pirate return; two-pirate war (passers live); forced recall; idle timeout; identify chance scales with attributes (victim-only default audience). |
 | **D4 Combat / designs / reclaim** | Shared combat; screened heavies; designs + yard produce/reclaim; capture-use vs destroy; attributed attack ends agreement + confiscation. |
 | **D5 Contact / end** | Contact couples partitions; known competitors; closed eliminate-all end; empire pool only; setup lock in progress. |
 
@@ -288,6 +288,7 @@ Each item is **one** `tests/fn/` program unless noted.
 
 **Pirate / identify (D3)**
 
+- Ambush only after pirate in position (half hop ETA)
 - Pirate loot credits on pirate return
 - Identify chance attributed vs not (scales with attributes)
 - Two pirates at midpoint: they war, passer lives

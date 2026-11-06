@@ -15,6 +15,7 @@
  *   2026-11-05  Phase D1: pendingArrivalOrder for take/occupy.
  *   2026-11-05  Phase D2: trade cycle fields + escorts.
  *   2026-11-05  Phase D3: ambush position, idle, loot cargo.
+ *   2026-11-05  Phase D4: engagementId for recall-into-fight.
  */
 
 /*
@@ -59,6 +60,7 @@ class Fleet {
     int64 ambushEdgeB
     fp64 lootWealth
     fp64 lootResources
+    int64 engagementId
 
     /*
      * Construct a sitting fleet at a planet.
@@ -114,6 +116,7 @@ class Fleet {
         ambushEdgeB = -1
         lootWealth = 0.0
         lootResources = 0.0
+        engagementId = -1
     }
 
     /*
@@ -178,7 +181,10 @@ class Fleet {
      * Returns: true when a recall request was recorded.
      */
     bool requestRecall() {
-        if (sitting and not pendingDeparture and not departed) {
+        if (sitting
+            and not pendingDeparture
+            and not departed
+            and engagementId < 0) {
             return(false)
         }
         recallRequested = true

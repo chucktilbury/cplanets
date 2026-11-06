@@ -1,10 +1,9 @@
 /*
- * src/lib/tick.cw — pure tick dispatcher (Phase C / D1–D3).
+ * src/lib/tick.cw — pure tick dispatcher (Phase C / D1–D4).
  *
- * Runs RULES §7 intra-tick order without a scheduler. D1 fills
- * take/occupy and ongoing planet combat; D2 fills trade cycle /
- * agreements; D3 fills midpoint ambush, loot credit (via motion),
- * and pirate idle timeout. AFK/contact stay later stubs.
+ * Runs RULES §7 intra-tick order without a scheduler. D4 fills
+ * shared multi-tick combat, design/reclaim timing, confiscation
+ * after attributed attack. AFK/contact stay later stubs.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -14,8 +13,10 @@
  *   2026-11-05  Phase D1: take arrivals + combat advance.
  *   2026-11-05  Phase D2: tradeArrive before take.
  *   2026-11-05  Phase D3: midpoint ambush + pirate idle.
+ *   2026-11-05  Phase D4: reclaim list, confiscation, capture rng.
  */
 
+include "confiscate.cw"
 include "dispatch.cw"
 include "event.cw"
 include "midpoint.cw"
@@ -40,6 +41,7 @@ class TickDriver {
     Dispatch dispatch
     Motion motion
     Midpoint midpoint
+    Confiscate confiscate
     TradeArrive tradeArrive
     Take take
     int64 nextFleetIdOut
@@ -60,6 +62,7 @@ class TickDriver {
         dispatch = Dispatch()
         motion = Motion()
         midpoint = Midpoint()
+        confiscate = Confiscate()
         tradeArrive = TradeArrive()
         take = Take()
         nextFleetIdOut = 1
@@ -71,9 +74,8 @@ class TickDriver {
      *
      * Purpose: pure `tick(state…) → events` per PLAN §1 / RULES §7.
      * Order: production → cancel → depart → recall → move →
-     * midpoint → arrive → trade cycle → take/combat open →
+     * midpoint → arrive → confiscate → trade → take/combat open →
      * combat advance → stranded → pirate idle → (afk stub).
-     * Stores updated id counters on this driver for State to read.
      *
      * Parameters:
      *   scenario — setup knobs.
@@ -81,11 +83,13 @@ class TickDriver {
      *   players — empire seats.
      *   designs — hull templates.
      *   builds — yard BuildJob list.
+     *   reclaims — yard ReclaimJob list.
      *   fleets — fleet list.
      *   engagements — open combat list.
      *   agreements — player–player trade pacts.
+     *   arms — confiscation arms.
      *   events — empty list to fill.
-     *   rng — seeded stream for identify rolls.
+     *   rng — seeded stream for identify / capture-use.
      *   nextFleetId — fleet id counter before yard completions.
      *   nextEngagementId — engagement id counter.
      *
@@ -97,9 +101,11 @@ class TickDriver {
         list players,
         list designs,
         list builds,
+        list reclaims,
         list fleets,
         list engagements,
         list agreements,
+        list arms,
         list events,
         SeededRng rng,
         int64 nextFleetId,
@@ -110,6 +116,7 @@ class TickDriver {
             players,
             designs,
             builds,
+            reclaims,
             fleets,
             events,
             nextFleetId)
@@ -132,6 +139,16 @@ class TickDriver {
             events,
             rng)
         motion.arrivals(planets, players, fleets, events)
+        nextFleetId = confiscate.processArrivals(
+            scenario,
+            arms,
+            planets,
+            players,
+            designs,
+            fleets,
+            events,
+            rng,
+            nextFleetId)
         tradeArrive.processArrivals(
             scenario,
             planets,
@@ -146,15 +163,22 @@ class TickDriver {
             designs,
             fleets,
             engagements,
+            agreements,
+            arms,
             events,
-            nextEngagementId)
-        take.advanceEngagements(
+            rng,
+            nextEngagementId,
+            nextFleetId)
+        nextFleetId = take.nextFleetIdOut
+        nextFleetId = take.advanceEngagements(
             scenario,
             planets,
             designs,
             fleets,
             engagements,
-            events)
+            events,
+            rng,
+            nextFleetId)
         motion.strandedCountdown(fleets, events)
         midpoint.idleTimeout(scenario, players, fleets, events)
         # §7.9 AFK/contact — Phase F / D5.

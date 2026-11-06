@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial production phase for tick core.
+ *   2026-11-05  Phase D4: advance reclaim jobs at yards.
  */
 
 include "design.cw"
@@ -23,7 +24,7 @@ include "scenario.cw"
  * Production runs RULES §7 step 1 for one tick.
  *
  * Mutates players (empire pools), designs (develop countdown),
- * build jobs, and fleets (completed hulls). Appends events.
+ * build/reclaim jobs, and fleets (completed hulls). Appends events.
  */
 class Production {
     /*
@@ -41,15 +42,16 @@ class Production {
     /*
      * Apply production for every productive planet and yard job.
      *
-     * Purpose: advance empire stocks and non-instant builds before
-     * cancellations and motion (RULES §7.1).
+     * Purpose: advance empire stocks and non-instant builds /
+     * reclaim before cancellations and motion (RULES §7.1).
      *
      * Parameters:
-     *   scenario — cover factor and yard timings.
+     *   scenario — cover factor, yard timings, reclaim percent.
      *   planets — galaxy planet list.
      *   players — empire seats.
      *   designs — design list (develop countdown).
      *   builds — mutable BuildJob list.
+     *   reclaims — mutable ReclaimJob list.
      *   fleets — mutable Fleet list (completed hulls).
      *   events — event log to append.
      *   nextFleetId — in/out counter for new sit fleets.
@@ -62,6 +64,7 @@ class Production {
         list players,
         list designs,
         list builds,
+        list reclaims,
         list fleets,
         list events,
         int64 nextFleetId) {
@@ -81,6 +84,7 @@ class Production {
             fleets,
             events,
             nextFleetId)
+        advanceReclaims(scenario, reclaims, players, events)
         return(nextFleetId)
     }
 
@@ -262,5 +266,86 @@ class Production {
                 job.ownerId,
                 1))
         return(nextFleetId)
+    }
+
+    /*
+     * Advance yard ReclaimJobs; credit reclaim percent on complete.
+     *
+     * Purpose: reclaim only at a yard, not instant (RULES §5.2).
+     * Development wealth is never returned.
+     *
+     * Parameters:
+     *   scenario — reclaimPercent.
+     *   reclaims — mutable job list (completed removed).
+     *   players — empire pools.
+     *   events — event log.
+     *
+     * Returns: nothing.
+     */
+    void advanceReclaims(
+        Scenario scenario,
+        list reclaims,
+        list players,
+        list events) {
+        list remaining = []
+        int64 index = 0
+        while (index < reclaims.length) {
+            ReclaimJob job = reclaims[index]
+            job.ticksLeft = job.ticksLeft - 1
+            if (job.ticksLeft <= 0) {
+                completeReclaim(scenario, job, players, events)
+            } else {
+                remaining.append(job)
+            }
+            index = index + 1
+        }
+        reclaims.clear()
+        index = 0
+        while (index < remaining.length) {
+            reclaims.append(remaining[index])
+            index = index + 1
+        }
+    }
+
+    /*
+     * Credit reclaim percent of production basis to the empire.
+     *
+     * Purpose: setup reclaimPercent of resources; never wealth
+     * development (RULES §5.2).
+     *
+     * Parameters:
+     *   scenario — reclaimPercent.
+     *   job — completed ReclaimJob.
+     *   players — seats.
+     *   events — log.
+     *
+     * Returns: nothing.
+     */
+    void completeReclaim(
+        Scenario scenario,
+        ReclaimJob job,
+        list players,
+        list events) {
+        if (job.ownerId < 0 or job.ownerId >= players.length) {
+            return()
+        }
+        fp64 pct = scenario.reclaimPercent
+        if (pct < 0.0) {
+            pct = 0.0
+        }
+        if (pct > 1.0) {
+            pct = 1.0
+        }
+        fp64 credit = job.resourceBasis * pct
+        Player seat = players[job.ownerId]
+        seat.resources = seat.resources + credit
+        players[job.ownerId] = seat
+        events.append(
+            TickEvent(
+                "reclaim",
+                -1,
+                job.planetId,
+                job.ownerId,
+                job.hullCount))
     }
 }

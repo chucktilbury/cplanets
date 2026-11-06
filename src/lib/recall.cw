@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial cancel/recall phase for tick core.
+ *   2026-11-05  Phase D4: recall from open engagement (still fights).
  */
 
 include "event.cw"
@@ -96,23 +97,32 @@ class Recall {
         int64 index = 0
         while (index < fleets.length) {
             Fleet fleet = fleets[index]
-            if (fleet.departed and fleet.recallRequested) {
+            if (fleet.recallRequested
+                and (fleet.departed
+                    or (fleet.sitting and fleet.engagementId >= 0))) {
                 if (fleet.ownerId < 0
                     or fleet.ownerId >= players.length) {
                     fleet.recallRequested = false
                     fleets[index] = fleet
                 } else {
                     Player seat = players[fleet.ownerId]
+                    int64 traveled = fleet.ticksTraveled
+                    if (fleet.sitting and fleet.engagementId >= 0) {
+                        traveled = 0
+                    }
                     int64 back = travel.recallEta(
                         scenario,
                         seat,
-                        fleet.ticksTraveled)
+                        traveled)
                     fleet.destPlanetId = fleet.senderPlanetId
                     fleet.eta = back
                     fleet.outboundEta = back
                     fleet.ticksTraveled = 0
                     fleet.order = "recall"
                     fleet.recallRequested = false
+                    fleet.departed = true
+                    fleet.pendingDeparture = false
+                    fleet.sitting = false
                     fleets[index] = fleet
                     events.append(
                         TickEvent(

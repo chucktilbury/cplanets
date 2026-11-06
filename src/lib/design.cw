@@ -13,6 +13,8 @@
  *   2026-11-05  Initial Design + yard BuildJob for tick core.
  *   2026-11-05  Phase D1: makeDefense satellite template.
  *   2026-11-05  Phase D2: freighter/escort + hold capacity.
+ *   2026-11-05  Phase D4: combatStrength; frigate/destroyer;
+ *               ReclaimJob; develop countdown helper.
  */
 
 /*
@@ -230,6 +232,90 @@ class Design {
     bool coversTradeSize(int64 hulls, fp64 sizeS) {
         return(holdCapacity(hulls) >= sizeS)
     }
+
+    /*
+     * Per-hull comparative strength contribution.
+     *
+     * Purpose: shared §12 input for Combat and Screen without a
+     * circular include. Colony hulls are weakly defended.
+     *
+     * Parameters: none (uses this design's flags/size).
+     *
+     * Returns: strength points per hull.
+     */
+    fp64 combatStrength() {
+        if (colony) {
+            return(size * 0.25)
+        }
+        return(size)
+    }
+
+    /*
+     * Fill this slot as a light frigate (screens heavies).
+     *
+     * Purpose: D4 screening tests — frigates die first and screen
+     * destroyers (RULES §12).
+     *
+     * Parameters:
+     *   hop — hop reach in galaxy units.
+     *
+     * Returns: nothing; mutates this Design.
+     */
+    void makeFrigate(fp64 hop) {
+        name = "frigate"
+        speed = 1.5
+        hopReach = hop
+        size = 2.0
+        cargoHold = 0.0
+        scout = false
+        colony = false
+        defense = false
+        developTicksLeft = 0
+        closed = false
+    }
+
+    /*
+     * Fill this slot as a heavy destroyer (needs screens).
+     *
+     * Purpose: D4 screening — heavies without screens take more
+     * losses (RULES §12).
+     *
+     * Parameters:
+     *   hop — hop reach in galaxy units.
+     *
+     * Returns: nothing; mutates this Design.
+     */
+    void makeDestroyer(fp64 hop) {
+        name = "destroyer"
+        speed = 1.0
+        hopReach = hop
+        size = 8.0
+        cargoHold = 0.0
+        scout = false
+        colony = false
+        defense = false
+        developTicksLeft = 0
+        closed = false
+    }
+
+    /*
+     * Begin non-instant development of this design.
+     *
+     * Purpose: designing a type takes setup ticks (RULES §5.3).
+     *
+     * Parameters:
+     *   ticks — scenario.designDevelopTicks.
+     *
+     * Returns: nothing; sets developTicksLeft.
+     */
+    void beginDevelop(int64 ticks) {
+        if (ticks < 1) {
+            developTicksLeft = 1
+        } else {
+            developTicksLeft = ticks
+        }
+        closed = false
+    }
 }
 
 /*
@@ -274,5 +360,55 @@ class BuildJob {
         designId = design
         ticksLeft = ticks
         resourceCost = cost
+    }
+}
+
+/*
+ * ReclaimJob is one in-progress yard reclaim of interned hulls.
+ *
+ * Completes after yardBuildTicks (scenario). Credits a setup
+ * percent of the sunk production resources; development wealth
+ * is never returned (RULES §5.2 / §5.3).
+ */
+class ReclaimJob {
+    int64 id
+    int64 ownerId
+    int64 planetId
+    int64 designId
+    int64 hullCount
+    int64 ticksLeft
+    fp64 resourceBasis
+
+    /*
+     * Construct a yard reclaim order.
+     *
+     * Purpose: track non-instant reclaim at a shipyard.
+     *
+     * Parameters:
+     *   jobId — stable id in the state reclaim list.
+     *   owner — empire reclaiming.
+     *   planet — shipyard planet id.
+     *   design — design id of the hulls.
+     *   hulls — number of hulls being reclaimed.
+     *   ticks — remaining reclaim ticks.
+     *   basis — production-resource basis for percent return.
+     *
+     * Returns: ReclaimJob ready for the production phase.
+     */
+    ReclaimJob(
+        int64 jobId,
+        int64 owner,
+        int64 planet,
+        int64 design,
+        int64 hulls,
+        int64 ticks,
+        fp64 basis) {
+        id = jobId
+        ownerId = owner
+        planetId = planet
+        designId = design
+        hullCount = hulls
+        ticksLeft = ticks
+        resourceBasis = basis
     }
 }

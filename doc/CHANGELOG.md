@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Phase D4 (CPL-28): shared multi-tick combat (duration from
+  comparative strength; recall into/out of fight under battle
+  rules); mid-dispatch fleet lock; design develop + yard
+  produce/reclaim take time; screened heavies; capture-use vs
+  destroy; attributed attack ends agreement + confiscation.
+  Unit: `unit_screen`. Function: `fn_combatDesigns`.
+
 - Phase D3 (CPL-27): midpoint ambush only after half hop ETA; pirate
   loot credits on return to sender; two-pirate war (passers live);
   forced recall after robbery; pirate idle timeout; identify

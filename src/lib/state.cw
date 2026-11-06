@@ -17,9 +17,11 @@
  *   2026-11-05  Phase D1: engagements list + take combat wiring.
  *   2026-11-05  Phase D2: agreements + issueTrade helpers.
  *   2026-11-05  Phase D3: issueAmbush + pirate role lock.
+ *   2026-11-05  Phase D4: reclaim, design develop, confiscation.
  */
 
 include "agreement.cw"
+include "confiscate.cw"
 include "design.cw"
 include "event.cw"
 include "fleet.cw"
@@ -42,8 +44,10 @@ class State {
     list designs
     list fleets
     list builds
+    list reclaims
     list engagements
     list agreements
+    list confiscationArms
     SeededRng rng
     Travel travel
     TickDriver driver
@@ -52,6 +56,7 @@ class State {
     int64 nextFleetId
     int64 nextDesignId
     int64 nextBuildId
+    int64 nextReclaimId
     int64 nextEngagementId
     int64 nextAgreementId
 
@@ -72,8 +77,10 @@ class State {
         designs = []
         fleets = []
         builds = []
+        reclaims = []
         engagements = []
         agreements = []
+        confiscationArms = []
         rng = SeededRng(1u)
         travel = Travel()
         driver = TickDriver()
@@ -82,6 +89,7 @@ class State {
         nextFleetId = 1
         nextDesignId = 0
         nextBuildId = 1
+        nextReclaimId = 1
         nextEngagementId = 1
         nextAgreementId = 1
     }
@@ -147,11 +155,14 @@ class State {
         designs = []
         fleets = []
         builds = []
+        reclaims = []
         engagements = []
         agreements = []
+        confiscationArms = []
         nextFleetId = 1
         nextDesignId = 0
         nextBuildId = 1
+        nextReclaimId = 1
         nextEngagementId = 1
         nextAgreementId = 1
         int64 seats = playerCount
@@ -765,6 +776,91 @@ class State {
     }
 
     /*
+     * Begin developing a new hull design (non-instant).
+     *
+     * Purpose: designing a type takes designDevelopTicks and mostly
+     * wealth (RULES §5.3). Instant design is out.
+     *
+     * Parameters:
+     *   ownerId — empire paying development wealth.
+     *   draft — design template to append (id rewritten).
+     *
+     * Returns: new design id, or −1 on failure.
+     */
+    int64 queueDesignDevelop(int64 ownerId, Design draft) {
+        if (ownerId < 0 or ownerId >= players.length) {
+            return(-1)
+        }
+        Player seat = players[ownerId]
+        fp64 cost = draft.size * 50.0 * scenario.designSpeedCostCoeff
+        cost = cost * scenario.designRangeCostCoeff
+        if (seat.wealth < cost) {
+            return(-1)
+        }
+        seat.wealth = seat.wealth - cost
+        players[ownerId] = seat
+        draft.id = nextDesignId
+        nextDesignId = nextDesignId + 1
+        draft.beginDevelop(scenario.designDevelopTicks)
+        designs.append(draft)
+        return(draft.id)
+    }
+
+    /*
+     * Queue reclaim of sitting hulls at a shipyard planet.
+     *
+     * Purpose: reclaim only at a yard; takes yardBuildTicks; returns
+     * reclaimPercent of production resources (RULES §5.2).
+     *
+     * Parameters:
+     *   fleetId — sitting fleet at a yard.
+     *   hulls — how many hulls to reclaim (<= fleet.hullCount).
+     *
+     * Returns: true when a ReclaimJob was queued.
+     */
+    bool queueReclaim(int64 fleetId, int64 hulls) {
+        Fleet fleet = findFleet(fleetId)
+        if (fleet.id < 0 or hulls <= 0) {
+            return(false)
+        }
+        if (not fleet.sitting
+            or fleet.pendingDeparture
+            or fleet.departed
+            or fleet.engagementId >= 0) {
+            return(false)
+        }
+        if (fleet.locationPlanetId < 0
+            or fleet.locationPlanetId >= galaxy.planets.length) {
+            return(false)
+        }
+        if (fleet.designId < 0 or fleet.designId >= designs.length) {
+            return(false)
+        }
+        Planet rock = galaxy.planets[fleet.locationPlanetId]
+        if (not rock.shipyard or rock.ownerId != fleet.ownerId) {
+            return(false)
+        }
+        if (hulls > fleet.hullCount) {
+            hulls = fleet.hullCount
+        }
+        Design design = designs[fleet.designId]
+        fp64 basis = design.size * 10.0 * fp64(hulls)
+        ReclaimJob job = ReclaimJob(
+            nextReclaimId,
+            fleet.ownerId,
+            rock.id,
+            fleet.designId,
+            hulls,
+            scenario.yardBuildTicks,
+            basis)
+        nextReclaimId = nextReclaimId + 1
+        fleet.hullCount = fleet.hullCount - hulls
+        storeFleet(fleet)
+        reclaims.append(job)
+        return(true)
+    }
+
+    /*
      * Run one pure tick; return the event list.
      *
      * Purpose: lib-only step for tests and cplanets-tick (PLAN §1).
@@ -783,9 +879,11 @@ class State {
             players,
             designs,
             builds,
+            reclaims,
             fleets,
             engagements,
             agreements,
+            confiscationArms,
             events,
             rng,
             nextFleetId,

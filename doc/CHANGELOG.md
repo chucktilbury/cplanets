@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Phase H (CPL-32): AI client — own `config/ai-default.cfg` (not
+  human settings); axes aggression / role stickiness / expansion /
+  escort / agreement appetite / tech vs hulls / reaction lag
+  (ticks + wall) / surprise rate; seeded legal-only surprise; same
+  visibility view; tick period may auto-config from AI lag (still
+  setup-tunable). Unit: `unit_aiConfig`, `unit_aiTickSuggest`,
+  `unit_aiReaction`. Function: `fn_ai` (policy shape + surprise
+  band). TCP same-protocol loop optional via `--serve-loop`.
+
 - Phase F (CPL-31): server driver — real-time cadence (setup seconds
   1–30), snapshot policies → tick → persist → publish state+digest,
   no ready barrier, AFK=last policy, handshake AFK≠drop, pause only

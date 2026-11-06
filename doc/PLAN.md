@@ -232,6 +232,10 @@ dialog** for humans: livability/quality on a **1–10** scale; dialog
 
 ### H. AI client
 
+**Status (2026-11-05):** implemented — own config axes, seeded legal
+surprise, reaction lag (ticks + wall), tick auto-config from AI lag
+(setup still tunable), fn policy-shape + surprise-band. No GTK.
+
 Same protocol as the human client. **Own config file** (not the human
 settings file). Later dialogs.
 

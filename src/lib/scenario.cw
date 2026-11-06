@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial §14 knob surface + closed defaults.
+ *   2026-11-05  Phase H: applyAiLagAutoConfig helper.
  */
 
 /*
@@ -92,7 +93,9 @@ class Scenario {
         tickPeriodSeconds = 5
         tickAutoConfigFromAiLag = true
         aiReactionLagTicks = 1
-        aiReactionLagSeconds = 2.0
+        # Match tick period so auto-config is a no-op on the
+        # closed default; still setup-tunable when the flag is off.
+        aiReactionLagSeconds = 5.0
         afkTimeoutSeconds = 120.0
         afkShrinkFactor = 1.0
 
@@ -161,6 +164,29 @@ class Scenario {
             tickPeriodSeconds = 30
         }
         return(tickPeriodSeconds)
+    }
+
+    /*
+     * Optionally rewrite tick period from AI reaction lag.
+     *
+     * Purpose: RULES §2 / §14 — tick period may auto-config from
+     * AI lag; remains setup-tunable when the flag is false.
+     * Provisional mapping: round aiReactionLagSeconds (fallback
+     * to aiReactionLagTicks as seconds), then clamp 1–30.
+     *
+     * Parameters: none (mutates this scenario when flag is true).
+     *
+     * Returns: tickPeriodSeconds after auto-config / clamp.
+     */
+    int64 applyAiLagAutoConfig() {
+        if (tickAutoConfigFromAiLag) {
+            int64 seconds = int64(aiReactionLagSeconds + 0.5)
+            if (seconds < 1) {
+                seconds = aiReactionLagTicks
+            }
+            tickPeriodSeconds = seconds
+        }
+        return(clampTickPeriod())
     }
 
     /*

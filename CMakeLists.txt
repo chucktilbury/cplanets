@@ -142,7 +142,10 @@ if(BUILD_TESTING)
         unit_verbs
         unit_serverClock
         unit_serverPresence
-        unit_serverPolicy)
+        unit_serverPolicy
+        unit_aiConfig
+        unit_aiTickSuggest
+        unit_aiReaction)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
@@ -157,7 +160,8 @@ if(BUILD_TESTING)
         fn_combatDesigns
         fn_contactEnd
         fn_messages
-        fn_server)
+        fn_server
+        fn_ai)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_program(${fn} src/${fn}.cw)
         add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"

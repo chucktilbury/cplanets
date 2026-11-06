@@ -28,11 +28,13 @@ attributed-attack confiscation, contact / partition couple, closed
 eliminate-all and all-humans-quit end, wire envelope v1 with RLE body
 codec and GET state / PUT policy / GET events-digest verbs, and a
 Phase F server driver under `src/server/` — real-time cadence,
-injectable clock, SQLite-shaped live snapshot, TCP `--serve`),
+injectable clock, SQLite-shaped live snapshot, TCP `--serve` — and
+a Phase H AI client under `src/ai/` with its own config file,
+seeded legal surprise, and reaction lag),
 executables
 (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), the
-closed default setup text in `scenarios/`, tests in `tests/`, and SDK
-discovery helpers in `scripts/`.
+closed default setup text in `scenarios/`, AI defaults in `config/`,
+tests in `tests/`, and SDK discovery helpers in `scripts/`.
 
 With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`
 from the checkout, then `build` in the project shell. Use `rebuild` for a

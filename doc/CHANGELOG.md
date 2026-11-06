@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- User-facing binaries (`cplanets-server`, `cplanets`, `cplanets-ai`,
+  `cplanets-tick`) parse argv with stdlib `cli` (`--help` / `-h`
+  via `helpText()`). Flag semantics unchanged. Docs:
+  [CPLANETS.md](CPLANETS.md), [CODING.md](CODING.md).
+
 - TUNING-PLAYABLE workstream C (session harness):
   `scripts/tuning-session` starts server + AI on a closed fixture
   with a fixed `--seed` for comparable re-runs; fixture packs

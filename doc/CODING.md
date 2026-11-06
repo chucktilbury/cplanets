@@ -12,6 +12,7 @@ Changelog:
 - 2026-11-05  Require full method comments for all methods; drop
   one-liner private-helper softening. Rationale: agent-written code
   is denser than typical human code — comments carry readability.
+- 2026-11-06  User-facing binaries must use stdlib `cli` for argv.
 
 ## File size
 
@@ -102,6 +103,15 @@ example.longCall(
 - If variables are defined for the test/loop, keep those definitions
   **inside** the newline boundary (with the construct).
 - For shorter tests/loops, extra newlines are optional.
+
+## User-facing binaries and argv
+
+Operator-facing executables (`cplanets-server`, `cplanets`,
+`cplanets-ai`, `cplanets-tick`, and any later user tools) **must**
+parse argv with the Cwhip stdlib `cli` package (`import cli as Cli`),
+including generated help via `-h` / `--help` (`Action.HELP` +
+`helpText()`). Do not hand-roll flag loops for those bins. Unit/fn
+test programs are exempt unless migration is trivial.
 
 ## Out of scope / later
 

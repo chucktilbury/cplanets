@@ -26,7 +26,9 @@ Default `build` installs these into `bin/`:
 
 Bare invocation (no flags) of each production binary prints the
 program name and the shared lib identity string — useful as a smoke
-check after build.
+check after build. All four user-facing binaries parse argv with the
+Cwhip stdlib `cli` package (`import cli as Cli`); `--help` / `-h`
+prints generated usage. Unknown flags fail loud (exit 2).
 
 **Map canvas (Phase I) is not available yet.** The human UI is a list /
 notebook debugger only — no planet grid DrawingArea, pan/zoom, or
@@ -91,6 +93,7 @@ bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
+| `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
 | `--serve` | (required for play) | Bind TCP and run accept + cadence loop |
 | `--port N` | `0` (ephemeral) | Listen port; `0` picks a free port |
 | `--players N` | `2` | Seat count for the closed start galaxy |
@@ -115,6 +118,7 @@ bin/cplanets --config config/human-default.cfg [flags…]
 
 | Flag | Meaning |
 | --- | --- |
+| `-h`, `--help` | Print stdlib `cli` usage and exit 0 |
 | `--config PATH` | Human settings file (not the AI config) |
 | `--host HOST` | Override dial host |
 | `--port N` | Override dial port (`> 0` for TCP) |
@@ -146,6 +150,7 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 
 | Flag | Meaning |
 | --- | --- |
+| `-h`, `--help` | Print stdlib `cli` usage and exit 0 |
 | `--config PATH` | AI config (not human settings) |
 | `--host HOST` / `--port N` | Dial overrides |
 | `--once` | Print one local policy shape (no TCP) |
@@ -156,10 +161,12 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 
 ```text
 bin/cplanets-tick
+bin/cplanets-tick --help
 ```
 
-Prints name + lib identity. No advance-N CLI yet; lib tick coverage
-lives in `tests/unit/` and `tests/fn/`.
+Prints name + lib identity. `-h` / `--help` prints stdlib `cli`
+usage. No advance-N CLI yet; lib tick coverage lives in
+`tests/unit/` and `tests/fn/`.
 
 ---
 

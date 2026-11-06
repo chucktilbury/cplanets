@@ -47,6 +47,13 @@ planet `partitionId`, sandbox homes). Unit programs
 `unit_contact`, `unit_endgame` and function program
 `fn_contactEnd` print a bool line.
 
+Phase E adds the messages library: `wireBytes.cw`, `compress.cw`,
+`envelope.cw`, `verbGetState.cw`, `verbPutPolicy.cw`,
+`verbGetDigest.cw`. Envelope v1 frames carry version, verb, path,
+and an RLE/store-compressed body. Unit programs `unit_compress`,
+`unit_envelope`, `unit_verbs` and function program `fn_messages`
+print a bool line. No TCP listen yet.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

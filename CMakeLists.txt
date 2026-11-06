@@ -136,7 +136,10 @@ if(BUILD_TESTING)
         unit_ambushHalf
         unit_screen
         unit_contact
-        unit_endgame)
+        unit_endgame
+        unit_compress
+        unit_envelope
+        unit_verbs)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
@@ -149,7 +152,8 @@ if(BUILD_TESTING)
         fn_tradeAgreements
         fn_pirateIdentify
         fn_combatDesigns
-        fn_contactEnd)
+        fn_contactEnd
+        fn_messages)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_program(${fn} src/${fn}.cw)
         add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"

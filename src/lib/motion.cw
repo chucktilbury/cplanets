@@ -1,15 +1,16 @@
 /*
  * src/lib/motion.cw — ETA decrement, arrivals, sit, stranded-N.
  *
- * RULES §7 steps 4, 6 (sit/arrive only), and 8 (stranded
- * countdown). Midpoint pirate, trade cycle, take/combat, and
- * pirate idle are Phase D stubs elsewhere.
+ * RULES §7 steps 4, 6 (land/sit), and 8 (stranded countdown).
+ * Take/occupy runs after arrivals via Take (Phase D1); midpoint
+ * pirate and trade cycle remain later Phase D stubs.
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial motion/arrive/stranded for tick core.
+ *   2026-11-05  Phase D1: landAndSit preserves arrival order.
  */
 
 include "event.cw"
@@ -19,8 +20,8 @@ include "planet.cw"
 /*
  * Motion advances in-flight fleets and stranded countdowns.
  *
- * Arrivals in Phase C only sit on the destination rock — no take
- * ownership change, no trade bounce, no combat join.
+ * Arrivals land and sit, recording pendingArrivalOrder so Take
+ * (and later trade) can resolve the order that arrived.
  */
 class Motion {
     /*
@@ -72,8 +73,8 @@ class Motion {
     /*
      * Arrive fleets whose ETA has reached zero.
      *
-     * Purpose: Phase C sit/move — land at dest and sit. Ownership
-     * / colony / trade handling is Phase D.
+     * Purpose: land at dest, sit, and stash the arrival order for
+     * Take/trade handlers in the same tick (RULES §7.6).
      *
      * Parameters:
      *   planets — galaxy (bounds check only).
@@ -89,11 +90,12 @@ class Motion {
             if (fleet.departed and not fleet.stranded and fleet.eta <= 0) {
                 if (fleet.destPlanetId >= 0
                     and fleet.destPlanetId < planets.length) {
-                    fleet.locationPlanetId = fleet.destPlanetId
+                    fleet.landAndSit()
+                } else {
+                    fleet.departed = false
+                    fleet.pendingDeparture = false
+                    fleet.becomeSitting()
                 }
-                fleet.departed = false
-                fleet.pendingDeparture = false
-                fleet.becomeSitting()
                 fleets[index] = fleet
                 events.append(
                     TickEvent(

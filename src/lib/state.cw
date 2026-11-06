@@ -2,8 +2,8 @@
  * src/lib/state.cw — game state bootstrap and pure tick entry.
  *
  * Assembles scenario, galaxy, empire pools, designs, fleets, and
- * seeded RNG. Phase C adds tick() — still no TCP/SQLite/scheduler
- * (PLAN §4.B–C / RULES §7).
+ * seeded RNG. Phase C adds tick(); D1 adds engagements for take
+ * combat — still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -12,6 +12,7 @@
  *   2026-11-05  Initial closed-game start helpers.
  *   2026-11-05  Phase C: fleets, designs, builds, tick entry,
  *               order helpers (dispatch/recall/sit/move).
+ *   2026-11-05  Phase D1: engagements list + take combat wiring.
  */
 
 include "design.cw"
@@ -36,6 +37,7 @@ class State {
     list designs
     list fleets
     list builds
+    list engagements
     SeededRng rng
     Travel travel
     TickDriver driver
@@ -44,6 +46,7 @@ class State {
     int64 nextFleetId
     int64 nextDesignId
     int64 nextBuildId
+    int64 nextEngagementId
 
     /*
      * Construct an empty state shell.
@@ -62,6 +65,7 @@ class State {
         designs = []
         fleets = []
         builds = []
+        engagements = []
         rng = SeededRng(1u)
         travel = Travel()
         driver = TickDriver()
@@ -70,6 +74,7 @@ class State {
         nextFleetId = 1
         nextDesignId = 0
         nextBuildId = 1
+        nextEngagementId = 1
     }
 
     /*
@@ -133,9 +138,11 @@ class State {
         designs = []
         fleets = []
         builds = []
+        engagements = []
         nextFleetId = 1
         nextDesignId = 0
         nextBuildId = 1
+        nextEngagementId = 1
         int64 seats = playerCount
         if (seats < 1) {
             seats = 1
@@ -408,16 +415,42 @@ class State {
     list tick() {
         lockSetup()
         list events = []
-        nextFleetId = driver.run(
+        driver.run(
             scenario,
             galaxy.planets,
             players,
             designs,
             builds,
             fleets,
+            engagements,
             events,
-            nextFleetId)
+            nextFleetId,
+            nextEngagementId)
+        nextFleetId = driver.nextFleetIdOut
+        nextEngagementId = driver.nextEngagementIdOut
         tickCount = tickCount + 1
         return(events)
+    }
+
+    /*
+     * Count open engagements.
+     *
+     * Purpose: fn tests assert productive takes never free-occupy.
+     *
+     * Parameters: none.
+     *
+     * Returns: number of engagements with open == true.
+     */
+    int64 countOpenEngagements() {
+        int64 found = 0
+        int64 index = 0
+        while (index < engagements.length) {
+            Engagement fight = engagements[index]
+            if (fight.open) {
+                found = found + 1
+            }
+            index = index + 1
+        }
+        return(found)
     }
 }

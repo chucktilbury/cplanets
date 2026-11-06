@@ -1,15 +1,16 @@
 /*
- * src/lib/fleet.cw — fleet orders and transit state (Phase C).
+ * src/lib/fleet.cw — fleet orders and transit state (Phase C / D1).
  *
  * Holds hull mix, sender/destination, order, ETA, stranded
- * countdown, and mid-dispatch lock flags (RULES §5 / §6). Trade /
- * pirate / take combat resolution stay in Phase D.
+ * countdown, and mid-dispatch lock flags (RULES §5 / §6). D1
+ * records pendingArrivalOrder so take can run after sit landing.
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial Fleet for tick core.
+ *   2026-11-05  Phase D1: pendingArrivalOrder for take/occupy.
  */
 
 /*
@@ -40,6 +41,7 @@ class Fleet {
     bool stranded
     fp64 cargoWealth
     fp64 cargoResources
+    String pendingArrivalOrder
 
     /*
      * Construct a sitting fleet at a planet.
@@ -81,6 +83,7 @@ class Fleet {
         stranded = false
         cargoWealth = 0.0
         cargoResources = 0.0
+        pendingArrivalOrder = ""
     }
 
     /*
@@ -172,6 +175,24 @@ class Fleet {
         departed = false
         recallRequested = false
         sitting = true
+    }
+
+    /*
+     * Land at dest and remember the order that arrived.
+     *
+     * Purpose: Motion sits the fleet while Take still sees "take"
+     * (or trade later) via pendingArrivalOrder (RULES §7.6).
+     *
+     * Parameters: none (uses destPlanetId / order).
+     *
+     * Returns: nothing; mutates this Fleet.
+     */
+    void landAndSit() {
+        pendingArrivalOrder = order
+        locationPlanetId = destPlanetId
+        departed = false
+        pendingDeparture = false
+        becomeSitting()
     }
 
     /*

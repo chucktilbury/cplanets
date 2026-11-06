@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Phase D5 (CPL-29): contact couples partitions and fills known
+  competitors; closed eliminate-all end; all-humans-quit ends the
+  live game; zombies (dropped last-policy seats) fall to normal
+  play; empire pool only; setup lock in progress; stranded moves
+  after N covered in the fn suite. Unit: `unit_contact`,
+  `unit_endgame`. Function: `fn_contactEnd`.
+
 - Phase D4 (CPL-28): shared multi-tick combat (duration from
   comparative strength; recall into/out of fight under battle
   rules); mid-dispatch fleet lock; design develop + yard

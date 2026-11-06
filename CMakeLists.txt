@@ -134,7 +134,9 @@ if(BUILD_TESTING)
         unit_tradeHold
         unit_identify
         unit_ambushHalf
-        unit_screen)
+        unit_screen
+        unit_contact
+        unit_endgame)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
@@ -146,7 +148,8 @@ if(BUILD_TESTING)
         fn_takeColony
         fn_tradeAgreements
         fn_pirateIdentify
-        fn_combatDesigns)
+        fn_combatDesigns
+        fn_contactEnd)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_program(${fn} src/${fn}.cw)
         add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"

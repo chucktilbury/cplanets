@@ -1,9 +1,10 @@
 /*
- * src/lib/planet.cw — galaxy rock state (Phase B / D1).
+ * src/lib/planet.cw — galaxy rock state (Phase B / D1 / D5).
  *
  * Planets exist at game start. Quality stays unknown until explore
  * or take (RULES §3 / §13). Home is already productive with a yard.
  * D1 adds satelliteDefense for parked defense layers (§11.2).
+ * D5 tags each rock with a sandbox partitionId for contact.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -11,13 +12,15 @@
  * Changelog:
  *   2026-11-05  Initial planet fields for setup galaxy.
  *   2026-11-05  Phase D1: satelliteDefense for Ho-shaped leave-behind.
+ *   2026-11-05  Phase D5: partitionId for sandbox contact.
  */
 
 /*
  * Planet is one rock in the galaxy snapshot.
  *
  * Placement, inherent quality, ownership, productive/yard/explored
- * flags, and the satellite defense layer used when warships leave.
+ * flags, sandbox partition, and the satellite defense layer used
+ * when warships leave.
  */
 class Planet {
     int64 id
@@ -32,6 +35,7 @@ class Planet {
     int64 ownerId
     fp64 population
     fp64 satelliteDefense
+    int64 partitionId
 
     /*
      * Construct an unowned, unexplored rock at the origin.
@@ -57,6 +61,7 @@ class Planet {
         ownerId = -1
         population = 0.0
         satelliteDefense = 0.0
+        partitionId = 0
     }
 
     /*

@@ -1,9 +1,9 @@
 /*
- * src/lib/tick.cw — pure tick dispatcher (Phase C / D1–D4).
+ * src/lib/tick.cw — pure tick dispatcher (Phase C / D1–D5).
  *
- * Runs RULES §7 intra-tick order without a scheduler. D4 fills
- * shared multi-tick combat, design/reclaim timing, confiscation
- * after attributed attack. AFK/contact stay later stubs.
+ * Runs RULES §7 intra-tick order without a scheduler. D5 fills
+ * contact (partition couple / known competitors) and closed /
+ * all-humans-quit end checks. No TCP/SQLite yet (Phase E/F).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -14,10 +14,13 @@
  *   2026-11-05  Phase D2: tradeArrive before take.
  *   2026-11-05  Phase D3: midpoint ambush + pirate idle.
  *   2026-11-05  Phase D4: reclaim list, confiscation, capture rng.
+ *   2026-11-05  Phase D5: contact couple + end-game checks.
  */
 
 include "confiscate.cw"
+include "contact.cw"
 include "dispatch.cw"
+include "endgame.cw"
 include "event.cw"
 include "midpoint.cw"
 include "motion.cw"
@@ -32,8 +35,8 @@ include "tradeArrive.cw"
  * TickDriver owns one pure step over game lists.
  *
  * Callers pass scenario + mutable collections; tickCount is
- * incremented by State. After run, read nextFleetIdOut and
- * nextEngagementIdOut. No wall clock, no TCP, no SQLite.
+ * incremented by State. After run, read nextFleetIdOut,
+ * nextEngagementIdOut, and end-game outs. No wall clock, no TCP.
  */
 class TickDriver {
     Production production
@@ -44,8 +47,13 @@ class TickDriver {
     Confiscate confiscate
     TradeArrive tradeArrive
     Take take
+    Contact contact
+    EndGame endGame
     int64 nextFleetIdOut
     int64 nextEngagementIdOut
+    bool endedOut
+    String endReasonOut
+    int64 winnerIdOut
 
     /*
      * Construct the phase helpers used by one tick.
@@ -65,8 +73,13 @@ class TickDriver {
         confiscate = Confiscate()
         tradeArrive = TradeArrive()
         take = Take()
+        contact = Contact()
+        endGame = EndGame()
         nextFleetIdOut = 1
         nextEngagementIdOut = 1
+        endedOut = false
+        endReasonOut = ""
+        winnerIdOut = -1
     }
 
     /*
@@ -75,7 +88,7 @@ class TickDriver {
      * Purpose: pure `tick(state…) → events` per PLAN §1 / RULES §7.
      * Order: production → cancel → depart → recall → move →
      * midpoint → arrive → confiscate → trade → take/combat open →
-     * combat advance → stranded → pirate idle → (afk stub).
+     * combat advance → stranded → pirate idle → contact → end.
      *
      * Parameters:
      *   scenario — setup knobs.
@@ -92,8 +105,9 @@ class TickDriver {
      *   rng — seeded stream for identify / capture-use.
      *   nextFleetId — fleet id counter before yard completions.
      *   nextEngagementId — engagement id counter.
+     *   alreadyEnded — skip end checks when game already over.
      *
-     * Returns: nothing; sets nextFleetIdOut / nextEngagementIdOut.
+     * Returns: nothing; sets next*Out and end-game outs.
      */
     void run(
         Scenario scenario,
@@ -109,7 +123,11 @@ class TickDriver {
         list events,
         SeededRng rng,
         int64 nextFleetId,
-        int64 nextEngagementId) {
+        int64 nextEngagementId,
+        bool alreadyEnded) {
+        endedOut = alreadyEnded
+        endReasonOut = ""
+        winnerIdOut = -1
         nextFleetId = production.run(
             scenario,
             planets,
@@ -181,7 +199,16 @@ class TickDriver {
             nextFleetId)
         motion.strandedCountdown(fleets, events)
         midpoint.idleTimeout(scenario, players, fleets, events)
-        # §7.9 AFK/contact — Phase F / D5.
+        contact.run(planets, players, fleets, events)
+        endGame.run(
+            scenario,
+            planets,
+            players,
+            events,
+            alreadyEnded)
+        endedOut = endGame.endedOut
+        endReasonOut = endGame.endReasonOut
+        winnerIdOut = endGame.winnerIdOut
         nextFleetIdOut = nextFleetId
         nextEngagementIdOut = nextEngagementId
     }

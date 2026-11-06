@@ -41,6 +41,12 @@ Phase D4 adds combat/design reclaim modules: `screen.cw`,
 `queueDesignDevelop` / `queueReclaim`). Unit program `unit_screen`
 and function program `fn_combatDesigns` print a bool line.
 
+Phase D5 adds contact/end modules: `contact.cw`, `endgame.cw`
+(plus player partition / knownCompetitors / quit-drop flags,
+planet `partitionId`, sandbox homes). Unit programs
+`unit_contact`, `unit_endgame` and function program
+`fn_contactEnd` print a bool line.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

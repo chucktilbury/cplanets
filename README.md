@@ -24,10 +24,11 @@ This directory contains the shared machine in `src/lib/` (scenario,
 seeded RNG, start galaxy, empire pools, pure tick core, take/colony,
 shared multi-tick combat with screening, trade agreements / cycle,
 pirate midpoint ambush / identify, design develop / reclaim,
-attributed-attack confiscation), stub executables (`cplanets-server`,
-`cplanets`, `cplanets-ai`, `cplanets-tick`), the closed default setup
-text in `scenarios/`, tests in `tests/`, and SDK discovery helpers in
-`scripts/`.
+attributed-attack confiscation, contact / partition couple, closed
+eliminate-all and all-humans-quit end), stub executables
+(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), the
+closed default setup text in `scenarios/`, tests in `tests/`, and SDK
+discovery helpers in `scripts/`.
 
 With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`
 from the checkout, then `build` in the project shell. Use `rebuild` for a

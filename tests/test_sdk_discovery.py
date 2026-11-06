@@ -153,7 +153,10 @@ class SdkDiscoveryTests(unittest.TestCase):
         self.assertIn('add_test([=[unit_libIdentity]=]', tests)
         self.assertIn(f'"-DEXECUTABLE={self.build}/unit_libIdentity"', tests)
         self.assertIn(
-            f'"{self.project}/tests/unit/unit_libIdentity.cmake"', tests)
+            f'"-DCHECK_SCRIPT={self.project}/tests/unit/unit_libIdentity.cmake"',
+            tests)
+        self.assertIn(
+            f'"{self.project}/tests/run-program-test.cmake"', tests)
         self.assertIn('add_test([=[smoke_cplanets-tick]=]', tests)
 
     def test_ctest_can_be_disabled(self):

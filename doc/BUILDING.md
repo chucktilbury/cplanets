@@ -159,7 +159,7 @@ Build and run the example from the project shell:
 ```sh
 ./scripts/setup
 build
-ctest --output-on-failure
+cmake --build . --target test
 ../bin/cplanets-tick
 ```
 
@@ -167,8 +167,15 @@ Use `build cplanets-tick` to build only the headless tool, or
 `rebuild [TARGET...]` to clean first and then build. These are project-shell
 Bash functions, so they do not exit the shell when a build fails.
 
-CTest runs `unit_libIdentity` (shared lib identity) and a smoke test for each
-stub executable. Set `-DBUILD_TESTING=OFF` at configuration time to omit them.
+Default `build` compiles only the production programs
+(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`). Unit and
+function programs under `tests/unit/` and `tests/fn/` are excluded from
+`all`; they build when you run the CMake `test` target
+(`cmake --build . --target test`, or `build test` in the project shell)
+or when `ctest` runs (each CW test builds its target first via
+`tests/run-program-test.cmake`). CTest covers `unit_*` / `fn_*`, smoke
+checks for each production executable, and the Python functional
+scripts. Set `-DBUILD_TESTING=OFF` at configuration time to omit them.
 
 The Cwhip application helper writes generated sources and package metadata
 inside the build tree. The compiled application is written directly to

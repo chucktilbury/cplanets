@@ -2,8 +2,8 @@
 
 `src/lib/machine.cw` is included by every executable. `Machine.identity`
 returns a managed `String` with `return(expression)`. The unit program
-`src/unit_libIdentity.cw` captures that method in a `String<>` callable
-and prints whether it equals `cplanets-lib`.
+`tests/unit/unit_libIdentity.cw` captures that method in a `String<>`
+callable and prints whether it equals `cplanets-lib`.
 
 Phase B adds scenario/state helpers beside that identity stub:
 `rng.cw`, `scenario.cw`, `setupParse.cw`, `planet.cw`, `player.cw`,
@@ -88,9 +88,12 @@ receiver. Recursive callable types are supported. The former
 `callback<R(P...)>` spelling is no longer a type; `callback` is an ordinary
 identifier.
 
-Cwhip stages each program from the directory of its `SOURCE` file, so unit
-programs that include `lib/` live under `src/` (see `src/unit_libIdentity.cw`).
-CTest wrappers live in `tests/unit/`.
+Unit and function programs live under `tests/unit/` and `tests/fn/`
+(see `tests/unit/unit_libIdentity.cw`). They are staged from those
+directories and resolve production includes with `cwhip -p src`; they
+are excluded from the default `all`/`build` target and compile when
+the CMake `test` target or `ctest` runs. CTest wrappers live beside
+the `.cw` sources in `tests/unit/` and `tests/fn/`.
 
 Multi-line method parameter lists must keep `) {` on the same line; a
 bare `)` line followed by `{` on the next line fails to parse. `range`

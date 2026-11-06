@@ -89,10 +89,12 @@ is a later phase and assumes Cwhip grows `DrawingArea`.
 
 ### A. Skeleton
 
-CMake four programs, drop `hello`, shared `lib` stub, one unit program
-that includes `lib/` (Cwhip stages the `SOURCE` directory, so that
-program lives at `src/unit_libIdentity.cw`; CTest wrappers stay in
-`tests/unit/`).
+CMake four production programs, drop `hello`, shared `lib` stub, one
+unit program that includes `lib/` via the test build’s `cwhip -p src`
+search path (`tests/unit/unit_libIdentity.cw`; CTest wrappers stay
+beside the `.cw` sources in `tests/unit/`). Unit/fn programs are
+**not** part of the default `all`/`build` target — they build under
+the CMake `test` target / `ctest` (see `cplanets_add_test_program`).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |

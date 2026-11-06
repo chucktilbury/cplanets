@@ -20,7 +20,7 @@ Default `build` installs these into `bin/`:
 | Binary | Role |
 | --- | --- |
 | `cplanets-server` | Owns the galaxy. Schedules ticks, accepts TCP clients, is the sole writer. |
-| `cplanets` | Human client — GTK **list debugger** (planets / fleets / digest / policy). Never ticks. |
+| `cplanets` | Human client — GTK **list debugger** (planets / fleets / digest / policy; pause + fleet dispatch/recall chrome). Never ticks. |
 | `cplanets-ai` | Stand-alone AI client on the same protocol. Own config file. Never ticks. |
 | `cplanets-tick` | Headless identity / future N-tick host stub (no TCP, no GTK). |
 
@@ -126,6 +126,17 @@ bin/cplanets --config config/human-default.cfg [flags…]
 
 With `--gui` / `--test` and `port > 0`, the client pulls from the
 server; otherwise it prefills an offline closed galaxy.
+
+**Tuning-loop chrome (workstream B, no map):** Pause CheckButton
+(sensitive only with exactly one human; `PUT /pause`). Fleets tab
+Entries + Dispatch / Recall (`PUT /order`, `PUT /recall`) for
+explore / take / trade / move / ambush / recall — in-flight fleets
+show `LOCKED` and Dispatch is disabled until Recall. Policy tab
+Entries + Apply unchanged. Explored-planet dialog auto-presents when
+quality becomes known or productive/populated flips; Planets tab
+still has “Show first explored”. Design/build progress is a
+non-modal label fed from the published chrome trailer (setup
+durations + active jobs).
 
 ### `cplanets-ai`
 

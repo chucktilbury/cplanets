@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- TUNING-PLAYABLE workstream B (list chrome): human Pause
+  CheckButton → `PUT /pause` (one-human gate); Fleets tab
+  Dispatch/Recall Entries → `PUT /order` / `PUT /recall` with
+  in-flight lock UX; explored dialog auto-present; design/build
+  progress label from publish chrome trailer. CTest:
+  `fn_listChrome`, `functional_list_chrome`. Docs:
+  [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md),
+  [CPLANETS.md](CPLANETS.md), [DIALOGS.md](DIALOGS.md).
+
 - TUNING-PLAYABLE workstream A (knob surface): server `--setup PATH`
   / `--seed` load editable scenario fixtures; unknown keys fail loud
   on setup + AI config; restart-only retune contract in

@@ -2,14 +2,16 @@
  * src/client/session.cw — human TCP session (Phase G).
  *
  * Same protocol as the AI client: handshake, GET /state,
- * PUT /policy, GET /digest. Never calls tick; never opens the
- * universe DB (RULES §2 / PLAN §4.G).
+ * PUT /policy, GET /digest, plus TUNING-B PUT /pause, /order,
+ * /recall. Never calls tick; never opens the universe DB
+ * (RULES §2 / PLAN §4.G).
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial HumanSession request helpers.
+ *   2026-11-06  TUNING B: putPause / putOrder / putRecall.
  */
 
 import networking as Networking
@@ -202,5 +204,98 @@ class HumanSession {
         }
         PutPolicyResponse ack = putVerb.decodeResponse(resp)
         return(ack.accepted)
+    }
+
+    /*
+     * PUT /pause with a 0/1 flag body.
+     *
+     * Purpose: one-human pause control (server still gates).
+     *
+     * Parameters:
+     *   wantPaused — desired pause state.
+     *
+     * Returns: true when the server accepted the change.
+     */
+    bool putPause(bool wantPaused) {
+        WireBytes w = WireBytes()
+        if (wantPaused) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/pause", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/pause"))
+    }
+
+    /*
+     * PUT /order for explore / take / trade / move / ambush.
+     *
+     * Purpose: list-client fleet dispatch (TUNING-PLAYABLE B2).
+     *
+     * Parameters:
+     *   fleetId — owned fleet id.
+     *   order — order string.
+     *   destPlanetId — destination rock.
+     *
+     * Returns: true when the server queued the order.
+     */
+    bool putOrder(
+        int64 fleetId, String order, int64 destPlanetId) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        w.writeU32(destPlanetId)
+        w.writeString(order)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/order", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/order"))
+    }
+
+    /*
+     * PUT /recall for a seat-owned fleet.
+     *
+     * Purpose: same-tick cancel or in-flight recall.
+     *
+     * Parameters:
+     *   fleetId — owned fleet id.
+     *
+     * Returns: true when the server recorded the recall.
+     */
+    bool putRecall(int64 fleetId) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/recall", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/recall"))
+    }
+
+    /*
+     * Decode a flag-ack response (accepted u8 + tick + ended).
+     *
+     * Purpose: share pause / order / recall / handshake ack shape.
+     *
+     * Parameters:
+     *   resp — raw response envelope bytes.
+     *   expectPath — path that must match.
+     *
+     * Returns: true when path matches and accepted == 1.
+     */
+    bool flagAccepted(buffer resp, String expectPath) {
+        if (resp.length < 1) {
+            return(false)
+        }
+        Envelope out = EnvelopeCodec().decode(resp)
+        if (not out.ok or not out.path.equals(expectPath)) {
+            return(false)
+        }
+        WireBytes r = WireBytes()
+        r.setRead(out.body)
+        int64 accepted = r.readU8()
+        return(r.ok() and accepted == 1)
     }
 }

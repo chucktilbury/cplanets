@@ -4,7 +4,8 @@
  * Decodes one envelope request and returns one envelope response
  * against a GameDriver. Paths: GET /state, PUT /policy, GET
  * /digest|/events, PUT /handshake, PUT /quit, PUT /pause,
- * PUT /admin/advance. No ready-barrier verb (PLAN §4.F).
+ * PUT /order, PUT /recall, PUT /admin/advance. No ready-barrier
+ * verb (PLAN §4.F).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -12,6 +13,7 @@
  * Changelog:
  *   2026-11-05  Initial server message handler.
  *   2026-11-05  Phase G: GET /state uses seat-scoped list view.
+ *   2026-11-06  TUNING B: PUT /order, PUT /recall; pause in state.
  */
 
 include "driver.cw"
@@ -94,6 +96,14 @@ class ServerHandler {
             return(handlePause(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/order")) {
+            return(handleOrder(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/recall")) {
+            return(handleRecall(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/admin/advance")) {
             return(handleAdvance(env.body))
         }
@@ -117,7 +127,10 @@ class ServerHandler {
         }
         PublishCodec codec = PublishCodec()
         buffer blob = codec.encodeStateView(
-            driver.game, driver.policies, req.playerId)
+            driver.game,
+            driver.policies,
+            req.playerId,
+            driver.paused)
         GetStateResponse resp = GetStateResponse(
             driver.game.tickCount, blob)
         return(getState.encodeResponse(resp))
@@ -228,6 +241,55 @@ class ServerHandler {
         }
         bool ok = driver.setPaused(flag == 1)
         return(flagAck("/pause", ok))
+    }
+
+    /*
+     * Serve PUT /order body (player, fleet, dest, order string).
+     *
+     * Purpose: list-client dispatch for explore/take/trade/…
+     * (TUNING-PLAYABLE B2). Ownership checked in the driver.
+     *
+     * Parameters:
+     *   body — playerId u32, fleetId u32, destPlanetId u32,
+     *          order string.
+     *
+     * Returns: ack envelope on /order.
+     */
+    buffer handleOrder(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 fleet = r.readU32()
+        int64 dest = r.readU32()
+        String order = r.readString()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_order"))
+        }
+        bool ok = driver.issueOwnedOrder(
+            player, fleet, order, dest)
+        return(flagAck("/order", ok))
+    }
+
+    /*
+     * Serve PUT /recall body (playerId u32, fleetId u32).
+     *
+     * Purpose: same-tick cancel or in-flight recall (RULES §5.2).
+     *
+     * Parameters:
+     *   body — uncompressed request body.
+     *
+     * Returns: ack envelope on /recall.
+     */
+    buffer handleRecall(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 fleet = r.readU32()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_recall"))
+        }
+        bool ok = driver.recallOwnedFleet(player, fleet)
+        return(flagAck("/recall", ok))
     }
 
     /*

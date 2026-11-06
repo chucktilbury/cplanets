@@ -21,7 +21,7 @@ start {
     PolicyTable policies = PolicyTable()
     policies.ensureSeats(game.players.length)
     PublishCodec codec = PublishCodec()
-    buffer blob = codec.encodeStateView(game, policies, 0)
+    buffer blob = codec.encodeStateView(game, policies, 0, false)
     if (blob.length < 1) {
         ok = false
     }

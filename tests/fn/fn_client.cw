@@ -65,8 +65,9 @@ start {
     # Seat-scoped encode differs from all-visible snapshot size /
     # visible counts when fog applies; both must decode.
     PublishCodec codec = PublishCodec()
-    buffer allBlob = codec.encodeState(game, policies)
-    buffer seatBlob = codec.encodeStateView(game, policies, 0)
+    buffer allBlob = codec.encodeState(game, policies, false)
+    buffer seatBlob = codec.encodeStateView(
+        game, policies, 0, false)
     if (ok and (allBlob.length < 1 or seatBlob.length < 1)) {
         ok = false
     }

@@ -51,6 +51,28 @@ def handshake(player_id: int) -> bytes:
     return encode_envelope(2, "/handshake", _u32(player_id))
 
 
+def put_pause(flag: bool) -> bytes:
+    return encode_envelope(2, "/pause", _u8(1 if flag else 0))
+
+
+def put_order(
+    player_id: int, fleet_id: int, dest_planet_id: int, order: str
+) -> bytes:
+    order_bytes = order.encode("utf-8")
+    body = (
+        _u32(player_id)
+        + _u32(fleet_id)
+        + _u32(dest_planet_id)
+        + _u16(len(order_bytes))
+        + order_bytes
+    )
+    return encode_envelope(2, "/order", body)
+
+
+def put_recall(player_id: int, fleet_id: int) -> bytes:
+    return encode_envelope(2, "/recall", _u32(player_id) + _u32(fleet_id))
+
+
 def decompress_store(blob: bytes) -> bytes:
     if not blob:
         raise ValueError("empty compress blob")

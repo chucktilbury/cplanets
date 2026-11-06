@@ -9,6 +9,8 @@
  *
  * Changelog:
  *   2026-11-05  Initial PublishDecode.
+ *   2026-11-06  TUNING B: humanCount; fleet lock flags; chrome
+ *               trailer (pause + design/build progress).
  */
 
 include "../lib/wireBytes.cw"
@@ -25,7 +27,8 @@ include "stateView.cw"
  */
 class PublishDecode {
     enum {
-        LIST_MARKER = 1196445777
+        LIST_MARKER = 1196445777,
+        CHROME_MARKER = 1129465393
     }
 
     /*
@@ -61,12 +64,16 @@ class PublishDecode {
         view.winnerId = r.readU32() - 1
         int64 playerCount = r.readU32()
         int64 index = 0
+        view.humanCount = 0
         while (index < playerCount) {
             r.readU32()
             r.readU32()
             r.readU8()
             r.readU8()
-            r.readU8()
+            int64 humanFlag = r.readU8()
+            if (humanFlag == 1) {
+                view.humanCount = view.humanCount + 1
+            }
             index = index + 1
         }
         int64 policyCount = r.readU32()
@@ -92,6 +99,7 @@ class PublishDecode {
         view.viewerId = r.readU32() - 1
         decodePlanets(r, view)
         decodeFleets(r, view)
+        decodeChromeTrailer(r, blob, view)
         return(view)
     }
 
@@ -148,6 +156,8 @@ class PublishDecode {
             row.visible = ((flags % 2) == 1)
             row.sitting = (((flags / 2) % 2) == 1)
             row.departed = (((flags / 4) % 2) == 1)
+            row.pendingDeparture = (((flags / 8) % 2) == 1)
+            row.recallRequested = (((flags / 16) % 2) == 1)
             row.ownerId = r.readU32() - 1
             row.destPlanetId = r.readU32() - 1
             row.locationPlanetId = r.readU32() - 1
@@ -155,6 +165,72 @@ class PublishDecode {
             row.hullCount = r.readU32()
             row.order = r.readString()
             view.fleets.append(row)
+            index = index + 1
+        }
+    }
+
+    /*
+     * Decode the optional TUNING-B chrome trailer after fleets.
+     *
+     * Purpose: pause flag + design/yard progress lines. No-op when
+     * the blob ends before CHROME_MARKER (older snapshots).
+     *
+     * Parameters:
+     *   r — WireBytes reader past fleet rows.
+     *   blob — full state blob (length bound).
+     *   view — mutable ClientStateView.
+     *
+     * Returns: nothing.
+     */
+    void decodeChromeTrailer(
+        WireBytes r, buffer blob, ClientStateView view) {
+        view.progressLines = []
+        if (r.offset + 4 > blob.length) {
+            return()
+        }
+        int64 marker = r.readU32()
+        if (marker != CHROME_MARKER) {
+            return()
+        }
+        int64 pausedFlag = r.readU8()
+        view.paused = (pausedFlag == 1)
+        view.designDevelopTicks = r.readU32()
+        view.yardBuildTicks = r.readU32()
+        int64 developing = r.readU32()
+        int64 index = 0
+        while (index < developing) {
+            int64 designId = r.readU32()
+            int64 left = r.readU32()
+            view.progressLines.append(format(
+                "design {} developing ticksLeft={}",
+                designId, left))
+            index = index + 1
+        }
+        int64 builds = r.readU32()
+        index = 0
+        while (index < builds) {
+            int64 jobId = r.readU32()
+            int64 owner = r.readU32() - 1
+            int64 planet = r.readU32() - 1
+            int64 design = r.readU32() - 1
+            int64 left = r.readU32()
+            view.progressLines.append(format(
+                "build {} owner={} planet={} design={} ticksLeft={}",
+                jobId, owner, planet, design, left))
+            index = index + 1
+        }
+        int64 reclaims = r.readU32()
+        index = 0
+        while (index < reclaims) {
+            int64 jobId = r.readU32()
+            int64 owner = r.readU32() - 1
+            int64 planet = r.readU32() - 1
+            int64 design = r.readU32() - 1
+            int64 hulls = r.readU32()
+            int64 left = r.readU32()
+            view.progressLines.append(format(
+                "reclaim {} owner={} planet={} design={} hulls={} ticksLeft={}",
+                jobId, owner, planet, design, hulls, left))
             index = index + 1
         }
     }

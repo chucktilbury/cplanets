@@ -13,6 +13,8 @@
  * Changelog:
  *   2026-11-05  Initial publish blob encoders.
  *   2026-11-05  Phase G: planet/fleet list rows + seat visibility.
+ *   2026-11-06  TUNING B: pendingDeparture flag; chrome trailer
+ *               (pause + design/yard progress).
  */
 
 include "../lib/event.cw"
@@ -31,10 +33,17 @@ include "policyTable.cw"
  *
  * Digest blob: tick u32, eventCount u32, then each event kind
  * string + fleet/planet/player/value u32s (value as i32 cast).
+ *
+ * After fleet rows (TUNING B): CHROME_MARKER u32, paused u8,
+ * designDevelopTicks u32, yardBuildTicks u32, developing design
+ * count + (id, ticksLeft), build count + BuildJob rows, reclaim
+ * count + ReclaimJob rows. Older decoders stop at fleets when
+ * they do not read further.
  */
 class PublishCodec {
     enum {
-        LIST_MARKER = 1196445777
+        LIST_MARKER = 1196445777,
+        CHROME_MARKER = 1129465393
     }
 
     /*
@@ -59,11 +68,13 @@ class PublishCodec {
      * Parameters:
      *   game — current State after tick.
      *   policies — last-policy table snapshot source.
+     *   paused — current pause flag for chrome trailer.
      *
      * Returns: opaque buffer; empty on pack failure.
      */
-    buffer encodeState(State game, PolicyTable policies) {
-        return(encodeStateView(game, policies, -1))
+    buffer encodeState(
+        State game, PolicyTable policies, bool paused) {
+        return(encodeStateView(game, policies, -1, paused))
     }
 
     /*
@@ -77,11 +88,15 @@ class PublishCodec {
      *   game — current State after tick.
      *   policies — last-policy table snapshot source.
      *   viewerId — seat requesting the view; -1 = all visible.
+     *   paused — current pause flag for chrome trailer.
      *
      * Returns: opaque buffer; empty on pack failure.
      */
     buffer encodeStateView(
-        State game, PolicyTable policies, int64 viewerId) {
+        State game,
+        PolicyTable policies,
+        int64 viewerId,
+        bool paused) {
         WireBytes w = WireBytes()
         w.writeU32(game.tickCount)
         if (game.ended) {
@@ -129,6 +144,7 @@ class PublishCodec {
         w.writeU32(viewerId + 1)
         writePlanetRows(w, game, viewerId)
         writeFleetRows(w, game, viewerId)
+        writeChromeTrailer(w, game, paused)
         if (not w.ok()) {
             return(buffer[])
         }
@@ -220,6 +236,12 @@ class PublishCodec {
             if (ship.departed) {
                 flags = flags + 4
             }
+            if (ship.pendingDeparture) {
+                flags = flags + 8
+            }
+            if (ship.recallRequested) {
+                flags = flags + 16
+            }
             w.writeU32(ship.id)
             w.writeU8(flags)
             w.writeU32(ship.ownerId + 1)
@@ -228,6 +250,73 @@ class PublishCodec {
             w.writeU32(ship.eta)
             w.writeU32(ship.hullCount)
             w.writeString(ship.order)
+            index = index + 1
+        }
+    }
+
+    /*
+     * Append TUNING-B chrome trailer after fleet rows.
+     *
+     * Purpose: pause flag + design/yard progress labels for the
+     * list debugger without a map (TUNING-PLAYABLE B4).
+     *
+     * Parameters:
+     *   w — WireBytes writer past fleet rows.
+     *   game — current State (scenario durations + jobs).
+     *   paused — driver pause flag.
+     *
+     * Returns: nothing; mutates w.
+     */
+    void writeChromeTrailer(
+        WireBytes w, State game, bool paused) {
+        w.writeU32(CHROME_MARKER)
+        if (paused) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        w.writeU32(game.scenario.designDevelopTicks)
+        w.writeU32(game.scenario.yardBuildTicks)
+        int64 developing = 0
+        int64 index = 0
+        while (index < game.designs.length) {
+            Design d = game.designs[index]
+            if (d.developTicksLeft > 0) {
+                developing = developing + 1
+            }
+            index = index + 1
+        }
+        w.writeU32(developing)
+        index = 0
+        while (index < game.designs.length) {
+            Design d = game.designs[index]
+            if (d.developTicksLeft > 0) {
+                w.writeU32(d.id)
+                w.writeU32(d.developTicksLeft)
+            }
+            index = index + 1
+        }
+        w.writeU32(game.builds.length)
+        index = 0
+        while (index < game.builds.length) {
+            BuildJob build = game.builds[index]
+            w.writeU32(build.id)
+            w.writeU32(build.ownerId + 1)
+            w.writeU32(build.planetId + 1)
+            w.writeU32(build.designId + 1)
+            w.writeU32(build.ticksLeft)
+            index = index + 1
+        }
+        w.writeU32(game.reclaims.length)
+        index = 0
+        while (index < game.reclaims.length) {
+            ReclaimJob job = game.reclaims[index]
+            w.writeU32(job.id)
+            w.writeU32(job.ownerId + 1)
+            w.writeU32(job.planetId + 1)
+            w.writeU32(job.designId + 1)
+            w.writeU32(job.hullCount)
+            w.writeU32(job.ticksLeft)
             index = index + 1
         }
     }

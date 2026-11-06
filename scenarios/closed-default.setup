@@ -6,7 +6,8 @@ scenario_mode = closed
 tick_period_seconds = 5
 tick_auto_config_from_ai_lag = true
 ai_reaction_lag_ticks = 1
-ai_reaction_lag_seconds = 2.0
+# Matches tick_period_seconds so auto-config is a no-op here.
+ai_reaction_lag_seconds = 5.0
 afk_timeout_seconds = 120.0
 afk_shrink_factor = 1.0
 

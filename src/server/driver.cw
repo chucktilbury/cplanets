@@ -12,6 +12,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial GameDriver cadence loop helpers.
+ *   2026-11-05  Phase H: apply AI-lag tick auto-config at start.
  */
 
 include "clock.cw"
@@ -67,6 +68,9 @@ class GameDriver {
         bool enableStore,
         uint64 handshakeMissMs) {
         game = started
+        # Tick period may auto-config from AI lag (RULES §2); still
+        # setup-tunable when tickAutoConfigFromAiLag is false.
+        game.scenario.applyAiLagAutoConfig()
         policies = PolicyTable()
         policies.ensureSeats(game.players.length)
         presence = PresenceBook(handshakeMissMs)

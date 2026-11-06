@@ -62,6 +62,15 @@ on the server: PUT `/handshake`, `/quit`, `/pause`,
 `unit_serverPolicy`. Function: `fn_server`. Python functional:
 `tests/functional/test_server_smoke.py`.
 
+Phase H adds `src/ai/` (config, configParse, view, policyShape,
+brain, reaction, tickSuggest, client) and turns `cplanets-ai` into
+a stand-alone client with `--config` / `--once` / `--serve-loop`.
+Own config text lives under `config/ai-default.cfg` (key = value,
+not the human settings file). Scenario
+`applyAiLagAutoConfig` / `TickSuggest` may rewrite tick period from
+AI lag when the setup flag is on. Unit: `unit_aiConfig`,
+`unit_aiTickSuggest`, `unit_aiReaction`. Function: `fn_ai`.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

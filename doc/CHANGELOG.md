@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- TUNING-PLAYABLE workstream C (session harness):
+  `scripts/tuning-session` starts server + AI on a closed fixture
+  with a fixed `--seed` for comparable re-runs; fixture packs
+  `scenarios/tuning-{small,combat,trade}.setup`; AI aggression
+  presets `config/ai-{soft,mid,hard}.cfg` (seat 1). Headless CTest
+  `functional_session_harness` (setup + seed + AI join + `--pull`,
+  no GTK). Docs: [CPLANETS.md](CPLANETS.md),
+  [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md).
+
 - TUNING-PLAYABLE workstream B (list chrome): human Pause
   CheckButton → `PUT /pause` (one-human gate); Fleets tab
   Dispatch/Recall Entries → `PUT /order` / `PUT /recall` with

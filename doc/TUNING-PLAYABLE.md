@@ -53,8 +53,8 @@ Cwhip GTK for Cplanets-only widgets.
 | Area | On main (A–H) | Gap for tuning loops |
 | --- | --- | --- |
 | **Sim / lib** | Tick machine, D1–D5 clusters, §14 knobs named in `scenarios/closed-default.setup` | Magnitudes are placeholders; some open RULES forks (formulas / tick-driver livability) — tune around defaults until locked |
-| **Server** | Real-time cadence, TCP, SQLite-shaped snapshot, pause gate, presence handshake shape, digest publish; **`--setup` path load** (workstream A) | Mid-game retune (deferred); peer-drop UX thin; harness beyond smoke (workstream C) |
-| **AI** | Config axes, lag (ticks+wall), surprise band, tick-period suggest | Binding-shape still open; need documented multi-seat fixture + retune cycle |
+| **Server** | Real-time cadence, TCP, SQLite-shaped snapshot, pause gate, presence handshake shape, digest publish; **`--setup` path load** (workstream A); **session harness** (workstream C) | Mid-game retune (deferred); peer-drop UX thin |
+| **AI** | Config axes, lag (ticks+wall), surprise band, tick-period suggest; soft/mid/hard presets + harness attach (C) | Binding-shape still open |
 | **Human client** | List notebook (planets/fleets/digest/policy), explored dialog skeleton, policy Entries + Apply; **B:** pause, dispatch/recall, explored auto-pop, design/build progress labels | Agreements beyond stub; AFK/drop notices; Scale swap (B6); map (D) |
 | **Dialogs / chrome** | Inventory ([#28](https://github.com/cwhip-lang/cplanets/pull/28)) | Implement **Intended playable** items that block loops (not map) |
 | **Knobs** | Outside-code principle + fixture file; **restart contract + path load + unknown-key fail** (workstream A) | No v1 setup GUI (deferred); magnitudes still placeholders |
@@ -233,3 +233,21 @@ build / reclaim rows); fleet flags `pendingDeparture` /
 `recallRequested`.
 
 **Tests:** `fn_listChrome`, `functional_list_chrome`.
+
+---
+
+## Progress — workstream C (session harness)
+
+**Status:** implemented on the tuning-session-harness branch
+(headless CI smoke + operator script; no GTK required).
+
+| Chunk | Landed |
+| --- | --- |
+| C1 | Operator recipe in [CPLANETS.md](CPLANETS.md): `scripts/tuning-session` + human `--gui` / `--pull`; seed reproducibility called out |
+| C2 | CTest `functional_session_harness` — injectable server + AI `--serve-loop` + human `--pull`; admin advance; digest/tick growth |
+| C3 | Fixture packs: `scenarios/tuning-small.setup`, `tuning-combat.setup`, `tuning-trade.setup` (+ closed-default baseline) |
+| C4 | AI presets: `config/ai-soft.cfg`, `ai-mid.cfg`, `ai-hard.cfg` (seat 1) |
+
+**How to re-run a comparable loop:** edit setup/AI knobs → stop →
+`./scripts/tuning-session --setup … --seed 77 --ai-config …` with the
+**same seed** → attach human. CI proof: `ctest -R functional_session_harness`.

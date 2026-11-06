@@ -18,45 +18,31 @@ The planet grid is a computer generated graphic with "hot spots" for planets. A 
 
 The game is a multi-player game that can also be played stand-alone; stand-alone and online share the same server clock. A **server** executable owns the universe and calls `tick` on a configurable real-time period; **human** and **AI** clients talk to it over TCP with a REST-shaped protocol (no HTTP server in v1; compressed binary on a local network). Clients update policy anytime and read the published digest — they never tick. A formal REST façade may come later. Players can join the game before play begins; AFK keeps the last policy, with timeout shrink in real time and/or tick period until they return. 
 
-## Building and Installation
+## Run and build
 
-This directory contains the shared machine in `src/lib/` (scenario,
-seeded RNG, start galaxy, empire pools, pure tick core, take/colony,
-shared multi-tick combat with screening, trade agreements / cycle,
-pirate midpoint ambush / identify, design develop / reclaim,
-attributed-attack confiscation, contact / partition couple, closed
-eliminate-all and all-humans-quit end, wire envelope v1 with RLE body
-codec and GET state / PUT policy / GET events-digest verbs, and a
-Phase F server driver under `src/server/` — real-time cadence,
-injectable clock, SQLite-shaped live snapshot, TCP `--serve` — and
-a Phase H AI client under `src/ai/` with its own config file,
-seeded legal surprise, and reaction lag, and a Phase G human GTK
-list debugger under `src/client/` — planet/fleet/digest/policy
-panes, explored-planet dialog, TCP only, no map canvas),
-executables
-(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), the
-closed default setup text in `scenarios/`, AI and human defaults in
-`config/`, tests in `tests/`, and SDK discovery helpers in
-`scripts/`.
+**Main user / operator guide:** [doc/CPLANETS.md](doc/CPLANETS.md)
+(binaries, build with `CWHIP_SDK`, how to run server + human + AI,
+config/fixture paths). Map canvas is not available yet.
 
-With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`
-from the checkout, then `build` in the project shell. Use `rebuild` for a
-clean-first build, or `clean` to remove generated outputs; exit the shell before
-running setup again.
+Quick build (details in the guide and [BUILDING.md](doc/BUILDING.md)):
 
 ```sh
+export CWHIP_SDK="/absolute/path/to/cwhip-sdk"
 ./scripts/setup [--clean] [debug|release|profile]
 build
-cmake --build . --target test
-../bin/cplanets-tick
 ```
 
-Default `build` compiles production programs only. Unit/fn programs under
-`tests/unit/` and `tests/fn/` build with the CMake `test` target (or when
-`ctest` runs). See [Building](doc/BUILDING.md).
+Default `build` compiles production programs only
+(`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`) into
+`bin/`. Unit/fn programs under `tests/` build with the CMake `test`
+target (or when `ctest` runs).
 
+## Docs
+
+- [User / operator guide](doc/CPLANETS.md) — start here to run the game
 - [Game rules and machine](doc/RULES.md)
 - [Implementation plan](doc/PLAN.md)
+- [Coding conventions](doc/CODING.md)
 - [Building](doc/BUILDING.md)
 - [Syntax](doc/SYNTAX.md)
 - [Project shell](doc/PROJECT-SHELL.md)

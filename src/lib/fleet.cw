@@ -1,10 +1,11 @@
 /*
- * src/lib/fleet.cw — fleet orders and transit state (Phase C–D2).
+ * src/lib/fleet.cw — fleet orders and transit state (Phase C–D3).
  *
  * Holds hull mix, sender/destination, order, ETA, stranded
  * countdown, and mid-dispatch lock flags (RULES §5 / §6). D1
  * records pendingArrivalOrder so take can run after sit landing.
- * D2 adds trade leg, agreement, fills, and escort mix.
+ * D2 adds trade leg, agreement, fills, and escort mix. D3 adds
+ * ambush in-position / idle / loot riding until return.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -13,6 +14,7 @@
  *   2026-11-05  Initial Fleet for tick core.
  *   2026-11-05  Phase D1: pendingArrivalOrder for take/occupy.
  *   2026-11-05  Phase D2: trade cycle fields + escorts.
+ *   2026-11-05  Phase D3: ambush position, idle, loot cargo.
  */
 
 /*
@@ -51,6 +53,12 @@ class Fleet {
     int64 tradeFarPlanetId
     int64 escortDesignId
     int64 escortHullCount
+    bool ambushInPosition
+    int64 ambushIdleLeft
+    int64 ambushEdgeA
+    int64 ambushEdgeB
+    fp64 lootWealth
+    fp64 lootResources
 
     /*
      * Construct a sitting fleet at a planet.
@@ -100,6 +108,12 @@ class Fleet {
         tradeFarPlanetId = -1
         escortDesignId = -1
         escortHullCount = 0
+        ambushInPosition = false
+        ambushIdleLeft = 0
+        ambushEdgeA = -1
+        ambushEdgeB = -1
+        lootWealth = 0.0
+        lootResources = 0.0
     }
 
     /*
@@ -191,6 +205,92 @@ class Fleet {
         departed = false
         recallRequested = false
         sitting = true
+        ambushInPosition = false
+        ambushIdleLeft = 0
+        ambushEdgeA = -1
+        ambushEdgeB = -1
+    }
+
+    /*
+     * Enter ambush wait at the hop midpoint.
+     *
+     * Purpose: RULES §6 / §10 — after half hop ETA the pirate is
+     * in position; combat may fire; idle countdown starts.
+     *
+     * Parameters:
+     *   idleTicks — scenario pirateIdleTicks.
+     *
+     * Returns: nothing; mutates this Fleet.
+     */
+    void enterAmbushPosition(int64 idleTicks) {
+        ambushInPosition = true
+        ambushIdleLeft = idleTicks
+        eta = 0
+        departed = true
+        pendingDeparture = false
+        sitting = false
+        recallRequested = false
+        order = "ambush"
+    }
+
+    /*
+     * Canonical undirected edge key low endpoint.
+     *
+     * Purpose: match pirates and passers on the same A–B hop.
+     *
+     * Parameters: none (uses ambushEdgeA/B or sender/dest).
+     *
+     * Returns: min endpoint planet id.
+     */
+    int64 edgeLo() {
+        int64 a = ambushEdgeA
+        int64 b = ambushEdgeB
+        if (a < 0 or b < 0) {
+            a = senderPlanetId
+            b = destPlanetId
+        }
+        if (b < a) {
+            return(b)
+        }
+        return(a)
+    }
+
+    /*
+     * Canonical undirected edge key high endpoint.
+     *
+     * Purpose: pair with edgeLo for midpoint grouping.
+     *
+     * Parameters: none.
+     *
+     * Returns: max endpoint planet id.
+     */
+    int64 edgeHi() {
+        int64 a = ambushEdgeA
+        int64 b = ambushEdgeB
+        if (a < 0 or b < 0) {
+            a = senderPlanetId
+            b = destPlanetId
+        }
+        if (b < a) {
+            return(a)
+        }
+        return(b)
+    }
+
+    /*
+     * True when this fleet carries uncredited pirate loot.
+     *
+     * Purpose: credit on return to sender (RULES §10).
+     *
+     * Parameters: none.
+     *
+     * Returns: true when either loot field is positive.
+     */
+    bool hasLoot() {
+        if (lootWealth > 0.0) {
+            return(true)
+        }
+        return(lootResources > 0.0)
     }
 
     /*

@@ -4,7 +4,8 @@
  * Assembles scenario, galaxy, empire pools, designs, fleets, and
  * seeded RNG. Phase C adds tick(); D1 adds engagements for take
  * combat; D2 adds player–player agreements and trade issue
- * helpers — still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
+ * helpers; D3 adds issueAmbush and pirate role stickiness —
+ * still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -15,6 +16,7 @@
  *               order helpers (dispatch/recall/sit/move).
  *   2026-11-05  Phase D1: engagements list + take combat wiring.
  *   2026-11-05  Phase D2: agreements + issueTrade helpers.
+ *   2026-11-05  Phase D3: issueAmbush + pirate role lock.
  */
 
 include "agreement.cw"
@@ -502,10 +504,12 @@ class State {
      * Set an empire's role string.
      *
      * Purpose: D2 role-off-trader break tests and policy entry.
+     * Refuses leaving pirate while ambush fleets still wait
+     * (RULES §4 role stickiness).
      *
      * Parameters:
      *   playerId — empire seat.
-     *   role — "neutral", "trader", "conqueror", …
+     *   role — "neutral", "trader", "conqueror", "pirate", …
      *
      * Returns: true when the seat was updated.
      */
@@ -514,8 +518,100 @@ class State {
             return(false)
         }
         Player seat = players[playerId]
+        if (seat.role.equals("pirate") and not role.equals("pirate")) {
+            if (hasAmbushFleets(playerId)) {
+                return(false)
+            }
+        }
         seat.role = role
         players[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * True when the empire still has ambush fleets outstanding.
+     *
+     * Purpose: pirate role lock while waiting on ambush (§4).
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *
+     * Returns: true when any fleet is ambushing for that owner.
+     */
+    bool hasAmbushFleets(int64 playerId) {
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet fleet = fleets[index]
+            if (fleet.ownerId == playerId
+                and fleet.hullCount > 0
+                and (fleet.ambushInPosition
+                    or fleet.order.equals("ambush"))) {
+                return(true)
+            }
+            index = index + 1
+        }
+        return(false)
+    }
+
+    /*
+     * Issue an ambush order at the midpoint of a hop to farPlanet.
+     *
+     * Purpose: RULES §6 / §10 — only pirate role; ETA is half the
+     * full hop (integer division). Edge endpoints stored for
+     * midpoint matching.
+     *
+     * Parameters:
+     *   fleetId — sitting pirate fleet.
+     *   farPlanetId — far end of the watched A–B trajectory.
+     *
+     * Returns: true when the ambush order was queued.
+     */
+    bool issueAmbush(int64 fleetId, int64 farPlanetId) {
+        Fleet fleet = findFleet(fleetId)
+        if (fleet.id < 0) {
+            return(false)
+        }
+        if (fleet.ownerId < 0 or fleet.ownerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[fleet.ownerId]
+        if (not seat.role.equals("pirate")) {
+            return(false)
+        }
+        if (fleet.designId < 0 or fleet.designId >= designs.length) {
+            return(false)
+        }
+        if (fleet.locationPlanetId < 0
+            or fleet.locationPlanetId >= galaxy.planets.length) {
+            return(false)
+        }
+        if (farPlanetId < 0
+            or farPlanetId >= galaxy.planets.length) {
+            return(false)
+        }
+        if (farPlanetId == fleet.locationPlanetId) {
+            return(false)
+        }
+        Design design = designs[fleet.designId]
+        Planet origin = galaxy.planets[fleet.locationPlanetId]
+        Planet dest = galaxy.planets[farPlanetId]
+        int64 fullEta = travel.etaTicks(
+            scenario,
+            seat,
+            design,
+            origin,
+            dest)
+        int64 half = fullEta / 2
+        bool ok = fleet.issueTravel("ambush", farPlanetId, half)
+        if (not ok) {
+            return(false)
+        }
+        fleet.outboundEta = fullEta
+        fleet.ambushEdgeA = fleet.locationPlanetId
+        fleet.ambushEdgeB = farPlanetId
+        fleet.ambushInPosition = false
+        fleet.ambushIdleLeft = 0
+        storeFleet(fleet)
         return(true)
     }
 
@@ -691,6 +787,7 @@ class State {
             engagements,
             agreements,
             events,
+            rng,
             nextFleetId,
             nextEngagementId)
         nextFleetId = driver.nextFleetIdOut

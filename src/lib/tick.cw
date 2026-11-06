@@ -1,10 +1,10 @@
 /*
- * src/lib/tick.cw — pure tick dispatcher (Phase C / D1 / D2).
+ * src/lib/tick.cw — pure tick dispatcher (Phase C / D1–D3).
  *
  * Runs RULES §7 intra-tick order without a scheduler. D1 fills
  * take/occupy and ongoing planet combat; D2 fills trade cycle /
- * agreements. Midpoint pirate, pirate idle, and AFK/contact stay
- * later stubs.
+ * agreements; D3 fills midpoint ambush, loot credit (via motion),
+ * and pirate idle timeout. AFK/contact stay later stubs.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -13,13 +13,16 @@
  *   2026-11-05  Initial pure tick dispatcher.
  *   2026-11-05  Phase D1: take arrivals + combat advance.
  *   2026-11-05  Phase D2: tradeArrive before take.
+ *   2026-11-05  Phase D3: midpoint ambush + pirate idle.
  */
 
 include "dispatch.cw"
 include "event.cw"
+include "midpoint.cw"
 include "motion.cw"
 include "production.cw"
 include "recall.cw"
+include "rng.cw"
 include "scenario.cw"
 include "take.cw"
 include "tradeArrive.cw"
@@ -36,6 +39,7 @@ class TickDriver {
     Recall recall
     Dispatch dispatch
     Motion motion
+    Midpoint midpoint
     TradeArrive tradeArrive
     Take take
     int64 nextFleetIdOut
@@ -55,6 +59,7 @@ class TickDriver {
         recall = Recall()
         dispatch = Dispatch()
         motion = Motion()
+        midpoint = Midpoint()
         tradeArrive = TradeArrive()
         take = Take()
         nextFleetIdOut = 1
@@ -66,9 +71,9 @@ class TickDriver {
      *
      * Purpose: pure `tick(state…) → events` per PLAN §1 / RULES §7.
      * Order: production → cancel → depart → recall → move →
-     * (midpoint stub) → arrive → trade cycle → take/combat open →
-     * combat advance → stranded → (afk stub). Stores updated id
-     * counters on this driver for State to read.
+     * midpoint → arrive → trade cycle → take/combat open →
+     * combat advance → stranded → pirate idle → (afk stub).
+     * Stores updated id counters on this driver for State to read.
      *
      * Parameters:
      *   scenario — setup knobs.
@@ -80,6 +85,7 @@ class TickDriver {
      *   engagements — open combat list.
      *   agreements — player–player trade pacts.
      *   events — empty list to fill.
+     *   rng — seeded stream for identify rolls.
      *   nextFleetId — fleet id counter before yard completions.
      *   nextEngagementId — engagement id counter.
      *
@@ -95,6 +101,7 @@ class TickDriver {
         list engagements,
         list agreements,
         list events,
+        SeededRng rng,
         int64 nextFleetId,
         int64 nextEngagementId) {
         nextFleetId = production.run(
@@ -116,8 +123,15 @@ class TickDriver {
             events)
         recall.recallInFlight(scenario, players, fleets, events)
         motion.decrementEta(fleets, events)
-        # §7.5 midpoint pirate / passer — Phase D3.
-        motion.arrivals(planets, fleets, events)
+        midpoint.run(
+            scenario,
+            players,
+            designs,
+            fleets,
+            agreements,
+            events,
+            rng)
+        motion.arrivals(planets, players, fleets, events)
         tradeArrive.processArrivals(
             scenario,
             planets,
@@ -142,7 +156,8 @@ class TickDriver {
             engagements,
             events)
         motion.strandedCountdown(fleets, events)
-        # §7.8 pirate idle + §7.9 AFK/contact — Phase D3 / F.
+        midpoint.idleTimeout(scenario, players, fleets, events)
+        # §7.9 AFK/contact — Phase F / D5.
         nextFleetIdOut = nextFleetId
         nextEngagementIdOut = nextEngagementId
     }

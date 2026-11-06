@@ -31,6 +31,11 @@ freighter/escort designs, fleet trade fields, state propose/accept/
 issueTrade). Unit programs `unit_agreement`, `unit_tradeHold` and
 function program `fn_tradeAgreements` print a bool line.
 
+Phase D3 adds pirate/identify modules: `identify.cw`, `midpoint.cw`
+(plus fleet ambush/loot fields, `issueAmbush`, motion loot credit).
+Unit programs `unit_identify`, `unit_ambushHalf` and function
+program `fn_pirateIdentify` print a bool line.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

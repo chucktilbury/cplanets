@@ -30,7 +30,9 @@ check after build.
 
 **Map canvas (Phase I) is not available yet.** The human UI is a list /
 notebook debugger only — no planet grid DrawingArea, pan/zoom, or
-hot-spot map.
+hot-spot map. Cwhip GTK widgets still needed for that UI (and for
+intended playable controls) are listed in
+[GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
 
 ---
 
@@ -195,6 +197,7 @@ This file is for **users and operators**.
 | --- | --- |
 | Game rules / machine spec | [RULES.md](RULES.md) |
 | Implementation order & phases | [PLAN.md](PLAN.md) |
+| Cwhip GTK dependency list (map / playable UI) | [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md) |
 | Cwhip coding conventions | [CODING.md](CODING.md) |
 | SDK / CMake / project shell | [BUILDING.md](BUILDING.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |

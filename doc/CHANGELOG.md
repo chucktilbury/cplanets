@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Docs: add [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md) — Cwhip GTK
+  dependency inventory for the intended human UI and Phase I map
+  canvas; light links from README, CPLANETS.md, and PLAN §4.I.
+
 - CPL-35: move stand-alone `unit_*` / `fn_*` programs from `src/` to
   `tests/unit/` and `tests/fn/`. They build only with the CMake `test`
   target / `ctest` (`cplanets_add_test_program`, `EXCLUDE`-from-`all`,

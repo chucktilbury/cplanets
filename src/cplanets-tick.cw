@@ -11,6 +11,8 @@
  * Changelog:
  *   2026-11-05  Initial stub.
  *   2026-11-05  CODING file header.
+ *   2026-11-05  Phase C: still identity smoke; lib tick is covered
+ *               by unit/fn programs (CLI advance-N later).
  */
 
 include "lib/machine.cw"

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Phase C (CPL-24): pure tick dispatcher (RULES §7) with production,
+  dispatch/loading, same-tick cancel + in-flight recall, sit/move
+  arrivals, range/ETA including tech teleport (ETA→0), stranded-N,
+  and non-instant yard builds. No scheduler, trade, pirate, or take
+  combat. Unit programs: `unit_travel`, `unit_production`,
+  `unit_dispatch`, `unit_recallCancel`, `unit_stranded`. Function
+  program: `fn_tickCore`. Fixed seeds throughout.
+
 - Phase B (CPL-23): scenario setup snapshot with every RULES §14 knob
   named (closed default fixture), seeded lib RNG, galaxy start
   (home yard, scout-range rocks, unknown quality, world count/mix),

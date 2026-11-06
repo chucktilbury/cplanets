@@ -13,6 +13,14 @@ Unit programs `unit_rng`, `unit_scenarioFixture`, `unit_setupLoad`,
 `unit_galaxyStart`, and `unit_empirePools` print a bool line like
 `unit_libIdentity`.
 
+Phase C adds tick-core modules: `design.cw`, `fleet.cw`, `event.cw`,
+`travel.cw`, `production.cw`, `dispatch.cw`, `recall.cw`, `motion.cw`,
+and `tick.cw` (plus `state.cw` tick entry). Unit programs
+`unit_travel`, `unit_production`, `unit_dispatch`,
+`unit_recallCancel`, `unit_stranded`, and function program
+`fn_tickCore` also print a bool line. CTest wrappers for fn programs
+live under `tests/fn/`.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

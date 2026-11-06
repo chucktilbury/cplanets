@@ -15,6 +15,7 @@
  *   2026-11-05  Initial stub.
  *   2026-11-05  CODING file header.
  *   2026-11-05  Phase H: config load, local once, TCP loop.
+ *   2026-11-06  Fail loud on unknown AI config keys (TUNING A).
  */
 
 import system as Sys
@@ -153,6 +154,12 @@ class AiMain {
             input.close()
             AiConfigParse parser = AiConfigParse()
             cfg = parser.parseText(text)
+            if (not parser.ok) {
+                print("cplanets-ai: config error: ")
+                print(parser.lastError)
+                print("\n")
+                Sys.Process().exit(1)
+            }
         }
         String host = flagString(args, "--host", "")
         if (host.length > 0) {

@@ -9,9 +9,11 @@ Phase B adds scenario/state helpers beside that identity stub:
 `rng.cw`, `scenario.cw`, `setupParse.cw`, `planet.cw`, `player.cw`,
 `galaxy.cw`, and `state.cw`. Setup text is application `key = value`
 lines (not a stdlib format); see `scenarios/closed-default.setup`.
-Unit programs `unit_rng`, `unit_scenarioFixture`, `unit_setupLoad`,
-`unit_galaxyStart`, and `unit_empirePools` print a bool line like
-`unit_libIdentity`.
+Unknown setup / AI-config keys fail loud (`ok` / `lastError`).
+Server `--setup PATH` loads that fixture for live play (restart to
+retune). Unit programs `unit_rng`, `unit_scenarioFixture`,
+`unit_setupLoad`, `unit_galaxyStart`, and `unit_empirePools` print a
+bool line like `unit_libIdentity`.
 
 Phase C adds tick-core modules: `design.cw`, `fleet.cw`, `event.cw`,
 `travel.cw`, `production.cw`, `dispatch.cw`, `recall.cw`, `motion.cw`,

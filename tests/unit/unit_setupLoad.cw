@@ -1,8 +1,9 @@
 /*
  * tests/unit/unit_setupLoad.cw — unit program for SetupParse overlays.
  *
- * Loads application text onto closed defaults; checks named knobs
- * and tick-period clamp. No file I/O required (embedded text).
+ * Loads application text onto closed defaults; checks named knobs,
+ * tick-period clamp, and loud failure on unknown keys. No file I/O
+ * required (embedded text).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -10,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial setup-load unit program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-06  Unknown keys fail loud (TUNING A2).
  */
 
 include "lib/setupParse.cw"
@@ -28,6 +30,9 @@ start {
     SetupParse parser = SetupParse()
     Scenario s = parser.parseText(text)
     bool ok = true
+    if (not parser.ok) {
+        ok = false
+    }
     if (not s.isClosed()) {
         ok = false
     }
@@ -55,6 +60,22 @@ start {
     if (s.scoutRange != 3.0f64) {
         ok = false
     }
+
+    String bad = ""
+    bad.append("world_count = 10\n")
+    bad.append("not_a_real_knob = 1\n")
+    SetupParse badParser = SetupParse()
+    Scenario partial = badParser.parseText(bad)
+    if (badParser.ok) {
+        ok = false
+    }
+    if (not badParser.lastError.startsWith("unknown setup key:")) {
+        ok = false
+    }
+    if (partial.worldCount != 10) {
+        ok = false
+    }
+
     if (ok) {
         print("true\n")
     } else {

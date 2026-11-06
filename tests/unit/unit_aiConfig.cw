@@ -2,7 +2,7 @@
  * tests/unit/unit_aiConfig.cw — unit program for AiConfigParse.
  *
  * Overlays AI axes from application text; checks clamp and that
- * the AI config is not the scenario setup surface.
+ * unknown keys (including scenario-only knobs) fail loud.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-05  Initial AI config unit program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-06  Unknown keys fail loud (TUNING A2).
  */
 
 include "ai/configParse.cw"
@@ -29,10 +30,12 @@ start {
     text.append("player_id = 2\n")
     text.append("host = 10.0.0.2\n")
     text.append("port = 7777\n")
-    text.append("tick_period_seconds = 12\n")
     AiConfigParse parser = AiConfigParse()
     AiConfig cfg = parser.parseText(text)
     bool ok = true
+    if (not parser.ok) {
+        ok = false
+    }
     if (cfg.aggression != 0.9f64) {
         ok = false
     }
@@ -72,6 +75,23 @@ start {
     if (cfg.port != 7777) {
         ok = false
     }
+
+    # Scenario-only keys must not silently no-op on the AI surface.
+    String bad = ""
+    bad.append("aggression = 0.5\n")
+    bad.append("tick_period_seconds = 12\n")
+    AiConfigParse badParser = AiConfigParse()
+    AiConfig ignored = badParser.parseText(bad)
+    if (badParser.ok) {
+        ok = false
+    }
+    if (not badParser.lastError.startsWith("unknown AI config key:")) {
+        ok = false
+    }
+    if (ignored.aggression != 0.5f64) {
+        ok = false
+    }
+
     if (ok) {
         print("true\n")
     } else {

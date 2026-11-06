@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- TUNING-PLAYABLE workstream A (knob surface): server `--setup PATH`
+  / `--seed` load editable scenario fixtures; unknown keys fail loud
+  on setup + AI config; restart-only retune contract in
+  [CPLANETS.md](CPLANETS.md) / [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md);
+  grouped comments on `scenarios/closed-default.setup` and
+  `config/ai-default.cfg`. CTest: `functional_setup_path`, stricter
+  `unit_setupLoad` / `unit_aiConfig`.
+
 - Docs: product dialog / chrome inventory in [DIALOGS.md](DIALOGS.md)
   (panels vs true dialogs; Phase G vs intended playable vs deferred).
   Companion to GTK infra gaps (`GTK-FEATURE-GAPS.md` / PR #27), not a

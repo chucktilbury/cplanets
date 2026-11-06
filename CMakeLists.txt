@@ -139,7 +139,10 @@ if(BUILD_TESTING)
         unit_endgame
         unit_compress
         unit_envelope
-        unit_verbs)
+        unit_verbs
+        unit_serverClock
+        unit_serverPresence
+        unit_serverPolicy)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
@@ -153,7 +156,8 @@ if(BUILD_TESTING)
         fn_pirateIdentify
         fn_combatDesigns
         fn_contactEnd
-        fn_messages)
+        fn_messages
+        fn_server)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_program(${fn} src/${fn}.cw)
         add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"
@@ -166,4 +170,9 @@ if(BUILD_TESTING)
             "-DPROGRAM=${program}"
             -P "${PROJECT_SOURCE_DIR}/tests/check-program.cmake")
     endforeach()
+    find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
+    add_test(NAME functional_server_smoke COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_smoke.cmake")
 endif()

@@ -43,6 +43,11 @@ def get_state(player_id: int, since_tick: int = 0) -> bytes:
     return encode_envelope(1, "/state", body)
 
 
+def get_digest(player_id: int, since_tick: int = 0) -> bytes:
+    body = _u32(player_id) + _u32(since_tick)
+    return encode_envelope(1, "/digest", body)
+
+
 def admin_advance(count: int) -> bytes:
     return encode_envelope(2, "/admin/advance", _u32(count))
 

@@ -180,8 +180,8 @@ bin/cplanets-server --serve --port 7700 --players 2 --seed 7 \
 bin/cplanets --config config/human-default.cfg \
   --host 127.0.0.1 --port 7700 --player 0 --gui
 
-# 3) AI client (adjust player_id in the AI config for seat 1)
-bin/cplanets-ai --config config/ai-default.cfg \
+# 3) AI client (seat 1 presets: config/ai-mid.cfg etc.)
+bin/cplanets-ai --config config/ai-mid.cfg \
   --host 127.0.0.1 --port 7700 --serve-loop --cycles 20
 ```
 
@@ -190,12 +190,71 @@ Without a display, use `--pull` / `--once` on the human binary and
 `--injectable` on the server so tests can advance ticks without
 waiting on wall time.
 
+### Tuning session harness (workstream C)
+
+Preferred one-command start after `build` (server + AI; human
+attaches separately):
+
+```sh
+./scripts/tuning-session \
+  --setup scenarios/tuning-small.setup \
+  --seed 77 \
+  --ai-config config/ai-mid.cfg \
+  --port 7700
+```
+
+Then in another terminal:
+
+```sh
+# GTK list debugger
+bin/cplanets --config config/human-default.cfg \
+  --host 127.0.0.1 --port 7700 --player 0 --gui
+
+# or headless smoke (no display)
+bin/cplanets --config config/human-default.cfg \
+  --host 127.0.0.1 --port 7700 --player 0 --pull
+```
+
+**Seed reproducibility:** keep `--seed` fixed (banner prints
+`SEED=<n>`). The same seed + same `--setup` file yields a comparable
+start galaxy after knob edits. Change seed only when you want a new
+layout. AI aggression bands (`ai-soft` / `ai-mid` / `ai-hard`) are
+independent of the galaxy seed.
+
+**Fixture packs** (same schema, different magnitudes — placeholders):
+
+| Path | Role |
+| --- | --- |
+| `scenarios/tuning-small.setup` | Fast loops (12 worlds); default for the harness |
+| `scenarios/tuning-combat.setup` | Combat-leaning A/B |
+| `scenarios/tuning-trade.setup` | Trade-leaning A/B |
+| `scenarios/closed-default.setup` | Full closed baseline (24 worlds) |
+
+**AI presets** (seat `player_id = 1` for human+AI):
+
+| Path | Band |
+| --- | --- |
+| `config/ai-soft.cfg` | Soft aggression / slower lag |
+| `config/ai-mid.cfg` | Mid (default harness) |
+| `config/ai-hard.cfg` | Hard aggression / snappier lag |
+| `config/ai-default.cfg` | Legacy dial defaults (`player_id = 0`) |
+
+CI / headless proof (no GTK): CTest `functional_session_harness`
+spawns injectable server + AI `--serve-loop` + human `--pull`,
+advances ticks, and asserts digest growth. Manual injectable:
+
+```sh
+./scripts/tuning-session --setup scenarios/tuning-small.setup \
+  --seed 77 --ai-config config/ai-mid.cfg --injectable --ai-cycles 4
+```
+
 ### Tuning loop (restart contract)
 
-1. Edit knobs in `scenarios/closed-default.setup` (or a copy) and/or
-   `config/ai-default.cfg`.
-2. Stop `cplanets-server` / `cplanets-ai`.
-3. Restart with the same `--setup` / `--config` / `--seed`.
+1. Edit knobs in a scenario under `scenarios/` and/or an AI preset
+   under `config/`.
+2. Stop `cplanets-server` / `cplanets-ai` (Ctrl-C on
+   `scripts/tuning-session`).
+3. Restart with the **same** `--setup` / `--ai-config` / `--seed`.
 4. Observe digest / lists / stock — no rebuild required for magnitude
    tweaks.
 
@@ -210,7 +269,9 @@ server setup GUI are deferred (RULES §14 / [TUNING-PLAYABLE.md](TUNING-PLAYABLE
 | --- | --- |
 | `config/human-default.cfg` | Human dial defaults (`player_id`, `host`, `port`) |
 | `config/ai-default.cfg` | AI axes (aggression, lag, surprise, …) plus dial |
-| `scenarios/closed-default.setup` | Closed-scenario §14 tuning surface (clock, galaxy, identify, travel/combat, economy, display) |
+| `config/ai-{soft,mid,hard}.cfg` | Aggression-band presets (seat 1) |
+| `scenarios/closed-default.setup` | Closed-scenario §14 tuning surface |
+| `scenarios/tuning-{small,combat,trade}.setup` | Harness / A/B fixture packs |
 
 Config and scenario files use simple `key = value` application text.
 Unknown keys fail loud on scenario setup and AI config load. Pass
@@ -219,7 +280,8 @@ client configs with `--config`; pass the scenario with server
 
 Tests that exercise binaries live under `tests/unit/`, `tests/fn/`,
 and `tests/functional/` (Python spawns `cplanets-server` and talks
-the wire protocol; `functional_setup_path` covers `--setup`).
+the wire protocol; `functional_setup_path` covers `--setup`;
+`functional_session_harness` covers setup + seed + AI join).
 
 ---
 

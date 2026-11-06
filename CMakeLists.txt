@@ -308,4 +308,12 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_list_chrome.cmake")
+    add_test(NAME functional_session_harness COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DAI=${cplanets-ai_executable}"
+        "-DCLIENT=${cplanets_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
+        "-DWORLDS=12"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_session_harness.cmake")
 endif()

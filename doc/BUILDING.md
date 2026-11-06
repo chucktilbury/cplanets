@@ -11,9 +11,10 @@ If configuration reports a missing application-defaults capability, rebuild
 and reinstall an updated Cwhip SDK at the prefix shown in the error, then
 configure again. Updating or merging the Cwhip source checkout alone does not
 update an existing SDK installation.
-Alternatively, select an already updated installation with `CWHIP_SDK`.
-The template rejects older SDKs rather than silently omitting application
-defaults.
+Alternatively, point `scripts/setup` (or CMake) at an already updated
+installation via `sdk.toml` / `sdk_prefix`, or with an explicit `CWHIP_SDK`
+override. The template rejects older SDKs rather than silently omitting
+application defaults.
 
 ## Numeric-v2 migration
 
@@ -52,6 +53,12 @@ The `numeric-v2` ABI marker alone does not identify a compiler's syntax
 revision: use a current rebuilt SDK for this template's callable syntax.
 
 ## Select an SDK
+
+Prefer `scripts/setup` for day-to-day work: it configures `build/`,
+discovers the SDK from user settings when `CWHIP_SDK` is unset, exports
+that prefix into the project shell, and starts the shell. See
+[CPLANETS.md](CPLANETS.md) for the short operator path and
+[PROJECT-SHELL.md](PROJECT-SHELL.md) for shell details.
 
 `scripts/setup` (and direct CMake configuration) select the SDK in this exact
 order:
@@ -98,7 +105,15 @@ without NUL or line breaks. Python 3.11+ (`tomllib`) is required only when
 reading an existing settings file; `scripts/setup` uses `python3`, while
 direct CMake configuration uses CMake's Python3 interpreter discovery.
 
-To temporarily override the shared setting:
+Usual path (no manual export when `sdk.toml` / legacy settings already
+name a prefix):
+
+```sh
+./scripts/setup
+```
+
+To temporarily override the shared setting (fallback; bypasses config-home
+lookup):
 
 ```sh
 export CWHIP_SDK="/path/to/cwhip-sdk"

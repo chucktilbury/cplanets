@@ -21,16 +21,20 @@ The game is a multi-player game that can also be played stand-alone; stand-alone
 ## Run and build
 
 **Main user / operator guide:** [doc/CPLANETS.md](doc/CPLANETS.md)
-(binaries, build with `CWHIP_SDK`, how to run server + human + AI,
+(binaries, build via `scripts/setup`, how to run server + human + AI,
 config/fixture paths). Map canvas is not available yet.
 
-Quick build (details in the guide and [BUILDING.md](doc/BUILDING.md)):
+Quick build — prefer `scripts/setup` (it discovers/exports `CWHIP_SDK`
+and related env for the project shell; details in the guide and
+[BUILDING.md](doc/BUILDING.md)):
 
 ```sh
-export CWHIP_SDK="/absolute/path/to/cwhip-sdk"
 ./scripts/setup [--clean] [debug|release|profile]
 build
 ```
+
+Fallback: `export CWHIP_SDK="/absolute/path/to/cwhip-sdk"` before
+setup if you need a temporary override.
 
 Default `build` compiles production programs only
 (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`) into

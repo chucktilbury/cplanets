@@ -37,15 +37,16 @@ hot-spot map.
 ## Build
 
 Requires an installed Cwhip SDK (`0.0.2`, ABI `numeric-v2`) with
-application defaults. Prefer an explicit prefix:
+application defaults. Recommended path: run `scripts/setup`, which
+configures `build/`, discovers the SDK when needed, and opens the
+project shell (where related env such as `CWHIP_SDK` and
+`CWHIP_BUILD_TYPE` are set for that shell):
 
 ```sh
-export CWHIP_SDK="/absolute/path/to/cwhip-sdk"
 ./scripts/setup [--clean] [debug|release|profile]
 build
 ```
 
-`scripts/setup` configures `build/` and opens the project shell.
 Inside that shell:
 
 | Command | Effect |
@@ -55,9 +56,19 @@ Inside that shell:
 | `ctest` | Runs unit, fn, smoke, and Python functional checks |
 | `rebuild` | Clean then build (keeps configure) |
 
-SDK selection order: `CWHIP_SDK` → `$XDG_CONFIG_HOME/cwhip/sdk.toml`
-(`sdk_prefix`) → legacy `settings.toml` → normal CMake discovery.
-Details: [BUILDING.md](BUILDING.md).
+SDK selection order (setup and CMake): non-empty `CWHIP_SDK` if already
+set → `$XDG_CONFIG_HOME/cwhip/sdk.toml` (`sdk_prefix`; setup exports it
+as `CWHIP_SDK` for the child shell) → legacy `settings.toml` if
+`sdk.toml` is absent → normal CMake discovery. Details:
+[BUILDING.md](BUILDING.md), [PROJECT-SHELL.md](PROJECT-SHELL.md).
+
+Fallback — temporary override before setup (bypasses config-home
+lookup):
+
+```sh
+export CWHIP_SDK="/absolute/path/to/cwhip-sdk"
+./scripts/setup
+```
 
 Unit/fn programs are **not** part of the default `all` / `build`
 target. Configure with `-DBUILD_TESTING=OFF` to omit CTest wiring.

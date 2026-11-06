@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Phase D3 (CPL-27): midpoint ambush only after half hop ETA; pirate
+  loot credits on return to sender; two-pirate war (passers live);
+  forced recall after robbery; pirate idle timeout; identify
+  asymmetry (attacker advantage + defender fair chance; separate
+  setup knobs; scales with attributes; victim-only default
+  audience). Unit: `unit_identify`, `unit_ambushHalf`. Function:
+  `fn_pirateIdentify`.
+
 - Phase D2 (CPL-26): player–player trade agreements + `S`; cargo full
   both ways with escorts cycling; sender-only loading; self-trade
   cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-

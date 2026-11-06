@@ -218,6 +218,11 @@ Stand-alone and online share this driver.
 
 ### G. Human client (list debugger)
 
+**Status (2026-11-05):** implemented — GTK notebook list debugger
+(planets / fleets / digest / policy), explored-planet dialog (1–10
+livability; may-change note), TCP session + headless `--once` /
+`--pull`, seat-scoped publish flags (no second fog, no DrawingArea).
+
 Windows, planet list, fleet list, newspaper/digest, policy editors, no
 map canvas. No dumb-order warnings. Talks TCP only — never ticks,
 never opens the DB. Capability-scaled visibility is a **view of flags

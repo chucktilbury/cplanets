@@ -1,0 +1,5 @@
+if(NOT DEFINED EXECUTABLE)
+    message(FATAL_ERROR "fn_client.cmake requires EXECUTABLE")
+endif()
+set(EXPECTED "true\n")
+include("${CMAKE_CURRENT_LIST_DIR}/../check-output.cmake")

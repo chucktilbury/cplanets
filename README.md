@@ -30,11 +30,14 @@ codec and GET state / PUT policy / GET events-digest verbs, and a
 Phase F server driver under `src/server/` — real-time cadence,
 injectable clock, SQLite-shaped live snapshot, TCP `--serve` — and
 a Phase H AI client under `src/ai/` with its own config file,
-seeded legal surprise, and reaction lag),
+seeded legal surprise, and reaction lag, and a Phase G human GTK
+list debugger under `src/client/` — planet/fleet/digest/policy
+panes, explored-planet dialog, TCP only, no map canvas),
 executables
 (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), the
-closed default setup text in `scenarios/`, AI defaults in `config/`,
-tests in `tests/`, and SDK discovery helpers in `scripts/`.
+closed default setup text in `scenarios/`, AI and human defaults in
+`config/`, tests in `tests/`, and SDK discovery helpers in
+`scripts/`.
 
 With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`
 from the checkout, then `build` in the project shell. Use `rebuild` for a

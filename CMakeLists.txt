@@ -145,7 +145,11 @@ if(BUILD_TESTING)
         unit_serverPolicy
         unit_aiConfig
         unit_aiTickSuggest
-        unit_aiReaction)
+        unit_aiReaction
+        unit_clientConfig
+        unit_clientLivability
+        unit_clientPolicy
+        unit_clientPublishDecode)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
@@ -161,7 +165,8 @@ if(BUILD_TESTING)
         fn_contactEnd
         fn_messages
         fn_server
-        fn_ai)
+        fn_ai
+        fn_client)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_program(${fn} src/${fn}.cw)
         add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"
@@ -179,4 +184,8 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_smoke.cmake")
+    add_test(NAME functional_client_once COMMAND "${CMAKE_COMMAND}"
+        "-DCLIENT=${cplanets_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_once.cmake")
 endif()

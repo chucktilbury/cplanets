@@ -1,15 +1,17 @@
 /*
- * src/lib/galaxy.cw — start-of-game galaxy builder (Phase B).
+ * src/lib/galaxy.cw — start-of-game galaxy builder (Phase B / D5).
  *
  * Builds the full map at start: home yard, scout-range rocks,
  * unknown quality elsewhere, world count and useful/poor mix from
- * the scenario (RULES §2 / §3 / §14). No tick rules.
+ * the scenario (RULES §2 / §3 / §14). D5 assigns sandbox partitions
+ * and late-seat home yards. No tick rules.
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial galaxy placement from scenario + RNG.
+ *   2026-11-05  Phase D5: partition tags + sandbox home yards.
  */
 
 import math as Math
@@ -148,6 +150,11 @@ class Galaxy {
         rock.qualityKnown = true
         rock.ownerId = ownerPlayerId
         rock.population = 1.0
+        if (ownerPlayerId >= 0) {
+            rock.partitionId = ownerPlayerId
+        } else {
+            rock.partitionId = 0
+        }
     }
 
     /*
@@ -218,6 +225,75 @@ class Galaxy {
         rock.qualityKnown = false
         rock.ownerId = -1
         rock.population = 0.0
+        # Unowned start rocks sit in partition 0 until a sandbox
+        # home claims them (State.finishStart / claimSandboxHome).
+        rock.partitionId = 0
+    }
+
+    /*
+     * Claim an unowned remote rock as a sandbox home yard.
+     *
+     * Purpose: each late / multi-seat empire starts in its own
+     * partition of the same map until contact (RULES §2).
+     *
+     * Parameters:
+     *   ownerPlayerId — empire receiving the home (>= 1 typical).
+     *   partitionId — sandbox partition tag (usually owner id).
+     *
+     * Returns: planet id claimed, or −1 when no free remote rock.
+     */
+    int64 claimSandboxHome(int64 ownerPlayerId, int64 partitionId) {
+        int64 index = planets.length - 1
+        while (index >= 1) {
+            Planet rock = planets[index]
+            if (rock.ownerId < 0 and not rock.productive) {
+                rock.useful = true
+                rock.livability = rock.livability
+                if (rock.livability < 1.0) {
+                    rock.livability = 50.0
+                    rock.resources = 50.0
+                }
+                rock.productive = true
+                rock.shipyard = true
+                rock.qualityKnown = true
+                rock.ownerId = ownerPlayerId
+                rock.population = 1.0
+                rock.partitionId = partitionId
+                planets[index] = rock
+                stampNearbyPartition(rock.x, rock.y, partitionId)
+                return(rock.id)
+            }
+            index = index - 1
+        }
+        return(-1)
+    }
+
+    /*
+     * Tag nearby unowned rocks with a sandbox partition.
+     *
+     * Purpose: give each sandbox a local neighborhood so explore /
+     * conquest contact has a clear foreign partition to couple.
+     *
+     * Parameters:
+     *   hx — home x.
+     *   hy — home y.
+     *   partitionId — sandbox id to stamp.
+     *
+     * Returns: nothing.
+     */
+    void stampNearbyPartition(fp64 hx, fp64 hy, int64 partitionId) {
+        fp64 reach = 4.0
+        int64 index = 0
+        while (index < planets.length) {
+            Planet rock = planets[index]
+            if (rock.ownerId < 0
+                and rock.partitionId == 0
+                and rock.inRangeOf(hx, hy, reach)) {
+                rock.partitionId = partitionId
+                planets[index] = rock
+            }
+            index = index + 1
+        }
     }
 
     /*

@@ -11,6 +11,8 @@
  *
  * Changelog:
  *   2026-11-05  Initial Phase D2 function program.
+ *   2026-11-05  Phase D5: strip sandbox homes in prepTraders so
+ *               partner-rock wealth math stays deterministic.
  */
 
 include "lib/state.cw"
@@ -72,9 +74,28 @@ class FnTrade {
     int64 prepTraders(State game, int64 hulls, fp64 hold) {
         game.setRole(0, "trader")
         game.setRole(1, "trader")
+        # D5 gives seat 1 a productive sandbox home. Clear it so the
+        # partner rock below is the only p1 possession (wealth math
+        # assumes no receiver home production).
+        int64 index = 0
+        while (index < game.galaxy.planets.length) {
+            Planet prior = game.galaxy.planets[index]
+            if (prior.ownerId == 1) {
+                prior.ownerId = -1
+                prior.productive = false
+                prior.shipyard = false
+                prior.population = 0.0
+                game.galaxy.planets[index] = prior
+            }
+            index = index + 1
+        }
         Planet rock = game.galaxy.planets[1]
         rock.ownerId = 1
         rock.qualityKnown = true
+        rock.productive = false
+        rock.shipyard = false
+        rock.population = 0.0
+        rock.partitionId = 1
         game.galaxy.planets[1] = rock
         Player a = game.players[0]
         a.tech = game.scenario.techTeleportThreshold

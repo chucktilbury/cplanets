@@ -6,6 +6,7 @@
  * combat; D2 adds player–player agreements and trade issue
  * helpers; D3 adds issueAmbush and pirate role stickiness —
  * still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
+ * D5 adds contact/end fields and sandbox homes.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -18,6 +19,7 @@
  *   2026-11-05  Phase D2: agreements + issueTrade helpers.
  *   2026-11-05  Phase D3: issueAmbush + pirate role lock.
  *   2026-11-05  Phase D4: reclaim, design develop, confiscation.
+ *   2026-11-05  Phase D5: contact/end + sandbox partition homes.
  */
 
 include "agreement.cw"
@@ -59,6 +61,9 @@ class State {
     int64 nextReclaimId
     int64 nextEngagementId
     int64 nextAgreementId
+    bool ended
+    String endReason
+    int64 winnerId
 
     /*
      * Construct an empty state shell.
@@ -92,6 +97,9 @@ class State {
         nextReclaimId = 1
         nextEngagementId = 1
         nextAgreementId = 1
+        ended = false
+        endReason = ""
+        winnerId = -1
     }
 
     /*
@@ -165,6 +173,9 @@ class State {
         nextReclaimId = 1
         nextEngagementId = 1
         nextAgreementId = 1
+        ended = false
+        endReason = ""
+        winnerId = -1
         int64 seats = playerCount
         if (seats < 1) {
             seats = 1
@@ -173,13 +184,39 @@ class State {
         while (index < seats) {
             Player seat = Player(index)
             seat.applyStartingPools(scenario)
+            seat.partitionId = index
             players.append(seat)
             index = index + 1
         }
         galaxy = Galaxy()
         galaxy.buildFrom(scenario, rng, 0)
+        seedSandboxHomes()
         seedDefaultDesigns()
         seedHomeFleet()
+    }
+
+    /*
+     * Give seats beyond empire 0 their own sandbox home yards.
+     *
+     * Purpose: partitions stay uncoupled until contact (RULES §2).
+     * Empire 0 already owns planet 0 from buildFrom.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing; mutates galaxy / players.
+     */
+    void seedSandboxHomes() {
+        int64 index = 1
+        while (index < players.length) {
+            int64 homeId = galaxy.claimSandboxHome(index, index)
+            if (homeId < 0) {
+                # No free rock: keep the seat but it will eliminate
+                # on the first end-game pass unless tests assign one.
+                index = index + 1
+            } else {
+                index = index + 1
+            }
+        }
     }
 
     /*
@@ -861,10 +898,103 @@ class State {
     }
 
     /*
+     * Mark a human seat as voluntarily quit.
+     *
+     * Purpose: all-humans-quit end (RULES §2 / §15). No rejoin in v1.
+     * Re-checks end immediately so the server need not wait a tick.
+     *
+     * Parameters:
+     *   playerId — seat to mark.
+     *
+     * Returns: true when the seat was updated.
+     */
+    bool quitPlayer(int64 playerId) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        seat.markQuit()
+        players[playerId] = seat
+        refreshEndStatus()
+        return(true)
+    }
+
+    /*
+     * Mark a human seat as dropped (zombie last-policy).
+     *
+     * Purpose: lost contact while the live game continues; zombie
+     * falls to normal play (RULES §2 / §15). If this was the last
+     * human, the game ends (no AI-only zombie match).
+     *
+     * Parameters:
+     *   playerId — seat to mark.
+     *
+     * Returns: true when the seat was updated.
+     */
+    bool dropPlayer(int64 playerId) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        seat.markDrop()
+        players[playerId] = seat
+        refreshEndStatus()
+        return(true)
+    }
+
+    /*
+     * Mark a seat as AI (not human).
+     *
+     * Purpose: all-humans-quit ignores AI clients.
+     *
+     * Parameters:
+     *   playerId — seat to mark.
+     *
+     * Returns: true when updated.
+     */
+    bool markPlayerAi(int64 playerId) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        seat.markAi()
+        players[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * Re-run end-game checks without advancing the galaxy.
+     *
+     * Purpose: quit/drop can end the live instance between ticks.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing; may set ended / endReason / winnerId.
+     */
+    void refreshEndStatus() {
+        if (ended) {
+            return()
+        }
+        list events = []
+        EndGame check = EndGame()
+        check.run(
+            scenario,
+            galaxy.planets,
+            players,
+            events,
+            ended)
+        if (check.endedOut) {
+            ended = true
+            endReason = check.endReasonOut
+            winnerId = check.winnerIdOut
+        }
+    }
+
+    /*
      * Run one pure tick; return the event list.
      *
      * Purpose: lib-only step for tests and cplanets-tick (PLAN §1).
-     * Locks setup on first tick.
+     * Locks setup on first tick. Skips advance when already ended.
      *
      * Parameters: none (mutates this State).
      *
@@ -873,6 +1003,9 @@ class State {
     list tick() {
         lockSetup()
         list events = []
+        if (ended) {
+            return(events)
+        }
         driver.run(
             scenario,
             galaxy.planets,
@@ -887,9 +1020,15 @@ class State {
             events,
             rng,
             nextFleetId,
-            nextEngagementId)
+            nextEngagementId,
+            ended)
         nextFleetId = driver.nextFleetIdOut
         nextEngagementId = driver.nextEngagementIdOut
+        if (driver.endedOut) {
+            ended = true
+            endReason = driver.endReasonOut
+            winnerId = driver.winnerIdOut
+        }
         tickCount = tickCount + 1
         return(events)
     }

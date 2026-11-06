@@ -123,12 +123,25 @@ if(BUILD_TESTING)
         unit_scenarioFixture
         unit_setupLoad
         unit_galaxyStart
-        unit_empirePools)
+        unit_empirePools
+        unit_travel
+        unit_production
+        unit_dispatch
+        unit_recallCancel
+        unit_stranded)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
             "-DEXECUTABLE=${${unit}_executable}"
             -P "${PROJECT_SOURCE_DIR}/tests/unit/${unit}.cmake")
+    endforeach()
+    set(cplanets_fn_programs
+        fn_tickCore)
+    foreach(fn IN LISTS cplanets_fn_programs)
+        cplanets_add_program(${fn} src/${fn}.cw)
+        add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"
+            "-DEXECUTABLE=${${fn}_executable}"
+            -P "${PROJECT_SOURCE_DIR}/tests/fn/${fn}.cmake")
     endforeach()
     foreach(program IN ITEMS cplanets-server cplanets cplanets-ai cplanets-tick)
         add_test(NAME smoke_${program} COMMAND "${CMAKE_COMMAND}"

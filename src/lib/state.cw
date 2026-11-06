@@ -20,6 +20,7 @@
  *   2026-11-05  Phase D3: issueAmbush + pirate role lock.
  *   2026-11-05  Phase D4: reclaim, design develop, confiscation.
  *   2026-11-05  Phase D5: contact/end + sandbox partition homes.
+ *   2026-11-06  startFromScenario for path-loaded setup (TUNING A).
  */
 
 include "agreement.cw"
@@ -140,6 +141,29 @@ class State {
         int64 playerCount) {
         SetupParse parser = SetupParse()
         scenario = parser.parseText(text)
+        finishStart(seed, playerCount)
+    }
+
+    /*
+     * Start a game from an already-parsed Scenario snapshot.
+     *
+     * Purpose: let the server CLI load setup by path, fail loud on
+     * unknown keys in the parser, then bootstrap the galaxy without
+     * reparsing (TUNING-PLAYABLE workstream A).
+     *
+     * Parameters:
+     *   loaded — Scenario with knobs already overlaid / clamped.
+     *   seed — PRNG seed.
+     *   playerCount — number of empire seats (>= 1).
+     *
+     * Returns: nothing; fills this State in place.
+     */
+    void startFromScenario(
+        Scenario loaded,
+        uint64 seed,
+        int64 playerCount) {
+        scenario = loaded
+        scenario.clampTickPeriod()
         finishStart(seed, playerCount)
     }
 

@@ -85,7 +85,8 @@ Paths below assume you are at the project root after a successful
 ### `cplanets-server`
 
 ```text
-bin/cplanets-server --serve [--port N] [--players N] [--injectable] [--cycles N]
+bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
+  [--setup PATH] [--injectable] [--cycles N]
 ```
 
 | Flag | Default | Meaning |
@@ -93,13 +94,18 @@ bin/cplanets-server --serve [--port N] [--players N] [--injectable] [--cycles N]
 | `--serve` | (required for play) | Bind TCP and run accept + cadence loop |
 | `--port N` | `0` (ephemeral) | Listen port; `0` picks a free port |
 | `--players N` | `2` | Seat count for the closed start galaxy |
+| `--seed N` | `7` | PRNG seed for the start galaxy |
+| `--setup PATH` | (builtin closed defaults) | Load §14 knobs from a scenario file |
 | `--injectable` | off | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | Cap accept/serve loop iterations |
 
-On start it prints `PORT=<n>` (and `INJECTABLE=0|1`). Use that port for
-clients. Live `--serve` currently seeds a closed galaxy in-process
-(world count / seat count from the driver); it does not yet take a
-scenario file path on the CLI.
+On start it prints `PORT=<n>`, `SETUP=<path|builtin>`, `SEED=<n>`,
+and `INJECTABLE=0|1`. Use that port for clients. Pass
+`scenarios/closed-default.setup` (or a copy you edited) via
+`--setup` so combat / economy / travel / identify magnitudes come
+from the file. Unknown keys fail loud and the process exits before
+listen. **Knob edits take effect on process restart** — there is no
+mid-game retune in v1 (RULES §14 lock-in-progress).
 
 ### `cplanets` (human)
 
@@ -151,8 +157,13 @@ lives in `tests/unit/` and `tests/fn/`.
 Three terminals (or background jobs): server, human, AI.
 
 ```sh
-# 1) Server — note the printed PORT=
-bin/cplanets-server --serve --port 7700 --players 2
+# 0) Build (project shell; SDK via scripts/setup)
+./scripts/setup
+build
+
+# 1) Server — note PORT=; knobs from the setup file
+bin/cplanets-server --serve --port 7700 --players 2 --seed 7 \
+  --setup scenarios/closed-default.setup
 
 # 2) Human list debugger (seat 0)
 bin/cplanets --config config/human-default.cfg \
@@ -168,6 +179,18 @@ Without a display, use `--pull` / `--once` on the human binary and
 `--injectable` on the server so tests can advance ticks without
 waiting on wall time.
 
+### Tuning loop (restart contract)
+
+1. Edit knobs in `scenarios/closed-default.setup` (or a copy) and/or
+   `config/ai-default.cfg`.
+2. Stop `cplanets-server` / `cplanets-ai`.
+3. Restart with the same `--setup` / `--config` / `--seed`.
+4. Observe digest / lists / stock — no rebuild required for magnitude
+   tweaks.
+
+Reload-on-restart is the v1 contract. Mid-game admin retune and the
+server setup GUI are deferred (RULES §14 / [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md)).
+
 ---
 
 ## Config and fixtures
@@ -176,16 +199,16 @@ waiting on wall time.
 | --- | --- |
 | `config/human-default.cfg` | Human dial defaults (`player_id`, `host`, `port`) |
 | `config/ai-default.cfg` | AI axes (aggression, lag, surprise, …) plus dial |
-| `scenarios/closed-default.setup` | Closed-scenario magnitude fixture (tick period, galaxy, combat/tech knobs, …) |
+| `scenarios/closed-default.setup` | Closed-scenario §14 tuning surface (clock, galaxy, identify, travel/combat, economy, display) |
 
 Config and scenario files use simple `key = value` application text.
-Pass client configs with `--config`. The closed setup file is the
-checked-in scenario fixture (parser / machine defaults / tests); the
-live server CLI does not yet load it by path.
+Unknown keys fail loud on scenario setup and AI config load. Pass
+client configs with `--config`; pass the scenario with server
+`--setup`. Group comments in those files name the tuning surface.
 
 Tests that exercise binaries live under `tests/unit/`, `tests/fn/`,
 and `tests/functional/` (Python spawns `cplanets-server` and talks
-the wire protocol).
+the wire protocol; `functional_setup_path` covers `--setup`).
 
 ---
 

@@ -294,6 +294,11 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_smoke.cmake")
+    add_test(NAME functional_setup_path COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/closed-default.setup"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_setup_path.cmake")
     add_test(NAME functional_client_once COMMAND "${CMAKE_COMMAND}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"

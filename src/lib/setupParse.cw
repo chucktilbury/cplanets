@@ -3,13 +3,15 @@
  *
  * Setup file syntax is still open in RULES §17; this loader accepts
  * a simple line-oriented key = value form (not JSON/TOML/HTTP).
- * Unknown keys are ignored; known keys overlay closed defaults.
+ * Unknown keys fail loud (ok=false + lastError) so tuning typos
+ * cannot silently no-op. Known keys overlay closed defaults.
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial key=value setup loader.
+ *   2026-11-06  Fail loud on unknown keys (TUNING A2).
  */
 
 include "scenario.cw"
@@ -19,33 +21,46 @@ include "scenario.cw"
  *
  * Starts from Scenario() closed defaults, then overlays each
  * recognized key. Always clampTickPeriod() before returning.
+ * Callers must check ok after parseText; lastError names the
+ * first unknown key or malformed line.
  */
 class SetupParse {
+    bool ok
+    String lastError
+
     /*
      * Construct a stateless parser helper.
      *
      * Purpose: match other Phase B value objects; all work lives in
-     * parseText / applyPair.
+     * parseText / applyPair. ok starts true until a bad line.
      *
      * Parameters: none.
      *
-     * Returns: an empty SetupParse instance.
+     * Returns: an empty SetupParse instance with ok=true.
      */
     SetupParse() {
+        ok = true
+        lastError = ""
     }
 
     /*
      * Parse a full setup document into a Scenario.
      *
      * Purpose: load admin/application text without a stdlib format.
-     * Blank lines and # comments are skipped.
+     * Blank lines and # comments are skipped. Resets ok/lastError
+     * for this parse. On unknown key or malformed line, ok becomes
+     * false and lastError is set; overlay still continues so tests
+     * can inspect both the partial Scenario and the error.
      *
      * Parameters:
      *   text — entire setup body (newline-separated key = value).
      *
-     * Returns: Scenario with overlays applied and tick period clamped.
+     * Returns: Scenario with overlays applied and tick period
+     * clamped. Check ok / lastError before trusting the result.
      */
     Scenario parseText(String text) {
+        ok = true
+        lastError = ""
         Scenario scenario = Scenario()
         list lines = text.split("\n")
         int64 index = 0
@@ -65,6 +80,7 @@ class SetupParse {
      * Apply one physical line to a scenario.
      *
      * Purpose: split on the first '=' and dispatch key/value.
+     * Lines without '=' are a loud failure (not silent skips).
      *
      * Parameters:
      *   scenario — mutable snapshot.
@@ -75,6 +91,12 @@ class SetupParse {
     void applyLine(Scenario scenario, String line) {
         list parts = line.split("=")
         if (parts.length < 2) {
+            if (ok) {
+                ok = false
+                lastError = format(
+                    "malformed setup line (need key = value): {}",
+                    line)
+            }
             return()
         }
         String key = parts[0]
@@ -88,7 +110,8 @@ class SetupParse {
      * Overlay one recognized setup key onto a scenario.
      *
      * Purpose: name every §14 knob the closed fixture ships so text
-     * and code stay aligned. Unknown keys are no-ops.
+     * and code stay aligned. Unknown keys fail loud (first error
+     * wins in lastError).
      *
      * Parameters:
      *   scenario — mutable snapshot.
@@ -192,6 +215,11 @@ class SetupParse {
             scenario.startPower = val.toFp64()
         } else (key.equals("start_experience")) {
             scenario.startExperience = val.toFp64()
+        } else {
+            if (ok) {
+                ok = false
+                lastError = format("unknown setup key: {}", key)
+            }
         }
     }
 

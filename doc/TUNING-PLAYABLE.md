@@ -53,11 +53,11 @@ Cwhip GTK for Cplanets-only widgets.
 | Area | On main (A–H) | Gap for tuning loops |
 | --- | --- | --- |
 | **Sim / lib** | Tick machine, D1–D5 clusters, §14 knobs named in `scenarios/closed-default.setup` | Magnitudes are placeholders; some open RULES forks (formulas / tick-driver livability) — tune around defaults until locked |
-| **Server** | Real-time cadence, TCP, SQLite-shaped snapshot, pause gate, presence handshake shape, digest publish | Live load of scenario path / admin retune ergonomics; peer-drop UX thin; harness beyond smoke |
+| **Server** | Real-time cadence, TCP, SQLite-shaped snapshot, pause gate, presence handshake shape, digest publish; **`--setup` path load** (workstream A) | Mid-game retune (deferred); peer-drop UX thin; harness beyond smoke (workstream C) |
 | **AI** | Config axes, lag (ticks+wall), surprise band, tick-period suggest | Binding-shape still open; need documented multi-seat fixture + retune cycle |
 | **Human client** | List notebook (planets/fleets/digest/policy), explored dialog skeleton, policy Entries + Apply | Pause chrome; dispatch/recall/design-build surfaces; auto-pop explored; agreements beyond stub; AFK/drop notices |
 | **Dialogs / chrome** | Inventory ([#28](https://github.com/cwhip-lang/cplanets/pull/28)) | Implement **Intended playable** items that block loops (not map) |
-| **Knobs** | Outside-code principle + fixture file | Reload / restart contract for tuning; no v1 setup GUI (deferred) |
+| **Knobs** | Outside-code principle + fixture file; **restart contract + path load + unknown-key fail** (workstream A) | No v1 setup GUI (deferred); magnitudes still placeholders |
 | **Map (I)** | Gated on DrawingArea ([PLAN.md](PLAN.md) §4.I) | **Optional** after Cwhip GTK — not on the critical path |
 
 ---
@@ -190,3 +190,22 @@ Rough size: **~1–3 production files + tests** per chrome/harness PR
 
 [PLAN.md](PLAN.md) keeps A–H history; this file is the next-phase
 pointer.
+
+---
+
+## Progress — workstream A (knob surface)
+
+**Status:** implemented on the tuning-knobs branch (operator path =
+files + restart; no setup GUI).
+
+| Chunk | Landed |
+| --- | --- |
+| A1 | Grouped keys in `scenarios/closed-default.setup` + `config/ai-default.cfg` (clock / galaxy / identify / travel-combat / economy / display / AI) |
+| A2 | `cplanets-server --setup PATH` (+ `--seed`); unknown keys fail loud on setup + AI config |
+| A3 | Restart contract documented here and in [CPLANETS.md](CPLANETS.md); no mid-game retune |
+| A4 | CTest `functional_setup_path` — temp fixture knobs → restart path → advance → assert planet count + wealth delta; unknown-key exit |
+
+**How to retune:** edit the setup / AI file → stop processes →
+`./scripts/setup` shell → `build` only if code changed → restart
+server with `--setup` and AI with `--config`. Magnitudes stay
+placeholders until RULES locks them.

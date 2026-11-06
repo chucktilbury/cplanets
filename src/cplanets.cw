@@ -8,6 +8,7 @@
  * GTK notebook (planets, fleets, digest, policy) + explored dialog.
  * Never ticks; never opens the universe DB (RULES §2 / PLAN §4.G).
  * No map canvas / DrawingArea (PLAN §4.I).
+ * User-facing argv uses stdlib `cli` (including --help / -h).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -17,8 +18,10 @@
  *   2026-11-05  CODING file header.
  *   2026-11-05  Phase G: list debugger, TCP, GTK panes.
  *   2026-11-06  TUNING B: wire pause / dispatch / recall actions.
+ *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  */
 
+import cli as Cli
 import gtk
 import system as Sys
 
@@ -31,7 +34,7 @@ include "client/configParse.cw"
 include "client/guiMain.cw"
 
 /*
- * HumanMain parses argv and runs smoke, once, pull, or GUI modes.
+ * HumanMain parses argv via Cli and runs smoke, once, pull, or GUI.
  */
 class HumanMain {
     /*
@@ -63,108 +66,150 @@ class HumanMain {
     }
 
     /*
-     * Read a string flag value following a name, or default.
+     * Build the registered Cli.CommandLine for this binary.
      *
-     * Purpose: parse --config / --host without Cli.
+     * Purpose: declare every operator flag once so parseArgv and
+     * helpText stay in sync (stdlib cli).
      *
-     * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--config".
-     *   fallback — value when missing.
+     * Parameters: none.
      *
-     * Returns: next argv token or fallback.
+     * Returns: configured CommandLine (not yet parsed).
      */
-    String flagString(list args, String name, String fallback) {
-        int64 index = 1
-        while (index + 1 < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                return(args[index + 1])
-            }
-            index = index + 1
-        }
-        return(fallback)
+    Cli.CommandLine buildCli() {
+        Cli.CommandLine commandLine = Cli.CommandLine(
+            "cplanets",
+            "CPlanets human list debugger (never ticks).",
+            "0.1.0")
+        Cli.Option help = Cli.Option()
+        help.shortName = "h"
+        help.longName = "help"
+        help.name = "help"
+        help.description = "show this help"
+        help.action = Cli.Action().HELP
+        commandLine.addOption(help)
+        Cli.Option config = Cli.Option()
+        config.longName = "config"
+        config.name = "config"
+        config.description = "human settings file (not AI config)"
+        config.valueType = Cli.ValueType().STRING
+        commandLine.addOption(config)
+        Cli.Option host = Cli.Option()
+        host.longName = "host"
+        host.name = "host"
+        host.description = "override dial host"
+        host.valueType = Cli.ValueType().STRING
+        commandLine.addOption(host)
+        Cli.Option port = Cli.Option()
+        port.longName = "port"
+        port.name = "port"
+        port.description = "override dial port (> 0 for TCP)"
+        port.valueType = Cli.ValueType().NUMBER
+        commandLine.addOption(port)
+        Cli.Option player = Cli.Option()
+        player.longName = "player"
+        player.name = "player"
+        player.description = "seat id"
+        player.valueType = Cli.ValueType().NUMBER
+        commandLine.addOption(player)
+        Cli.Option once = Cli.Option()
+        once.longName = "once"
+        once.name = "once"
+        once.description = "in-process closed galaxy; print lists"
+        once.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(once)
+        Cli.Option pull = Cli.Option()
+        pull.longName = "pull"
+        pull.name = "pull"
+        pull.description = "TCP GET state + digest summary"
+        pull.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(pull)
+        Cli.Option gui = Cli.Option()
+        gui.longName = "gui"
+        gui.name = "gui"
+        gui.description = "GTK notebook debugger"
+        gui.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(gui)
+        Cli.Option test = Cli.Option()
+        test.longName = "test"
+        test.name = "test"
+        test.description = "GTK path that auto-quits (test mode)"
+        test.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(test)
+        return(commandLine)
     }
 
     /*
-     * Read an int64 flag value following a name, or default.
+     * Parse argv; print help or an error and exit when needed.
      *
-     * Purpose: parse --port.
+     * Purpose: single parse path; unknown flags fail loud.
      *
      * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--port".
-     *   fallback — value when missing / bad.
+     *   commandLine — registered CommandLine from buildCli().
      *
-     * Returns: parsed int64 or fallback.
+     * Returns: true when the caller should continue; false when this
+     * method already exited the process (help / parse error).
      */
-    int64 flagInt(list args, String name, int64 fallback) {
-        int64 index = 1
-        while (index + 1 < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                String text = args[index + 1]
-                return(text.toInt64())
-            }
-            index = index + 1
+    bool parseOrExit(Cli.CommandLine commandLine) {
+        String problem = ""
+        try {
+            commandLine.parseArgv()
+        } except() as error {
+            problem = format("{}", error)
         }
-        return(fallback)
+        if (commandLine.currentAction() == Cli.Action().HELP) {
+            print(commandLine.helpText())
+            Sys.Process().exit(0)
+            return(false)
+        }
+        if (problem.length > 0) {
+            print(format("cplanets: {}\n", problem))
+            print("Try 'cplanets --help' for usage.\n")
+            Sys.Process().exit(2)
+            return(false)
+        }
+        return(true)
     }
 
     /*
-     * True when argv contains a bare flag name.
+     * Load HumanConfig from --config with host/port/player overlays.
      *
-     * Purpose: gate --once / --pull / --gui / --test.
-     *
-     * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--once".
-     *
-     * Returns: true when present.
-     */
-    bool hasFlag(list args, String name) {
-        int64 index = 1
-        while (index < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                return(true)
-            }
-            index = index + 1
-        }
-        return(false)
-    }
-
-    /*
-     * Load HumanConfig from --config path with host/port overlays.
-     *
-     * Purpose: own settings file; argv may override dial.
+     * Purpose: own settings file; argv may override dial / seat.
+     * Overlays apply only when the option was provided.
      *
      * Parameters:
-     *   args — argv list.
+     *   commandLine — parsed Cli.CommandLine.
      *
      * Returns: clamped HumanConfig (defaults when no --config).
      */
-    HumanConfig loadConfig(list args) {
-        String path = flagString(args, "--config", "")
+    HumanConfig loadConfig(Cli.CommandLine commandLine) {
         HumanConfig cfg = HumanConfig()
-        if (path.length > 0) {
-            Sys.File input = Sys.File(path, "r")
-            String text = input.readAll()
-            input.close()
-            HumanConfigParse parser = HumanConfigParse()
-            cfg = parser.parseText(text)
+        if (commandLine.wasProvided("config")) {
+            String path = commandLine.value("config")
+            if (path.length > 0) {
+                Sys.File input = Sys.File(path, "r")
+                String text = input.readAll()
+                input.close()
+                HumanConfigParse parser = HumanConfigParse()
+                cfg = parser.parseText(text)
+            }
         }
-        String host = flagString(args, "--host", "")
-        if (host.length > 0) {
-            cfg.host = host
+        if (commandLine.wasProvided("host")) {
+            String host = commandLine.value("host")
+            if (host.length > 0) {
+                cfg.host = host
+            }
         }
-        int64 port = flagInt(args, "--port", -1)
-        if (port >= 0) {
-            cfg.port = port
+        if (commandLine.wasProvided("port")) {
+            int64 port = commandLine.value("port").toInt64()
+            if (port >= 0) {
+                cfg.port = port
+            }
         }
-        int64 seat = flagInt(args, "--player", -1)
-        if (seat >= 0) {
-            cfg.playerId = seat
+        if (commandLine.wasProvided("player")) {
+            int64 seat = commandLine.value("player").toInt64()
+            if (seat >= 0) {
+                cfg.playerId = seat
+            }
         }
         cfg.clampAll()
         return(cfg)
@@ -256,27 +301,28 @@ class HumanMain {
     }
 
     /*
-     * Dispatch smoke / once / pull / gui from argv.
+     * Dispatch smoke / once / pull / gui from a parsed CommandLine.
      *
-     * Purpose: single entry used by start {}.
+     * Purpose: single entry used by start {}. Smoke when no mode
+     * flags; gui/test beat pull; pull needs port > 0.
      *
      * Parameters:
-     *   args — Sys.Process argv.
+     *   commandLine — parsed Cli.CommandLine.
      *
      * Returns: nothing.
      */
-    void run(list args) {
-        bool wantConfig = hasFlag(args, "--config")
-        bool wantOnce = hasFlag(args, "--once")
-        bool wantPull = hasFlag(args, "--pull")
-        bool wantGui = hasFlag(args, "--gui")
-        bool wantTest = hasFlag(args, "--test")
+    void run(Cli.CommandLine commandLine) {
+        bool wantConfig = commandLine.wasProvided("config")
+        bool wantOnce = commandLine.switchValue("once")
+        bool wantPull = commandLine.switchValue("pull")
+        bool wantGui = commandLine.switchValue("gui")
+        bool wantTest = commandLine.switchValue("test")
         if (not wantConfig and not wantOnce and not wantPull
             and not wantGui and not wantTest) {
             printSmoke()
             return()
         }
-        HumanConfig cfg = loadConfig(args)
+        HumanConfig cfg = loadConfig(commandLine)
         if (wantGui or wantTest) {
             runGui(cfg, wantTest)
             return()
@@ -290,7 +336,9 @@ class HumanMain {
 }
 
 start {
-    Sys.Process proc = Sys.Process()
     HumanMain main = HumanMain()
-    main.run(proc.argv())
+    Cli.CommandLine commandLine = main.buildCli()
+    if (main.parseOrExit(commandLine)) {
+        main.run(commandLine)
+    }
 }

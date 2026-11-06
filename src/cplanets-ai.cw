@@ -7,6 +7,7 @@
  * shape without TCP. --serve-loop dials and runs maybePutPolicy
  * for --cycles N. Never ticks; never opens the universe DB
  * (RULES §2 / PLAN §4.H).
+ * User-facing argv uses stdlib `cli` (including --help / -h).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -16,8 +17,10 @@
  *   2026-11-05  CODING file header.
  *   2026-11-05  Phase H: config load, local once, TCP loop.
  *   2026-11-06  Fail loud on unknown AI config keys (TUNING A).
+ *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  */
 
+import cli as Cli
 import system as Sys
 
 include "lib/machine.cw"
@@ -29,7 +32,7 @@ include "ai/policyShape.cw"
 include "ai/view.cw"
 
 /*
- * AiMain parses argv and runs smoke, once, or TCP modes.
+ * AiMain parses argv via Cli and runs smoke, once, or TCP modes.
  *
  * Kept as a class so method comments stay with entry logic
  * (CODING.md).
@@ -64,110 +67,141 @@ class AiMain {
     }
 
     /*
-     * Read a string flag value following a name, or default.
+     * Build the registered Cli.CommandLine for this binary.
      *
-     * Purpose: parse --config / --host without Cli.
+     * Purpose: declare every operator flag once so parseArgv and
+     * helpText stay in sync (stdlib cli).
      *
-     * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--config".
-     *   fallback — value when missing.
+     * Parameters: none.
      *
-     * Returns: next argv token or fallback.
+     * Returns: configured CommandLine (not yet parsed).
      */
-    String flagString(list args, String name, String fallback) {
-        int64 index = 1
-        while (index + 1 < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                return(args[index + 1])
-            }
-            index = index + 1
-        }
-        return(fallback)
+    Cli.CommandLine buildCli() {
+        Cli.CommandLine commandLine = Cli.CommandLine(
+            "cplanets-ai",
+            "CPlanets stand-alone AI client (never ticks).",
+            "0.1.0")
+        Cli.Option help = Cli.Option()
+        help.shortName = "h"
+        help.longName = "help"
+        help.name = "help"
+        help.description = "show this help"
+        help.action = Cli.Action().HELP
+        commandLine.addOption(help)
+        Cli.Option config = Cli.Option()
+        config.longName = "config"
+        config.name = "config"
+        config.description = "AI config file (not human settings)"
+        config.valueType = Cli.ValueType().STRING
+        commandLine.addOption(config)
+        Cli.Option host = Cli.Option()
+        host.longName = "host"
+        host.name = "host"
+        host.description = "override dial host"
+        host.valueType = Cli.ValueType().STRING
+        commandLine.addOption(host)
+        Cli.Option port = Cli.Option()
+        port.longName = "port"
+        port.name = "port"
+        port.description = "override dial port (> 0 for TCP)"
+        port.valueType = Cli.ValueType().NUMBER
+        commandLine.addOption(port)
+        Cli.Option once = Cli.Option()
+        once.longName = "once"
+        once.name = "once"
+        once.description = "print one local policy shape (no TCP)"
+        once.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(once)
+        Cli.Option serveLoop = Cli.Option()
+        serveLoop.longName = "serve-loop"
+        serveLoop.name = "serve-loop"
+        serveLoop.description = "dial and PUT policy for --cycles N"
+        serveLoop.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(serveLoop)
+        Cli.Option cycles = Cli.Option()
+        cycles.longName = "cycles"
+        cycles.name = "cycles"
+        cycles.description = "loop attempts under --serve-loop"
+        cycles.valueType = Cli.ValueType().NUMBER
+        cycles.hasDefault = true
+        cycles.defaultValue = "1"
+        commandLine.addOption(cycles)
+        return(commandLine)
     }
 
     /*
-     * Read an int64 flag value following a name, or default.
+     * Parse argv; print help or an error and exit when needed.
      *
-     * Purpose: parse --port / --cycles.
+     * Purpose: single parse path; unknown flags fail loud.
      *
      * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--port".
-     *   fallback — value when missing / bad.
+     *   commandLine — registered CommandLine from buildCli().
      *
-     * Returns: parsed int64 or fallback.
+     * Returns: true when the caller should continue; false when this
+     * method already exited the process (help / parse error).
      */
-    int64 flagInt(list args, String name, int64 fallback) {
-        int64 index = 1
-        while (index + 1 < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                String text = args[index + 1]
-                return(text.toInt64())
-            }
-            index = index + 1
+    bool parseOrExit(Cli.CommandLine commandLine) {
+        String problem = ""
+        try {
+            commandLine.parseArgv()
+        } except() as error {
+            problem = format("{}", error)
         }
-        return(fallback)
+        if (commandLine.currentAction() == Cli.Action().HELP) {
+            print(commandLine.helpText())
+            Sys.Process().exit(0)
+            return(false)
+        }
+        if (problem.length > 0) {
+            print(format("cplanets-ai: {}\n", problem))
+            print("Try 'cplanets-ai --help' for usage.\n")
+            Sys.Process().exit(2)
+            return(false)
+        }
+        return(true)
     }
 
     /*
-     * True when argv contains a bare flag name.
-     *
-     * Purpose: gate --once / --serve-loop.
-     *
-     * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--once".
-     *
-     * Returns: true when present.
-     */
-    bool hasFlag(list args, String name) {
-        int64 index = 1
-        while (index < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                return(true)
-            }
-            index = index + 1
-        }
-        return(false)
-    }
-
-    /*
-     * Load AiConfig from --config path with host/port overlays.
+     * Load AiConfig from --config with host/port overlays.
      *
      * Purpose: own config file path; argv may override dial.
+     * Overlays apply only when the option was provided. Unknown
+     * config keys fail loud and exit(1).
      *
      * Parameters:
-     *   args — argv list.
+     *   commandLine — parsed Cli.CommandLine.
      *
      * Returns: clamped AiConfig (defaults when no --config).
      */
-    AiConfig loadConfig(list args) {
-        String path = flagString(args, "--config", "")
+    AiConfig loadConfig(Cli.CommandLine commandLine) {
         AiConfig cfg = AiConfig()
-        if (path.length > 0) {
-            Sys.File input = Sys.File(path, "r")
-            String text = input.readAll()
-            input.close()
-            AiConfigParse parser = AiConfigParse()
-            cfg = parser.parseText(text)
-            if (not parser.ok) {
-                print("cplanets-ai: config error: ")
-                print(parser.lastError)
-                print("\n")
-                Sys.Process().exit(1)
+        if (commandLine.wasProvided("config")) {
+            String path = commandLine.value("config")
+            if (path.length > 0) {
+                Sys.File input = Sys.File(path, "r")
+                String text = input.readAll()
+                input.close()
+                AiConfigParse parser = AiConfigParse()
+                cfg = parser.parseText(text)
+                if (not parser.ok) {
+                    print("cplanets-ai: config error: ")
+                    print(parser.lastError)
+                    print("\n")
+                    Sys.Process().exit(1)
+                }
             }
         }
-        String host = flagString(args, "--host", "")
-        if (host.length > 0) {
-            cfg.host = host
+        if (commandLine.wasProvided("host")) {
+            String host = commandLine.value("host")
+            if (host.length > 0) {
+                cfg.host = host
+            }
         }
-        int64 port = flagInt(args, "--port", -1)
-        if (port >= 0) {
-            cfg.port = port
+        if (commandLine.wasProvided("port")) {
+            int64 port = commandLine.value("port").toInt64()
+            if (port >= 0) {
+                cfg.port = port
+            }
         }
         cfg.clampAll()
         return(cfg)
@@ -241,28 +275,29 @@ class AiMain {
     }
 
     /*
-     * Dispatch smoke / once / loop from argv.
+     * Dispatch smoke / once / loop from a parsed CommandLine.
      *
      * Purpose: single entry used by start {}. Smoke when no
      * AI flags; --serve-loop needs a positive port; otherwise
      * --once / --config prints one local policy.
      *
      * Parameters:
-     *   args — Sys.Process argv.
+     *   commandLine — parsed Cli.CommandLine.
      *
      * Returns: nothing.
      */
-    void run(list args) {
-        bool wantConfig = hasFlag(args, "--config")
-        bool wantOnce = hasFlag(args, "--once")
-        bool wantLoop = hasFlag(args, "--serve-loop")
+    void run(Cli.CommandLine commandLine) {
+        bool wantConfig = commandLine.wasProvided("config")
+        bool wantOnce = commandLine.switchValue("once")
+        bool wantLoop = commandLine.switchValue("serve-loop")
         if (not wantConfig and not wantOnce and not wantLoop) {
             printSmoke()
             return()
         }
-        AiConfig cfg = loadConfig(args)
+        AiConfig cfg = loadConfig(commandLine)
         if (wantLoop and cfg.port > 0) {
-            runLoop(cfg, flagInt(args, "--cycles", 1))
+            int64 cycles = commandLine.value("cycles").toInt64()
+            runLoop(cfg, cycles)
             return()
         }
         runOnce(cfg)
@@ -270,7 +305,9 @@ class AiMain {
 }
 
 start {
-    Sys.Process proc = Sys.Process()
     AiMain main = AiMain()
-    main.run(proc.argv())
+    Cli.CommandLine commandLine = main.buildCli()
+    if (main.parseOrExit(commandLine)) {
+        main.run(commandLine)
+    }
 }

@@ -7,6 +7,7 @@
  * or closed builtins, run accept + cadence loop (sole writer).
  * Stand-alone and online share this driver (RULES §2 / PLAN §4.F).
  * Knob edits take effect on process restart (no mid-game retune).
+ * User-facing argv uses stdlib `cli` (including --help / -h).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -16,8 +17,10 @@
  *   2026-11-05  CODING file header.
  *   2026-11-05  Phase F: TCP serve + injectable driver entry.
  *   2026-11-06  --setup PATH + --seed; fail loud on bad setup.
+ *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  */
 
+import cli as Cli
 import system as Sys
 
 include "lib/machine.cw"
@@ -28,7 +31,7 @@ include "server/handler.cw"
 include "server/listen.cw"
 
 /*
- * ServerMain parses argv and runs smoke or serve mode.
+ * ServerMain parses argv via Cli and runs smoke or serve mode.
  *
  * Kept as a class so method comments stay with the entry logic
  * (CODING.md).
@@ -63,102 +66,117 @@ class ServerMain {
     }
 
     /*
-     * True when argv asks for --serve.
+     * Build the registered Cli.CommandLine for this binary.
      *
-     * Purpose: gate the TCP loop so bare smoke stays instant.
+     * Purpose: declare every operator flag once so parseArgv and
+     * helpText stay in sync (stdlib cli).
      *
-     * Parameters:
-     *   args — Sys.Process argv list.
+     * Parameters: none.
      *
-     * Returns: true when --serve is present.
+     * Returns: configured CommandLine (not yet parsed).
      */
-    bool wantsServe(list args) {
-        int64 index = 1
-        while (index < args.length) {
-            String arg = args[index]
-            if (arg.equals("--serve")) {
-                return(true)
-            }
-            index = index + 1
-        }
-        return(false)
+    Cli.CommandLine buildCli() {
+        Cli.CommandLine commandLine = Cli.CommandLine(
+            "cplanets-server",
+            "CPlanets galaxy server (sole writer; TCP + tick cadence).",
+            "0.1.0")
+        Cli.Option help = Cli.Option()
+        help.shortName = "h"
+        help.longName = "help"
+        help.name = "help"
+        help.description = "show this help"
+        help.action = Cli.Action().HELP
+        commandLine.addOption(help)
+        Cli.Option serve = Cli.Option()
+        serve.longName = "serve"
+        serve.name = "serve"
+        serve.description = "bind TCP and run accept + cadence loop"
+        serve.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(serve)
+        Cli.Option port = Cli.Option()
+        port.longName = "port"
+        port.name = "port"
+        port.description = "listen port (0 = ephemeral)"
+        port.valueType = Cli.ValueType().NUMBER
+        port.hasDefault = true
+        port.defaultValue = "0"
+        commandLine.addOption(port)
+        Cli.Option players = Cli.Option()
+        players.longName = "players"
+        players.name = "players"
+        players.description = "seat count for the closed start galaxy"
+        players.valueType = Cli.ValueType().NUMBER
+        players.hasDefault = true
+        players.defaultValue = "2"
+        commandLine.addOption(players)
+        Cli.Option seed = Cli.Option()
+        seed.longName = "seed"
+        seed.name = "seed"
+        seed.description = "PRNG seed for the start galaxy"
+        seed.valueType = Cli.ValueType().NUMBER
+        seed.hasDefault = true
+        seed.defaultValue = "7"
+        commandLine.addOption(seed)
+        Cli.Option setup = Cli.Option()
+        setup.longName = "setup"
+        setup.name = "setup"
+        setup.description = "scenario file (§14 knobs); empty = builtin"
+        setup.valueType = Cli.ValueType().STRING
+        setup.hasDefault = true
+        setup.defaultValue = ""
+        commandLine.addOption(setup)
+        Cli.Option injectable = Cli.Option()
+        injectable.longName = "injectable"
+        injectable.name = "injectable"
+        injectable.description = "test clock (admin advance)"
+        injectable.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(injectable)
+        Cli.Option cycles = Cli.Option()
+        cycles.longName = "cycles"
+        cycles.name = "cycles"
+        cycles.description = "cap accept/serve iterations (0 = until stop)"
+        cycles.valueType = Cli.ValueType().NUMBER
+        cycles.hasDefault = true
+        cycles.defaultValue = "0"
+        commandLine.addOption(cycles)
+        return(commandLine)
     }
 
     /*
-     * Read an int64 flag value following a name, or default.
+     * Parse argv; print help or an error and exit when needed.
      *
-     * Purpose: parse --port / --players / --cycles / --seed
-     * without Cli.
+     * Purpose: single parse path for smoke and serve; unknown flags
+     * fail loud via stdlib cli.
      *
      * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--port".
-     *   fallback — value when missing / bad.
+     *   commandLine — registered CommandLine from buildCli().
      *
-     * Returns: parsed int64 or fallback.
+     * Returns: true when the caller should continue; false when this
+     * method already exited the process (help / parse error).
      */
-    int64 flagInt(list args, String name, int64 fallback) {
-        int64 index = 1
-        while (index + 1 < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                String text = args[index + 1]
-                return(text.toInt64())
-            }
-            index = index + 1
+    bool parseOrExit(Cli.CommandLine commandLine) {
+        String problem = ""
+        try {
+            commandLine.parseArgv()
+        } except() as error {
+            problem = format("{}", error)
         }
-        return(fallback)
+        if (commandLine.currentAction() == Cli.Action().HELP) {
+            print(commandLine.helpText())
+            Sys.Process().exit(0)
+            return(false)
+        }
+        if (problem.length > 0) {
+            print(format("cplanets-server: {}\n", problem))
+            print("Try 'cplanets-server --help' for usage.\n")
+            Sys.Process().exit(2)
+            return(false)
+        }
+        return(true)
     }
 
     /*
-     * Read a string flag value following a name, or default.
-     *
-     * Purpose: parse --setup PATH without Cli.
-     *
-     * Parameters:
-     *   args — argv list.
-     *   name — flag such as "--setup".
-     *   fallback — value when missing.
-     *
-     * Returns: flag string or fallback.
-     */
-    String flagString(list args, String name, String fallback) {
-        int64 index = 1
-        while (index + 1 < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                return(args[index + 1])
-            }
-            index = index + 1
-        }
-        return(fallback)
-    }
-
-    /*
-     * True when a bare flag is present.
-     *
-     * Purpose: detect --injectable.
-     *
-     * Parameters:
-     *   args — argv list.
-     *   name — flag string.
-     *
-     * Returns: true when found.
-     */
-    bool hasFlag(list args, String name) {
-        int64 index = 1
-        while (index < args.length) {
-            String arg = args[index]
-            if (arg.equals(name)) {
-                return(true)
-            }
-            index = index + 1
-        }
-        return(false)
-    }
-
-    /*
-     * Run the TCP server loop.
+     * Run the TCP server loop from a parsed CommandLine.
      *
      * Purpose: Phase F driver under --serve. Optional --setup
      * PATH loads §14 knobs from a fixture file (restart to
@@ -166,17 +184,17 @@ class ServerMain {
      * Python functional tests.
      *
      * Parameters:
-     *   args — argv list.
+     *   commandLine — parsed Cli.CommandLine with serve options.
      *
      * Returns: process exit code (0 ok, 1 bind/setup failure).
      */
-    int64 runServe(list args) {
-        int64 port = flagInt(args, "--port", 0)
-        int64 players = flagInt(args, "--players", 2)
-        int64 cycles = flagInt(args, "--cycles", 0)
-        int64 seedRaw = flagInt(args, "--seed", 7)
-        String setupPath = flagString(args, "--setup", "")
-        bool injectable = hasFlag(args, "--injectable")
+    int64 runServe(Cli.CommandLine commandLine) {
+        int64 port = commandLine.value("port").toInt64()
+        int64 players = commandLine.value("players").toInt64()
+        int64 cycles = commandLine.value("cycles").toInt64()
+        int64 seedRaw = commandLine.value("seed").toInt64()
+        String setupPath = commandLine.value("setup")
+        bool injectable = commandLine.switchValue("injectable")
         if (players < 1) {
             players = 1
         }
@@ -235,18 +253,33 @@ class ServerMain {
         driver.close()
         return(0)
     }
+
+    /*
+     * Dispatch smoke or serve from a parsed CommandLine.
+     *
+     * Purpose: bare run stays smoke; --serve enters the TCP loop.
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *
+     * Returns: process exit code (0 for smoke / serve ok).
+     */
+    int64 run(Cli.CommandLine commandLine) {
+        if (not commandLine.switchValue("serve")) {
+            printSmoke()
+            return(0)
+        }
+        return(runServe(commandLine))
+    }
 }
 
 start {
     ServerMain main = ServerMain()
-    Sys.Process process = Sys.Process()
-    list args = process.argv()
-    if (main.wantsServe(args)) {
-        int64 code = main.runServe(args)
+    Cli.CommandLine commandLine = main.buildCli()
+    if (main.parseOrExit(commandLine)) {
+        int64 code = main.run(commandLine)
         if (code != 0) {
-            process.exit(code)
+            Sys.Process().exit(code)
         }
-    } else {
-        main.printSmoke()
     }
 }

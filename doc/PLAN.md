@@ -301,6 +301,12 @@ canvas, no HTTP. No new phase is required for locks already on
 AI-lag tick auto-config, multi-tick combat, tech teleport) — they
 fold into B–H above.
 
+**Next phase (tuning-ready playable):** human+AI session good enough
+for balance/tuning loops — knobs reload/restart, list chrome without
+DrawingArea, session harness; map stays optional/gated. See
+[TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) (does not rewrite A–H
+history).
+
 | Scope | Prod LOC | Test LOC | Total |
 | --- | ---: | ---: | ---: |
 | v1 likely | ~9 700 | ~6 600 | **~16 300** |

@@ -46,6 +46,7 @@ target (or when `ctest` runs).
 - [User / operator guide](doc/CPLANETS.md) — start here to run the game
 - [Game rules and machine](doc/RULES.md)
 - [Implementation plan](doc/PLAN.md)
+- [Tuning-ready playable (next phase)](doc/TUNING-PLAYABLE.md)
 - [Coding conventions](doc/CODING.md)
 - [Building](doc/BUILDING.md)
 - [Syntax](doc/SYNTAX.md)

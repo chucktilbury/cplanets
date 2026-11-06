@@ -195,6 +195,7 @@ This file is for **users and operators**.
 | --- | --- |
 | Game rules / machine spec | [RULES.md](RULES.md) |
 | Implementation order & phases | [PLAN.md](PLAN.md) |
+| Next: tuning-ready playable | [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) |
 | Cwhip coding conventions | [CODING.md](CODING.md) |
 | SDK / CMake / project shell | [BUILDING.md](BUILDING.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |

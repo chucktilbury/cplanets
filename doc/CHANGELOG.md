@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Phase G (CPL-33): human GTK list debugger — `src/client/` windows
+  for planet list, fleet list, newspaper/digest, policy editors;
+  explored-planet dialog (livability/quality 1–10; may change when
+  populated/productive); TCP only (never ticks / never opens DB);
+  visibility is a view of server publish flags; no DrawingArea /
+  map canvas. Settings: `config/human-default.cfg`. Modes:
+  `--once`, `--pull`, `--gui`, `--test`. Unit: `unit_clientConfig`,
+  `unit_clientLivability`, `unit_clientPolicy`,
+  `unit_clientPublishDecode`. Function: `fn_client`. Python:
+  `functional_client_once`.
+
 - Phase H (CPL-32): AI client — own `config/ai-default.cfg` (not
   human settings); axes aggression / role stickiness / expansion /
   escort / agreement appetite / tech vs hulls / reaction lag

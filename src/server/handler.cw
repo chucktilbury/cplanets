@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial server message handler.
+ *   2026-11-05  Phase G: GET /state uses seat-scoped list view.
  */
 
 include "driver.cw"
@@ -114,9 +115,11 @@ class ServerHandler {
         if (req.playerId < 0) {
             return(errorFrame("bad_get_state"))
         }
+        PublishCodec codec = PublishCodec()
+        buffer blob = codec.encodeStateView(
+            driver.game, driver.policies, req.playerId)
         GetStateResponse resp = GetStateResponse(
-            driver.game.tickCount,
-            driver.publishedState)
+            driver.game.tickCount, blob)
         return(getState.encodeResponse(resp))
     }
 

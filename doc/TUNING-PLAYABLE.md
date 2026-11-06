@@ -55,7 +55,7 @@ Cwhip GTK for Cplanets-only widgets.
 | **Sim / lib** | Tick machine, D1–D5 clusters, §14 knobs named in `scenarios/closed-default.setup` | Magnitudes are placeholders; some open RULES forks (formulas / tick-driver livability) — tune around defaults until locked |
 | **Server** | Real-time cadence, TCP, SQLite-shaped snapshot, pause gate, presence handshake shape, digest publish; **`--setup` path load** (workstream A) | Mid-game retune (deferred); peer-drop UX thin; harness beyond smoke (workstream C) |
 | **AI** | Config axes, lag (ticks+wall), surprise band, tick-period suggest | Binding-shape still open; need documented multi-seat fixture + retune cycle |
-| **Human client** | List notebook (planets/fleets/digest/policy), explored dialog skeleton, policy Entries + Apply | Pause chrome; dispatch/recall/design-build surfaces; auto-pop explored; agreements beyond stub; AFK/drop notices |
+| **Human client** | List notebook (planets/fleets/digest/policy), explored dialog skeleton, policy Entries + Apply; **B:** pause, dispatch/recall, explored auto-pop, design/build progress labels | Agreements beyond stub; AFK/drop notices; Scale swap (B6); map (D) |
 | **Dialogs / chrome** | Inventory ([#28](https://github.com/cwhip-lang/cplanets/pull/28)) | Implement **Intended playable** items that block loops (not map) |
 | **Knobs** | Outside-code principle + fixture file; **restart contract + path load + unknown-key fail** (workstream A) | No v1 setup GUI (deferred); magnitudes still placeholders |
 | **Map (I)** | Gated on DrawingArea ([PLAN.md](PLAN.md) §4.I) | **Optional** after Cwhip GTK — not on the critical path |
@@ -209,3 +209,27 @@ files + restart; no setup GUI).
 `./scripts/setup` shell → `build` only if code changed → restart
 server with `--setup` and AI with `--config`. Magnitudes stay
 placeholders until RULES locks them.
+
+---
+
+## Progress — workstream B (list chrome)
+
+**Status:** implemented on the tuning-list-chrome branch (list
+debugger only; no map / DrawingArea).
+
+| Chunk | Landed |
+| --- | --- |
+| B1 | Pause `CheckButton` → `PUT /pause`; sensitive only when `humanCount == 1` (server gate unchanged) |
+| B2 | Fleets tab Entries + Dispatch / Recall → `PUT /order`, `PUT /recall`; list shows `LOCKED` / `recall-req`; Dispatch disabled when in-flight locked |
+| B3 | Explored dialog auto-present / refresh via `ExploredTrack` on quality-first and productive/populated flips (manual button kept) |
+| B4 | Non-modal design/build/reclaim progress label + setup `designDevelopTicks` / `yardBuildTicks` from chrome trailer |
+| B5 | Deferred — known-competitors / compose not on the wire yet (Phase E verbs only); no invented protocol |
+| B6 | Still Entry stand-ins for policy % / `S` (Scale polish later) |
+
+**Wire adds:** `PUT /order` (player, fleet, dest, order string;
+`trade` → self-trade stand-in), `PUT /recall`; state blob chrome
+trailer after fleets (`paused`, setup durations, developing /
+build / reclaim rows); fleet flags `pendingDeparture` /
+`recallRequested`.
+
+**Tests:** `fn_listChrome`, `functional_list_chrome`.

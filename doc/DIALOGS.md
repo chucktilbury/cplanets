@@ -35,7 +35,7 @@ Context: `design-decisions.md`, `project-context.md`,
 | **Main window** | Always-on client shell; never ticks | Title; File menu; status line (tick / counts) | **Exists (Phase G)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
 | **Planets notebook page** | Visibility-limited planet list | Scrolled labels: id, owner, livability/resources 1–10 or `quality=unknown`; button “Show first explored” | **Exists (Phase G)** — list stand-in for map |
-| **Fleets notebook page** | Visibility-limited fleets | Scrolled labels: owner, order, hulls, ETA, loc, dest | **Exists (Phase G)** |
+| **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; design/build progress label | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B)** |
 | **Digest notebook page** | Newspaper / published events | Scrolled digest text (broadcasts + tick events) | **Exists (Phase G)** — read-only list |
 | **Policy notebook page** | Standing policy editor | Role, expansion %, escort %, agreement `S`, tech bias %; Apply (PUT `/policy`); no dumb-order warnings | **Exists (Phase G)** — Entries today; **Intended playable** prefers sliders |
 | **Map canvas panel** (future main surface) | Galaxy graphic in the client layout | Hot spots; status colors; dotted ETA/order lines; pan/zoom; pick-to-dispatch | **Intended playable** (Phase I; gated on DrawingArea) — not a dialog |
@@ -48,14 +48,14 @@ dominate the main surface. The map is a **panel**, not a dialog.
 
 | Dialog | When shown | Status |
 | --- | --- | --- |
-| Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** skeleton; richer content **Intended playable** |
+| Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
 | Planet status / budget menus | Click planet → menu options (README) | **Intended playable** |
 | Map right-click context menu | Right-click / selected planet | **Intended playable** (Phase I chrome) |
-| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Intended playable** |
+| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists (TUNING B)** as Fleets-tab Entries/buttons (list stand-in; map pick still **Intended playable**) |
 | Design / build timing surfaces | Start or inspect design development / yard build | **Intended playable** |
 | Compose private message | Player chooses send-to known competitor | **Intended playable** |
 | Known-competitors picker | Contact adds names; compose-to-pick | **Intended playable** |
-| Pause control | Exactly one human | Server gate **Exists**; client chrome **Intended playable** |
+| Pause control | Exactly one human | Server gate **Exists**; client CheckButton **Exists (TUNING B)** (sensitive only when offered) |
 | Connection / drop / AFK notices | Human-visible presence feedback | **Intended playable** where human-visible; details **open** |
 | Server setup GUI hierarchy | Admin edits §14 knobs before lock | **Deferred** (not v1) |
 | Dumb-order warning dialogs | — | **Out of product** (RULES: none) |
@@ -174,9 +174,9 @@ still **Intended playable**.
 
 | Surface | When | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Intended playable** |
-| **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; UI must reflect lock (**Intended**) |
-| **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Intended playable** |
+| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists (TUNING B)** list Entries → `PUT /order` (map pick still **Intended**) |
+| **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; list shows `LOCKED` + Dispatch disabled (**TUNING B**) |
+| **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Recall → `PUT /recall` |
 | **Fleet list** | Always | Read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list |
 
 Do **not** freeze the UI on send. Do **not** allow mid-hop rewrite of
@@ -222,7 +222,7 @@ two or more humans.
 | Layer | Status |
 | --- | --- |
 | Server `PUT /pause` + `pauseAllowed` gate | **Exists** (Phase F) |
-| Human client Pause control (button/check; sensitive only when offered) | **Intended playable** — not in Phase G menu yet |
+| Human client Pause control (button/check; sensitive only when offered) | **Exists (TUNING B)** CheckButton → `PUT /pause` |
 | Who may unpause / AI-only games | **Open** (design-decisions §11: not locked) |
 
 When multi-human: hide or disable pause — do not show a dead control
@@ -279,24 +279,26 @@ v1. File/scenario edit remains the v1 path.
 
 ## 11. Phase G vs remaining (summary)
 
-### Already in Phase G human client
+### Already in Phase G / TUNING B human client
 
 - Main window + File Refresh/Quit
 - Notebook: Planets, Fleets, Digest, Policy
 - Explored-planet TransientWindow (1–10 + populated/productive note);
-  manual “Show first explored”
+  manual “Show first explored” + auto-present on quality /
+  productive / populated flips (**TUNING B**)
 - Policy Entries + Apply PUT; no dumb-order warnings
 - TCP pull of seat-scoped publish flags (no second fog)
+- Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
+- Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
+  with in-flight lock labels (**B**)
+- Design/build/reclaim progress label from chrome trailer (**B**)
 
 ### Remaining for intended playable human UI
 
 - Map canvas panel + right-click status / zoom-to-known
-- Auto-pop / evolve explored dialog on explore & productivity changes
 - Sliders for policy / budget; richer planet budget menus
-- Fleet dispatch & recall chrome (with in-flight lock UX)
-- Design / build timing surfaces
+- Richer design editor / yard queue (beyond progress labels)
 - Known-competitors list + private compose (+ broadcast if applicable)
-- Pause control wired to `PUT /pause`
 - Human-visible AFK / drop notices (peer notify still open)
 - Full multi-partner agreements UI beyond single `agreementS` stub
 

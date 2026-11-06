@@ -16,6 +16,7 @@
  *   2026-11-05  Initial stub.
  *   2026-11-05  CODING file header.
  *   2026-11-05  Phase G: list debugger, TCP, GTK panes.
+ *   2026-11-06  TUNING B: wire pause / dispatch / recall actions.
  */
 
 import gtk
@@ -245,6 +246,9 @@ class HumanMain {
         gui.closeAction = gui.onClose
         gui.dialogCloseAction = gui.onDialogClose
         gui.showExploredAction = gui.showFirstExplored
+        gui.dispatchAction = gui.onDispatch
+        gui.recallAction = gui.onRecall
+        gui.pauseAction = gui.onPauseToggled
         gui.testAction = gui.onTest
         app.onActivate(gui.activateAction)
         app.run()

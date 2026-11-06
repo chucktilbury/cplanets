@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial AppCore.
+ *   2026-11-06  TUNING B: pause / order / recall remote helpers.
  */
 
 include "config.cw"
@@ -64,7 +65,7 @@ class AppCore {
     bool fillFromGame(State game, PolicyTable policies) {
         PublishCodec codec = PublishCodec()
         buffer blob = codec.encodeStateView(
-            game, policies, config.playerId)
+            game, policies, config.playerId, false)
         if (blob.length < 1) {
             return(false)
         }
@@ -116,6 +117,72 @@ class AppCore {
         }
         session.handshake()
         bool ok = session.putPolicy(draft)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT pause over TCP when port is set.
+     *
+     * Purpose: GuiMain Pause CheckButton.
+     *
+     * Parameters:
+     *   wantPaused — desired pause flag.
+     *
+     * Returns: true when accepted.
+     */
+    bool putPauseRemote(bool wantPaused) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putPause(wantPaused)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT a fleet order over TCP.
+     *
+     * Purpose: Fleets tab Dispatch button.
+     *
+     * Parameters:
+     *   fleetId — owned fleet.
+     *   order — explore / take / trade / move / ambush.
+     *   destPlanetId — destination.
+     *
+     * Returns: true when queued.
+     */
+    bool putOrderRemote(
+        int64 fleetId, String order, int64 destPlanetId) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putOrder(fleetId, order, destPlanetId)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT recall over TCP.
+     *
+     * Purpose: Fleets tab Recall button.
+     *
+     * Parameters:
+     *   fleetId — owned fleet.
+     *
+     * Returns: true when recorded.
+     */
+    bool putRecallRemote(int64 fleetId) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putRecall(fleetId)
         session.close()
         return(ok)
     }

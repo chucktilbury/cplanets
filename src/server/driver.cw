@@ -13,6 +13,8 @@
  * Changelog:
  *   2026-11-05  Initial GameDriver cadence loop helpers.
  *   2026-11-05  Phase H: apply AI-lag tick auto-config at start.
+ *   2026-11-06  TUNING B: owned fleet issueOrder / recallFleet
+ *               + pause flag in publish.
  */
 
 include "clock.cw"
@@ -90,7 +92,8 @@ class GameDriver {
         lastSnapshot = []
         paused = false
         fireCount = 0
-        publishedState = publisher.encodeState(game, policies)
+        publishedState = publisher.encodeState(
+            game, policies, paused)
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
     }
@@ -112,6 +115,73 @@ class GameDriver {
             return(false)
         }
         return(policies.put(playerId, blob))
+    }
+
+    /*
+     * Issue a travel / trade order for a seat-owned fleet.
+     *
+     * Purpose: wire PUT /order for list-client dispatch chrome
+     * (TUNING-PLAYABLE B). Ownership-checked; mid-dispatch lock
+     * still enforced inside State helpers (RULES §5).
+     *
+     * Parameters:
+     *   playerId — requesting seat (must own the fleet).
+     *   fleetId — sitting fleet to order.
+     *   order — explore / take / trade / move / ambush.
+     *   destPlanetId — destination rock.
+     *
+     * Returns: true when the order was queued.
+     */
+    bool issueOwnedOrder(
+        int64 playerId,
+        int64 fleetId,
+        String order,
+        int64 destPlanetId) {
+        if (game.ended) {
+            return(false)
+        }
+        Fleet fleet = game.findFleet(fleetId)
+        if (fleet.id < 0 or fleet.ownerId != playerId) {
+            return(false)
+        }
+        bool ok = false
+        if (order.equals("trade")) {
+            # Self-trade stand-in (agreementId -1) for balance loops;
+            # multi-partner pact chrome stays Phase E / later B5.
+            ok = game.issueTrade(fleetId, destPlanetId, -1, -1, 0)
+        } else {
+            ok = game.issueOrder(fleetId, order, destPlanetId)
+        }
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
+    }
+
+    /*
+     * Request recall for a seat-owned fleet.
+     *
+     * Purpose: wire PUT /recall for list-client chrome (RULES §5.2).
+     *
+     * Parameters:
+     *   playerId — requesting seat (must own the fleet).
+     *   fleetId — fleet to recall / cancel.
+     *
+     * Returns: true when a recall request was recorded.
+     */
+    bool recallOwnedFleet(int64 playerId, int64 fleetId) {
+        if (game.ended) {
+            return(false)
+        }
+        Fleet fleet = game.findFleet(fleetId)
+        if (fleet.id < 0 or fleet.ownerId != playerId) {
+            return(false)
+        }
+        bool ok = game.recallFleet(fleetId)
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
     }
 
     /*
@@ -197,6 +267,7 @@ class GameDriver {
             return(false)
         }
         paused = wantPaused
+        republishWithoutTick()
         return(true)
     }
 
@@ -314,7 +385,8 @@ class GameDriver {
         # tick() still advances fleets/orders already on State.
         lastSnapshot = policies.snapshot()
         lastEvents = game.tick()
-        publishedState = publisher.encodeState(game, policies)
+        publishedState = publisher.encodeState(
+            game, policies, paused)
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
         if (storeEnabled and store.openOk) {
@@ -340,7 +412,8 @@ class GameDriver {
      * Returns: nothing.
      */
     void republishWithoutTick() {
-        publishedState = publisher.encodeState(game, policies)
+        publishedState = publisher.encodeState(
+            game, policies, paused)
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
         if (storeEnabled and store.openOk) {

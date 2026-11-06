@@ -1,33 +1,37 @@
 /*
- * src/client/guiMain.cw — GTK list debugger main window (G).
+ * src/client/guiMain.cw — GTK list debugger main window (G / B).
  *
- * Notebook panes: Planets, Fleets, Digest, Policy. No DrawingArea /
- * map canvas (PLAN §4.I). Talks through AppCore only.
+ * Notebook panes: Planets, Fleets, Digest, Policy. Pause gated to
+ * one human; fleet dispatch/recall via GuiFleetPage; explored
+ * dialog auto-presents on quality / productive changes. No
+ * DrawingArea / map canvas (PLAN §4.I).
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial GuiMain window.
+ *   2026-11-06  TUNING B: pause, fleet chrome, explored auto-pop.
  */
 
 include "appCore.cw"
-include "fleetRow.cw"
+include "exploredTrack.cw"
+include "guiFleetPage.cw"
 include "guiPlanetDialog.cw"
 include "planetRow.cw"
 
 /*
  * GuiMain owns the human list debugger window.
  *
- * Planet activate opens the explored dialog when qualityKnown.
  * Policy Apply PUTs standing policy with no dumb-order warnings.
+ * Pause CheckButton is sensitive only when pauseOffered().
  */
 class GuiMain {
     AppCore core
     Gtk.Window window
     Gtk.Label status
+    Gtk.CheckButton pauseBtn
     Gtk.Label planetList
-    Gtk.Label fleetList
     Gtk.Label digestList
     Gtk.Entry roleEntry
     Gtk.Entry expansionEntry
@@ -35,12 +39,18 @@ class GuiMain {
     Gtk.Entry agreementEntry
     Gtk.Entry techEntry
     GuiPlanetDialog planetDialog
+    GuiFleetPage fleetPage
+    ExploredTrack explored
+    bool suppressPauseToggle
     void<> activateAction
     void<> refreshAction
     void<> applyAction
     void<> closeAction
     void<> dialogCloseAction
     void<> showExploredAction
+    void<> dispatchAction
+    void<> recallAction
+    void<bool> pauseAction
     void<> testAction
     bool testMode
 
@@ -58,8 +68,8 @@ class GuiMain {
         core = appCore
         window = null
         status = null
+        pauseBtn = null
         planetList = null
-        fleetList = null
         digestList = null
         roleEntry = null
         expansionEntry = null
@@ -67,12 +77,18 @@ class GuiMain {
         agreementEntry = null
         techEntry = null
         planetDialog = GuiPlanetDialog()
+        fleetPage = GuiFleetPage(appCore)
+        explored = ExploredTrack()
+        suppressPauseToggle = false
         activateAction = null
         refreshAction = null
         applyAction = null
         closeAction = null
         dialogCloseAction = null
         showExploredAction = null
+        dispatchAction = null
+        recallAction = null
+        pauseAction = null
         testAction = null
         testMode = false
     }
@@ -92,7 +108,7 @@ class GuiMain {
             return()
         }
         window = Gtk.Window("CPlanets")
-        window.setDefaultSize(720, 480)
+        window.setDefaultSize(720, 560)
         Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 0)
         window.setChild(root)
         Gtk.MenuBar menu = Gtk.MenuBar()
@@ -100,13 +116,23 @@ class GuiMain {
         menu.addItem(fileMenu, "Refresh", refreshAction)
         menu.addItem(fileMenu, "Quit", closeAction)
         root.append(menu)
+        Gtk.Box top = Gtk.Box(Gtk.Box.HORIZONTAL, 8)
         status = Gtk.Label("Ready")
-        root.append(status)
+        status.setHExpand(true)
+        top.append(status)
+        pauseBtn = Gtk.CheckButton("Pause")
+        if (pauseAction != null) {
+            pauseBtn.onToggled(pauseAction)
+        }
+        top.append(pauseBtn)
+        root.append(top)
         Gtk.Notebook notebook = Gtk.Notebook()
         notebook.setHExpand(true)
         notebook.setVExpand(true)
         notebook.appendPage(buildPlanetPage(), "Planets")
-        notebook.appendPage(buildFleetPage(), "Fleets")
+        fleetPage.dispatchAction = dispatchAction
+        fleetPage.recallAction = recallAction
+        notebook.appendPage(fleetPage.buildPage(), "Fleets")
         notebook.appendPage(buildDigestPage(), "Digest")
         notebook.appendPage(buildPolicyPage(), "Policy")
         root.append(notebook)
@@ -142,28 +168,6 @@ class GuiMain {
             exploreBtn.onClicked(showExploredAction)
         }
         page.append(exploreBtn)
-        return(page)
-    }
-
-    /*
-     * Build the Fleets notebook page.
-     *
-     * Purpose: scrolled fleet labels.
-     *
-     * Parameters: none.
-     *
-     * Returns: page widget.
-     */
-    Gtk.Widget buildFleetPage() {
-        Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        fleetList = Gtk.Label("(no fleets)")
-        fleetList.setHExpand(true)
-        fleetList.setVExpand(true)
-        Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
-        scroll.setChild(fleetList)
-        scroll.setHExpand(true)
-        scroll.setVExpand(true)
-        page.append(scroll)
         return(page)
     }
 
@@ -249,32 +253,24 @@ class GuiMain {
         if (planetList != null) {
             planetList.setText(planets)
         }
-        String fleets = ""
-        index = 0
-        while (index < core.view.fleets.length) {
-            FleetRow row = core.view.fleets[index]
-            if (row.visible) {
-                fleets.append(row.listLabel())
-                fleets.append("\n")
-            }
-            index = index + 1
-        }
-        if (fleets.length < 1) {
-            fleets = "(no visible fleets)\n"
-        }
-        if (fleetList != null) {
-            fleetList.setText(fleets)
-        }
+        fleetPage.refresh()
         if (digestList != null) {
             digestList.setText(core.view.digestText())
         }
         if (status != null) {
+            String pauseBit = ""
+            if (core.view.paused) {
+                pauseBit = " paused"
+            }
             status.setText(format(
-                "tick={} planets={} fleets={}",
+                "tick={} planets={} fleets={} humans={}{}",
                 core.view.tick,
                 core.view.visiblePlanetCount(),
-                core.view.visibleFleetCount()))
+                core.view.visibleFleetCount(),
+                core.view.humanCount,
+                pauseBit))
         }
+        syncPauseChrome()
         if (roleEntry != null) {
             roleEntry.setText(core.draft.roleName)
             expansionEntry.setText(
@@ -285,6 +281,45 @@ class GuiMain {
                 format("{}", core.draft.agreementS))
             techEntry.setText(
                 format("{}", core.draft.techBiasPct))
+        }
+        autoPresentExplored()
+    }
+
+    /*
+     * Gate and sync the Pause CheckButton from the view.
+     *
+     * Purpose: sensitive only with exactly one human; hide dead
+     * multi-human errors as the primary UX (DIALOGS §8).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncPauseChrome() {
+        if (pauseBtn == null) {
+            return()
+        }
+        bool offered = core.view.pauseOffered()
+        pauseBtn.setSensitive(offered)
+        suppressPauseToggle = true
+        pauseBtn.setActive(core.view.paused and offered)
+        suppressPauseToggle = false
+    }
+
+    /*
+     * Auto-present / refresh explored dialog on quality changes.
+     *
+     * Purpose: TUNING-PLAYABLE B3 — pop when quality first known
+     * or when populated/productive flags change for that rock.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void autoPresentExplored() {
+        PlanetRow row = explored.nextToPresent(core.view.planets)
+        if (row.id >= 0) {
+            planetDialog.presentRow(window, row)
         }
     }
 
@@ -302,13 +337,12 @@ class GuiMain {
             core.pullRemote()
         }
         refreshLists()
-        showFirstExplored()
     }
 
     /*
      * Open explored dialog for the first qualityKnown visible rock.
      *
-     * Purpose: exercise RULES §16 dialog without Tree activate.
+     * Purpose: manual Planets-tab button (still useful offline).
      *
      * Parameters: none.
      *
@@ -349,6 +383,102 @@ class GuiMain {
             }
         } else {
             status.setText("policy draft updated (offline)")
+        }
+    }
+
+    /*
+     * Pause CheckButton toggle handler.
+     *
+     * Purpose: PUT /pause when offered; revert on reject.
+     *
+     * Parameters:
+     *   active — desired CheckButton state.
+     *
+     * Returns: nothing.
+     */
+    void onPauseToggled(bool active) {
+        if (suppressPauseToggle) {
+            return()
+        }
+        if (not core.view.pauseOffered()) {
+            syncPauseChrome()
+            status.setText("pause not offered (need 1 human)")
+            return()
+        }
+        if (core.config.port < 1) {
+            core.view.paused = active
+            status.setText("pause draft (offline)")
+            return()
+        }
+        if (core.putPauseRemote(active)) {
+            core.view.paused = active
+            if (active) {
+                status.setText("pause=on")
+            } else {
+                status.setText("pause=off")
+            }
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("pause rejected")
+            syncPauseChrome()
+        }
+    }
+
+    /*
+     * Dispatch button: PUT /order from fleet Entries.
+     *
+     * Purpose: exercise explore/take/trade paths in tuning loops.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onDispatch() {
+        int64 fleetId = fleetPage.fleetIdValue()
+        String order = fleetPage.orderValue()
+        int64 dest = fleetPage.destValue()
+        FleetRow row = core.view.findFleet(fleetId)
+        if (row.id >= 0 and row.orderLocked()) {
+            status.setText("fleet locked — use Recall")
+            fleetPage.syncLockChrome()
+            return()
+        }
+        if (core.config.port < 1) {
+            status.setText("dispatch needs live server")
+            return()
+        }
+        if (core.putOrderRemote(fleetId, order, dest)) {
+            status.setText(format(
+                "dispatched fleet {} {}", fleetId, order))
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("dispatch failed")
+        }
+    }
+
+    /*
+     * Recall button: PUT /recall for the fleet Entry id.
+     *
+     * Purpose: cancel pending or turn in-flight home.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onRecall() {
+        int64 fleetId = fleetPage.fleetIdValue()
+        if (core.config.port < 1) {
+            status.setText("recall needs live server")
+            return()
+        }
+        if (core.putRecallRemote(fleetId)) {
+            status.setText(format("recall fleet {}", fleetId))
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("recall failed")
         }
     }
 

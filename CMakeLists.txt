@@ -279,7 +279,8 @@ if(BUILD_TESTING)
         fn_messages
         fn_server
         fn_ai
-        fn_client)
+        fn_client
+        fn_listChrome)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_cw_test(${fn} fn)
     endforeach()
@@ -303,4 +304,8 @@ if(BUILD_TESTING)
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_once.cmake")
+    add_test(NAME functional_list_chrome COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_list_chrome.cmake")
 endif()

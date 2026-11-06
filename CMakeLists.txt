@@ -128,7 +128,8 @@ if(BUILD_TESTING)
         unit_production
         unit_dispatch
         unit_recallCancel
-        unit_stranded)
+        unit_stranded
+        unit_combat)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_program(${unit} src/${unit}.cw)
         add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
@@ -136,7 +137,8 @@ if(BUILD_TESTING)
             -P "${PROJECT_SOURCE_DIR}/tests/unit/${unit}.cmake")
     endforeach()
     set(cplanets_fn_programs
-        fn_tickCore)
+        fn_tickCore
+        fn_takeColony)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_program(${fn} src/${fn}.cw)
         add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"

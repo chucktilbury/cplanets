@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Phase D1 (CPL-25): take / occupy / colony / defenses. Unowned and
+  undefended owned non-productive takes are free; productive owned
+  always fights inherent defense; satellites and parked hulls defend;
+  colony required to populate (dead colony does not); war fleets stay;
+  sit/move on possession. Shared `Combat` entry points with a minimal
+  multi-tick engagement stub (full D4 screening later). Unit:
+  `unit_combat`. Function: `fn_takeColony`.
+
 - Phase C (CPL-24): pure tick dispatcher (RULES §7) with production,
   dispatch/loading, same-tick cancel + in-flight recall, sit/move
   arrivals, range/ETA including tech teleport (ETA→0), stranded-N,

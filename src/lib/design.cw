@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial Design + yard BuildJob for tick core.
+ *   2026-11-05  Phase D1: makeDefense satellite template.
  */
 
 /*
@@ -118,6 +119,30 @@ class Design {
         scout = false
         colony = true
         defense = false
+        developTicksLeft = 0
+        closed = false
+    }
+
+    /*
+     * Fill this slot as a parked satellite / defense hull.
+     *
+     * Purpose: D1 tests for leave-behind defenses after warships
+     * abandon a rock (RULES §11.2).
+     *
+     * Parameters:
+     *   strengthSize — size used as combat strength per hull.
+     *
+     * Returns: nothing; mutates this Design.
+     */
+    void makeDefense(fp64 strengthSize) {
+        name = "satellite"
+        speed = 0.0
+        hopReach = 0.0
+        size = strengthSize
+        cargoHold = 0.0
+        scout = false
+        colony = false
+        defense = true
         developTicksLeft = 0
         closed = false
     }

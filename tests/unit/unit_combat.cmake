@@ -1,0 +1,5 @@
+if(NOT DEFINED EXECUTABLE)
+    message(FATAL_ERROR "unit_combat.cmake requires EXECUTABLE")
+endif()
+set(EXPECTED "true\n")
+include("${CMAKE_CURRENT_LIST_DIR}/../check-output.cmake")

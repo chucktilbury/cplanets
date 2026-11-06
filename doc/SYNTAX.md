@@ -21,6 +21,11 @@ and `tick.cw` (plus `state.cw` tick entry). Unit programs
 `fn_tickCore` also print a bool line. CTest wrappers for fn programs
 live under `tests/fn/`.
 
+Phase D1 adds take/combat modules: `engagement.cw`, `combat.cw`,
+`take.cw` (plus planet `satelliteDefense` and fleet
+`pendingArrivalOrder`). Unit program `unit_combat` and function
+program `fn_takeColony` print a bool line.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

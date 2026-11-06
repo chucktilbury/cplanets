@@ -15,6 +15,8 @@
  *               beside this file under src/lib/.
  *   2026-11-05  Phase C: identity unchanged; tick core lives
  *               beside this file under src/lib/.
+ *   2026-11-05  Phase D1: identity unchanged; take/combat live
+ *               beside this file under src/lib/.
  */
 
 /*

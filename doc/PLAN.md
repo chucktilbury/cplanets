@@ -276,7 +276,9 @@ surprise fires within a rate band.
 ### I. Map canvas (after GTK `DrawingArea`)
 
 Hot spots, dotted ETA, pan/zoom. Depends on **cwhip gtk** work, not
-only this repo.
+only this repo. Cwhip GTK dependency inventory (DrawingArea, pointer,
+scroll bars, ContextMenu hooks, later `Scale`, deferred config-driven
+setup UI): [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |

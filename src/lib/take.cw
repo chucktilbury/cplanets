@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial take/occupy/colony for Phase D1.
+ *   2026-11-05  Phase D2: clear only take pendingArrivalOrder.
  */
 
 include "combat.cw"
@@ -80,10 +81,10 @@ class Take {
                     events,
                     nextEngagementId,
                     index)
+                fleet = fleets[index]
+                fleet.pendingArrivalOrder = ""
+                fleets[index] = fleet
             }
-            fleet = fleets[index]
-            fleet.pendingArrivalOrder = ""
-            fleets[index] = fleet
             index = index + 1
         }
         return(nextEngagementId)

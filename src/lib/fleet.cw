@@ -1,9 +1,10 @@
 /*
- * src/lib/fleet.cw — fleet orders and transit state (Phase C / D1).
+ * src/lib/fleet.cw — fleet orders and transit state (Phase C–D2).
  *
  * Holds hull mix, sender/destination, order, ETA, stranded
  * countdown, and mid-dispatch lock flags (RULES §5 / §6). D1
  * records pendingArrivalOrder so take can run after sit landing.
+ * D2 adds trade leg, agreement, fills, and escort mix.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -11,6 +12,7 @@
  * Changelog:
  *   2026-11-05  Initial Fleet for tick core.
  *   2026-11-05  Phase D1: pendingArrivalOrder for take/occupy.
+ *   2026-11-05  Phase D2: trade cycle fields + escorts.
  */
 
 /*
@@ -42,6 +44,13 @@ class Fleet {
     fp64 cargoWealth
     fp64 cargoResources
     String pendingArrivalOrder
+    int64 agreementId
+    fp64 tradeSize
+    bool cargoFilled
+    bool tradeOutbound
+    int64 tradeFarPlanetId
+    int64 escortDesignId
+    int64 escortHullCount
 
     /*
      * Construct a sitting fleet at a planet.
@@ -84,6 +93,13 @@ class Fleet {
         cargoWealth = 0.0
         cargoResources = 0.0
         pendingArrivalOrder = ""
+        agreementId = -1
+        tradeSize = 0.0
+        cargoFilled = false
+        tradeOutbound = true
+        tradeFarPlanetId = -1
+        escortDesignId = -1
+        escortHullCount = 0
     }
 
     /*

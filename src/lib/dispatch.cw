@@ -3,13 +3,15 @@
  *
  * After same-tick cancellations, pending fleets pay sender-only
  * costs and leave (RULES §5.1). Loading applies only to trade
- * orders; trade cycle resolution is Phase D.
+ * orders; holds must cover S or the fleet does not leave as a
+ * trade of that size. Trade cycle resolution is tradeArrive.
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial dispatch/loading phase for tick core.
+ *   2026-11-05  Phase D2: hold cover-S check + escort dispatch.
  */
 
 include "design.cw"
@@ -125,6 +127,38 @@ class Dispatch {
     }
 
     /*
+     * Dispatch wealth including optional escort hulls.
+     *
+     * Purpose: trade escorts cycle with cargo and pay their own
+     * weight on each leave (RULES §5 / §8.2).
+     *
+     * Parameters:
+     *   scenario — weight knobs.
+     *   designs — design list.
+     *   fleet — pending fleet (may carry escortDesignId).
+     *
+     * Returns: sunk wealth for cargo hulls + escorts + voyageCost.
+     */
+    fp64 fleetDispatchCost(
+        Scenario scenario,
+        list designs,
+        Fleet fleet) {
+        if (fleet.designId < 0 or fleet.designId >= designs.length) {
+            return(0.0)
+        }
+        Design design = designs[fleet.designId]
+        fp64 cost = dispatchCost(scenario, design, fleet.hullCount)
+        if (fleet.escortDesignId >= 0
+            and fleet.escortDesignId < designs.length
+            and fleet.escortHullCount > 0) {
+            Design escort = designs[fleet.escortDesignId]
+            fp64 per = weightFor(scenario, escort)
+            cost = cost + per * fp64(fleet.escortHullCount)
+        }
+        return(cost)
+    }
+
+    /*
      * Trade-only loading cost (sender pays).
      *
      * Purpose: wealth cargo + resource cargo for S (RULES §5.1).
@@ -214,8 +248,25 @@ class Dispatch {
             fleets[index] = fleet
             return()
         }
+        if (fleet.order.equals("trade")) {
+            if (not design.coversTradeSize(
+                fleet.hullCount,
+                fleet.tradeSize)) {
+                fleet.pendingDeparture = false
+                fleet.becomeSitting()
+                fleets[index] = fleet
+                events.append(
+                    TickEvent(
+                        "depart_fail",
+                        fleet.id,
+                        origin.id,
+                        fleet.ownerId,
+                        0))
+                return()
+            }
+        }
         Player seat = players[fleet.ownerId]
-        fp64 cost = dispatchCost(scenario, design, fleet.hullCount)
+        fp64 cost = fleetDispatchCost(scenario, designs, fleet)
         fp64 loadW = 0.0
         fp64 loadR = 0.0
         if (fleet.order.equals("trade")) {

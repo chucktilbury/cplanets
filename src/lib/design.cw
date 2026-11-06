@@ -1,9 +1,10 @@
 /*
- * src/lib/design.cw — hull design templates (Phase C).
+ * src/lib/design.cw — hull design templates (Phase C / D2).
  *
  * Designs hold speed, hop reach, size/flags, and development /
  * production timing. Magnitudes and cost formulas stay scenario-
- * owned (RULES §5.3 / §14). Instant design/build is out.
+ * owned (RULES §5.3 / §14). Instant design/build is out. D2 adds
+ * freighter / escort templates and hold-capacity helpers.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -11,6 +12,7 @@
  * Changelog:
  *   2026-11-05  Initial Design + yard BuildJob for tick core.
  *   2026-11-05  Phase D1: makeDefense satellite template.
+ *   2026-11-05  Phase D2: freighter/escort + hold capacity.
  */
 
 /*
@@ -145,6 +147,88 @@ class Design {
         defense = true
         developTicksLeft = 0
         closed = false
+    }
+
+    /*
+     * Fill this slot as a cargo freighter template.
+     *
+     * Purpose: D2 trade fleets need named hold size so S=100 with
+     * hold 10 requires 10 hulls (RULES §5.1 / §8.1).
+     *
+     * Parameters:
+     *   hop — hop reach in galaxy units.
+     *   hold — cargo hold per hull.
+     *
+     * Returns: nothing; mutates this Design.
+     */
+    void makeFreighter(fp64 hop, fp64 hold) {
+        name = "freighter"
+        speed = 1.0
+        hopReach = hop
+        size = 2.0
+        cargoHold = hold
+        scout = false
+        colony = false
+        defense = false
+        developTicksLeft = 0
+        closed = false
+    }
+
+    /*
+     * Fill this slot as a light escort war hull (no cargo).
+     *
+     * Purpose: escorts on a trade mission cycle with the freighters
+     * (RULES §5 / §8.2); hold stays zero so they do not cover S.
+     *
+     * Parameters:
+     *   hop — hop reach in galaxy units.
+     *
+     * Returns: nothing; mutates this Design.
+     */
+    void makeEscort(fp64 hop) {
+        name = "escort"
+        speed = 1.5
+        hopReach = hop
+        size = 3.0
+        cargoHold = 0.0
+        scout = false
+        colony = false
+        defense = false
+        developTicksLeft = 0
+        closed = false
+    }
+
+    /*
+     * Total cargo capacity for a hull count of this design.
+     *
+     * Purpose: gate trade leave when holds must cover S
+     * (RULES §5.1 — 10×10 for S=100).
+     *
+     * Parameters:
+     *   hulls — number of hulls of this design.
+     *
+     * Returns: cargoHold * hulls as fp64.
+     */
+    fp64 holdCapacity(int64 hulls) {
+        if (hulls < 0) {
+            return(0.0)
+        }
+        return(cargoHold * fp64(hulls))
+    }
+
+    /*
+     * True when this design's holds cover standing size S.
+     *
+     * Purpose: dispatch refuses trade leave when capacity < S.
+     *
+     * Parameters:
+     *   hulls — cargo hull count.
+     *   sizeS — agreement standing size.
+     *
+     * Returns: true when holdCapacity(hulls) >= sizeS.
+     */
+    bool coversTradeSize(int64 hulls, fp64 sizeS) {
+        return(holdCapacity(hulls) >= sizeS)
     }
 }
 

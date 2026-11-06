@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Phase D2 (CPL-26): player–player trade agreements + `S`; cargo full
+  both ways with escorts cycling; sender-only loading; self-trade
+  cost-only; `S=100` needs 10×10 holds; closed agreement / role-off-
+  trader breaks exchange; same-tick recall still cancels. Unit:
+  `unit_agreement`, `unit_tradeHold`. Function: `fn_tradeAgreements`.
+
 - Phase D1 (CPL-25): take / occupy / colony / defenses. Unowned and
   undefended owned non-productive takes are free; productive owned
   always fights inherent defense; satellites and parked hulls defend;

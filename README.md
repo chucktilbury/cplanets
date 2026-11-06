@@ -14,7 +14,7 @@ Players can form **player–player** trade agreements and broadcast messages and
 
 The planet grid is a computer generated graphic with "hot spots" for planets. A player has the ability to detect planets according to their technology level, and at first, there are planets that are out of detection range. A player sends ships to a planet by clicking on it. While ships are in transit, a dotted line connects the planet that they were sent from and the progress of the ship. When the ship arrives, the line disappears and is replaced by a different graphic. The status of a planet is given by its color. Green means that it is settled and does not have any problems, red means that it has been taken by another player. Colors between that give the current status of the planet between those extremes. Players can pan and zoom the playing field and to see areas more clearly of get an overview of the field. To do things like change a planet's budget, the player clicks on it and selects menu options. Settings are in general controlled with sliders.
 
-The shipping human client is still the Phase G **list debugger**; the map canvas and slider-shaped controls wait on Cwhip GTK growth. See [doc/GTK-FEATURE-GAPS.md](doc/GTK-FEATURE-GAPS.md) for that dependency list.
+Product dialog and chrome inventory (panels vs dialogs, Phase G vs remaining): [doc/DIALOGS.md](doc/DIALOGS.md). Cwhip GTK infrastructure gaps are separate (`GTK-FEATURE-GAPS.md` when present).
 
 ## Multi-player
 
@@ -48,7 +48,7 @@ target (or when `ctest` runs).
 - [User / operator guide](doc/CPLANETS.md) — start here to run the game
 - [Game rules and machine](doc/RULES.md)
 - [Implementation plan](doc/PLAN.md)
-- [Cwhip GTK feature gaps](doc/GTK-FEATURE-GAPS.md) — map / playable UI dependencies
+- [Product dialogs / chrome](doc/DIALOGS.md)
 - [Coding conventions](doc/CODING.md)
 - [Building](doc/BUILDING.md)
 - [Syntax](doc/SYNTAX.md)

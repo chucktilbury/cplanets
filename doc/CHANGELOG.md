@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Docs: product dialog / chrome inventory in [DIALOGS.md](DIALOGS.md)
+  (panels vs true dialogs; Phase G vs intended playable vs deferred).
+  Companion to GTK infra gaps (`GTK-FEATURE-GAPS.md` / PR #27), not a
+  widget-binding list. Linked from CPLANETS.md and README.
+
 - CPL-35: move stand-alone `unit_*` / `fn_*` programs from `src/` to
   `tests/unit/` and `tests/fn/`. They build only with the CMake `test`
   target / `ctest` (`cplanets_add_test_program`, `EXCLUDE`-from-`all`,

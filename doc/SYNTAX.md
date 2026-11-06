@@ -26,6 +26,11 @@ Phase D1 adds take/combat modules: `engagement.cw`, `combat.cw`,
 `pendingArrivalOrder`). Unit program `unit_combat` and function
 program `fn_takeColony` print a bool line.
 
+Phase D2 adds trade modules: `agreement.cw`, `tradeArrive.cw` (plus
+freighter/escort designs, fleet trade fields, state propose/accept/
+issueTrade). Unit programs `unit_agreement`, `unit_tradeHold` and
+function program `fn_tradeAgreements` print a bool line.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

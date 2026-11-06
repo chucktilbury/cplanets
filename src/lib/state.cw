@@ -3,7 +3,8 @@
  *
  * Assembles scenario, galaxy, empire pools, designs, fleets, and
  * seeded RNG. Phase C adds tick(); D1 adds engagements for take
- * combat — still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
+ * combat; D2 adds player–player agreements and trade issue
+ * helpers — still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -13,8 +14,10 @@
  *   2026-11-05  Phase C: fleets, designs, builds, tick entry,
  *               order helpers (dispatch/recall/sit/move).
  *   2026-11-05  Phase D1: engagements list + take combat wiring.
+ *   2026-11-05  Phase D2: agreements + issueTrade helpers.
  */
 
+include "agreement.cw"
 include "design.cw"
 include "event.cw"
 include "fleet.cw"
@@ -38,6 +41,7 @@ class State {
     list fleets
     list builds
     list engagements
+    list agreements
     SeededRng rng
     Travel travel
     TickDriver driver
@@ -47,6 +51,7 @@ class State {
     int64 nextDesignId
     int64 nextBuildId
     int64 nextEngagementId
+    int64 nextAgreementId
 
     /*
      * Construct an empty state shell.
@@ -66,6 +71,7 @@ class State {
         fleets = []
         builds = []
         engagements = []
+        agreements = []
         rng = SeededRng(1u)
         travel = Travel()
         driver = TickDriver()
@@ -75,6 +81,7 @@ class State {
         nextDesignId = 0
         nextBuildId = 1
         nextEngagementId = 1
+        nextAgreementId = 1
     }
 
     /*
@@ -139,10 +146,12 @@ class State {
         fleets = []
         builds = []
         engagements = []
+        agreements = []
         nextFleetId = 1
         nextDesignId = 0
         nextBuildId = 1
         nextEngagementId = 1
+        nextAgreementId = 1
         int64 seats = playerCount
         if (seats < 1) {
             seats = 1
@@ -350,6 +359,263 @@ class State {
     }
 
     /*
+     * Propose a player–player trade agreement on size S.
+     *
+     * Purpose: RULES §8.1 — pair plus S; both must still accept.
+     * Canonicalizes so playerA < playerB. Does not clip S.
+     *
+     * Parameters:
+     *   playerX — one empire id.
+     *   playerY — other empire id.
+     *   sizeS — standing cargo size.
+     *
+     * Returns: new agreement id, or -1 on bad seats / same player.
+     */
+    int64 proposeAgreement(
+        int64 playerX,
+        int64 playerY,
+        fp64 sizeS) {
+        if (playerX < 0 or playerX >= players.length) {
+            return(-1)
+        }
+        if (playerY < 0 or playerY >= players.length) {
+            return(-1)
+        }
+        if (playerX == playerY) {
+            return(-1)
+        }
+        if (sizeS < 0.0) {
+            return(-1)
+        }
+        int64 a = playerX
+        int64 b = playerY
+        if (b < a) {
+            a = playerY
+            b = playerX
+        }
+        Agreement pact = Agreement(nextAgreementId)
+        nextAgreementId = nextAgreementId + 1
+        pact.playerA = a
+        pact.playerB = b
+        pact.sizeS = sizeS
+        agreements.append(pact)
+        return(pact.id)
+    }
+
+    /*
+     * Accept an agreement for one empire; opens when both accept.
+     *
+     * Purpose: RULES §8.1 dual acceptance gate.
+     *
+     * Parameters:
+     *   agreementId — pact id from proposeAgreement.
+     *   playerId — accepting empire.
+     *
+     * Returns: true when acceptance was recorded.
+     */
+    bool acceptAgreement(int64 agreementId, int64 playerId) {
+        int64 index = 0
+        while (index < agreements.length) {
+            Agreement pact = agreements[index]
+            if (pact.id == agreementId) {
+                bool ok = pact.accept(playerId)
+                agreements[index] = pact
+                return(ok)
+            }
+            index = index + 1
+        }
+        return(false)
+    }
+
+    /*
+     * Close an open (or pending) agreement.
+     *
+     * Purpose: RULES §8.4 — exchange stops; in-flight finish hops.
+     *
+     * Parameters:
+     *   agreementId — pact to close.
+     *
+     * Returns: true when a matching pact was closed.
+     */
+    bool closeAgreement(int64 agreementId) {
+        int64 index = 0
+        while (index < agreements.length) {
+            Agreement pact = agreements[index]
+            if (pact.id == agreementId) {
+                pact.close()
+                agreements[index] = pact
+                return(true)
+            }
+            index = index + 1
+        }
+        return(false)
+    }
+
+    /*
+     * Find an agreement by id.
+     *
+     * Purpose: tests and issueTrade read S / open without scanning.
+     *
+     * Parameters:
+     *   agreementId — Agreement.id.
+     *
+     * Returns: matching Agreement, or Agreement(-1) if missing.
+     */
+    Agreement findAgreement(int64 agreementId) {
+        int64 index = 0
+        while (index < agreements.length) {
+            Agreement pact = agreements[index]
+            if (pact.id == agreementId) {
+                return(pact)
+            }
+            index = index + 1
+        }
+        return(Agreement(-1))
+    }
+
+    /*
+     * Find a live agreement between two empires.
+     *
+     * Purpose: issueTrade binds a fleet to the standing S.
+     *
+     * Parameters:
+     *   playerX — one empire.
+     *   playerY — other empire.
+     *
+     * Returns: live Agreement, or Agreement(-1) if none.
+     */
+    Agreement findLiveAgreement(int64 playerX, int64 playerY) {
+        int64 index = 0
+        while (index < agreements.length) {
+            Agreement pact = agreements[index]
+            if (pact.isLive()
+                and pact.involves(playerX)
+                and pact.involves(playerY)) {
+                return(pact)
+            }
+            index = index + 1
+        }
+        return(Agreement(-1))
+    }
+
+    /*
+     * Set an empire's role string.
+     *
+     * Purpose: D2 role-off-trader break tests and policy entry.
+     *
+     * Parameters:
+     *   playerId — empire seat.
+     *   role — "neutral", "trader", "conqueror", …
+     *
+     * Returns: true when the seat was updated.
+     */
+    bool setRole(int64 playerId, String role) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        seat.role = role
+        players[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * Issue a trade order bound to an agreement or self-trade.
+     *
+     * Purpose: fill cargo fields from S, attach optional escorts,
+     * and queue pendingDeparture. Holds must cover S at dispatch
+     * time (RULES §5.1 / §8). Self-trade uses agreementId -1.
+     *
+     * Parameters:
+     *   fleetId — sitting cargo fleet.
+     *   destPlanetId — far rock (own or partner).
+     *   agreementId — live pact id, or -1 for self-trade.
+     *   escortDesignId — escort template id, or -1.
+     *   escortHulls — escort hull count (0 = none).
+     *
+     * Returns: true when the trade order was queued.
+     */
+    bool issueTrade(
+        int64 fleetId,
+        int64 destPlanetId,
+        int64 agreementId,
+        int64 escortDesignId,
+        int64 escortHulls) {
+        Fleet fleet = findFleet(fleetId)
+        if (fleet.id < 0) {
+            return(false)
+        }
+        if (fleet.ownerId < 0 or fleet.ownerId >= players.length) {
+            return(false)
+        }
+        if (fleet.designId < 0 or fleet.designId >= designs.length) {
+            return(false)
+        }
+        if (fleet.locationPlanetId < 0
+            or fleet.locationPlanetId >= galaxy.planets.length) {
+            return(false)
+        }
+        if (destPlanetId < 0
+            or destPlanetId >= galaxy.planets.length) {
+            return(false)
+        }
+        Design design = designs[fleet.designId]
+        fp64 sizeS = 0.0
+        if (agreementId >= 0) {
+            Agreement pact = findAgreement(agreementId)
+            if (pact.id < 0 or not pact.isLive()) {
+                return(false)
+            }
+            if (not pact.involves(fleet.ownerId)) {
+                return(false)
+            }
+            Planet dest = galaxy.planets[destPlanetId]
+            if (dest.ownerId < 0
+                or not pact.involves(dest.ownerId)) {
+                return(false)
+            }
+            sizeS = pact.sizeS
+        } else {
+            Planet dest = galaxy.planets[destPlanetId]
+            if (dest.ownerId != fleet.ownerId) {
+                return(false)
+            }
+            sizeS = design.holdCapacity(fleet.hullCount)
+        }
+        if (escortDesignId >= 0) {
+            if (escortDesignId >= designs.length or escortHulls < 1) {
+                return(false)
+            }
+        } else {
+            escortHulls = 0
+        }
+        Player seat = players[fleet.ownerId]
+        Planet origin = galaxy.planets[fleet.locationPlanetId]
+        Planet destRock = galaxy.planets[destPlanetId]
+        int64 eta = travel.etaTicks(
+            scenario,
+            seat,
+            design,
+            origin,
+            destRock)
+        bool ok = fleet.issueTravel("trade", destPlanetId, eta)
+        if (not ok) {
+            return(false)
+        }
+        fleet.agreementId = agreementId
+        fleet.tradeSize = sizeS
+        fleet.cargoWealth = sizeS
+        fleet.cargoResources = sizeS
+        fleet.cargoFilled = false
+        fleet.tradeOutbound = true
+        fleet.tradeFarPlanetId = destPlanetId
+        fleet.escortDesignId = escortDesignId
+        fleet.escortHullCount = escortHulls
+        storeFleet(fleet)
+        return(true)
+    }
+
+    /*
      * Queue a yard hull build on a productive shipyard.
      *
      * Purpose: non-instant production (RULES §5.3). Spends a
@@ -423,6 +689,7 @@ class State {
             builds,
             fleets,
             engagements,
+            agreements,
             events,
             nextFleetId,
             nextEngagementId)

@@ -2,8 +2,8 @@
  * src/lib/motion.cw — ETA decrement, arrivals, sit, stranded-N.
  *
  * RULES §7 steps 4, 6 (land/sit), and 8 (stranded countdown).
- * Take/occupy runs after arrivals via Take (Phase D1); midpoint
- * pirate and trade cycle remain later Phase D stubs.
+ * Take/occupy and trade cycle run after arrivals (D1 / D2);
+ * midpoint pirate remains a later Phase D stub.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial motion/arrive/stranded for tick core.
  *   2026-11-05  Phase D1: landAndSit preserves arrival order.
+ *   2026-11-05  Phase D2: tradeArrive consumes trade landings.
  */
 
 include "event.cw"

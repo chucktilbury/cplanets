@@ -47,8 +47,13 @@ running setup again.
 ```sh
 ./scripts/setup [--clean] [debug|release|profile]
 build
+cmake --build . --target test
 ../bin/cplanets-tick
 ```
+
+Default `build` compiles production programs only. Unit/fn programs under
+`tests/unit/` and `tests/fn/` build with the CMake `test` target (or when
+`ctest` runs). See [Building](doc/BUILDING.md).
 
 - [Game rules and machine](doc/RULES.md)
 - [Implementation plan](doc/PLAN.md)

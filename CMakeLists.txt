@@ -105,6 +105,122 @@ function(cplanets_add_program target source)
     set(${target}_executable "${_executable}" PARENT_SCOPE)
 endfunction()
 
+# Unit/fn programs live under tests/ and must not join the default ALL
+# build. Real SDKs expose Cwhip_COMPILER; discovery stubs do not — fall
+# back to cwhip_add_program so mock configure still registers CTest.
+# Includes resolve through `cwhip -p ${src}` so lib/ai/client/server
+# keep living under src/ while the program SOURCE sits in tests/.
+function(cplanets_add_test_program target source)
+    if(NOT Cwhip_COMPILER)
+        cwhip_add_program(${target}
+            SOURCE "${PROJECT_SOURCE_DIR}/${source}"
+            OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}")
+        get_target_property(_executable ${target} CWHIP_EXECUTABLE)
+        set(${target}_executable "${_executable}" PARENT_SCOPE)
+        return()
+    endif()
+
+    get_filename_component(source_abs "${PROJECT_SOURCE_DIR}/${source}" ABSOLUTE)
+    get_filename_component(source_dir "${source_abs}" DIRECTORY)
+    get_filename_component(source_name "${source_abs}" NAME)
+    if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+        message(FATAL_ERROR "Cwhip applications require an out-of-source CMake build")
+    endif()
+    if(NOT EXISTS "${source_abs}")
+        message(FATAL_ERROR
+            "cplanets_add_test_program requires an existing source file: ${source_abs}")
+    endif()
+
+    set(output_directory "${CWHIP_BIN_DIR}")
+    set(work "${CMAKE_CURRENT_BINARY_DIR}/${target}-project")
+    set(output "${output_directory}/${target}")
+    set(src_root "${PROJECT_SOURCE_DIR}/src")
+    file(MAKE_DIRECTORY "${work}/home" "${work}/xdg" "${work}/data"
+        "${work}/cache" "${work}/state" "${work}/modules")
+
+    # Stage only the test program directory (not all of src/). Production
+    # code is reached via -p ${src_root}.
+    set(_cwhip_collect_sources_fn "_cwhip_collect_sources")
+    if(NOT COMMAND ${_cwhip_collect_sources_fn})
+        message(FATAL_ERROR
+            "Cwhip SDK is missing _cwhip_collect_sources(); cannot stage test programs")
+    endif()
+    _cwhip_collect_sources("${source_dir}" inputs)
+    file(GLOB_RECURSE src_inputs CONFIGURE_DEPENDS
+        "${src_root}/lib/*"
+        "${src_root}/ai/*"
+        "${src_root}/client/*"
+        "${src_root}/server/*"
+        "${src_root}/native/*")
+    file(GLOB_RECURSE sdk_inputs CONFIGURE_DEPENDS
+        "${Cwhip_INCLUDE_DIR}/*" "${Cwhip_MODULE_DIR}/*" "${Cwhip_BUILTIN_DIR}/*")
+    file(GENERATE OUTPUT "${work}/inputs.txt" CONTENT "${inputs}\n${src_inputs}\n${sdk_inputs}\n")
+    file(GENERATE OUTPUT "${work}/source-inputs.cmake" CONTENT "set(inputs [==[${inputs}]==])\n")
+    set(stage_sources "${Cwhip_DIR}/CwhipStageSources.cmake")
+    get_filename_component(runtime_dir "${Cwhip_RUNTIME_LIBRARY}" DIRECTORY)
+    set(environment "${CMAKE_COMMAND}" -E env
+        --unset=CWHIP_MODULE_DIR --unset=CWHIP_PACKAGE_PATH --unset=CWHIP_MODULE_REGISTRY
+        --unset=DESTDIR --unset=XDG_RUNTIME_DIR
+        "HOME=${work}/home" "XDG_CONFIG_HOME=${work}/xdg" "PYTHONDONTWRITEBYTECODE=1"
+        "XDG_DATA_HOME=${work}/data" "XDG_CACHE_HOME=${work}/cache"
+        "XDG_STATE_HOME=${work}/state"
+        "CWHIP_HOME=${Cwhip_PREFIX}"
+        "CWHIP_INCLUDE_DIR=${Cwhip_INCLUDE_DIR}"
+        "CWHIP_RUNTIME_DIR=${runtime_dir}"
+        "CWHIP_BUILTIN_DIR=${Cwhip_BUILTIN_DIR}"
+        "CWHIP_STDLIB_MODULE_DIR=${Cwhip_MODULE_DIR}" "CC=${Cwhip_CLANG_EXECUTABLE}")
+    add_custom_command(OUTPUT "${work}/cwhip-pkg.toml" "${work}/cwhip-pkg.lock"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${work}/home" "${work}/xdg"
+            "${work}/data" "${work}/cache" "${work}/state" "${work}/modules"
+        COMMAND "${CMAKE_COMMAND}" -E rm -f "${work}/cwhip-pkg.toml" "${work}/cwhip-pkg.lock"
+        COMMAND ${environment} "${Python3_EXECUTABLE}" "${Cwhip_PACKAGE_TOOL}" init "${work}"
+        DEPENDS "${Cwhip_PACKAGE_TOOL}" ${sdk_inputs} "${work}/inputs.txt"
+        VERBATIM)
+    set(_cwhip_debug_flags)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _cwhip_build_type_upper)
+    if(_cwhip_build_type_upper STREQUAL "DEBUG" OR
+       _cwhip_build_type_upper STREQUAL "RELWITHDEBINFO")
+        set(_cwhip_debug_flags -g)
+    endif()
+    add_custom_command(OUTPUT "${output}"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_directory}"
+        COMMAND "${CMAKE_COMMAND}" "-Dsource_dir=${source_dir}"
+            "-Doutput_dir=${work}/src" "-Dinventory=${work}/source-inputs.cmake"
+            -P "${stage_sources}"
+        COMMAND ${environment} "${Cwhip_COMPILER}" "${work}/src/${source_name}"
+            -M "${Cwhip_MODULE_DIR}" -p "${src_root}" ${_cwhip_debug_flags}
+            -o "${output}"
+        DEPENDS "${Cwhip_COMPILER}" "${Cwhip_RUNTIME_LIBRARY}" ${sdk_inputs}
+            ${inputs} ${src_inputs} "${work}/inputs.txt" "${work}/source-inputs.cmake"
+            "${stage_sources}"
+            "${work}/cwhip-pkg.toml" "${work}/cwhip-pkg.lock"
+        WORKING_DIRECTORY "${work}" COMMAND_EXPAND_LISTS VERBATIM)
+    # No ALL — production `build` must not compile unit/fn programs.
+    add_custom_target(${target} DEPENDS "${output}")
+    if(TARGET cwhip_language_resources)
+        add_dependencies(${target} cwhip_language_resources)
+    endif()
+    set_property(TARGET ${target} PROPERTY CWHIP_EXECUTABLE "${output}")
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
+        "${work}/src" "${work}/home" "${work}/xdg" "${work}/data"
+        "${work}/cache" "${work}/state" "${work}/modules")
+    set(${target}_executable "${output}" PARENT_SCOPE)
+endfunction()
+
+function(cplanets_add_cw_test name kind)
+    cplanets_add_test_program(${name} tests/${kind}/${name}.cw)
+    set(${name}_executable "${${name}_executable}" PARENT_SCOPE)
+    add_test(NAME ${name} COMMAND "${CMAKE_COMMAND}"
+        "-DEXECUTABLE=${${name}_executable}"
+        "-DTARGET=${name}"
+        "-DBINARY_DIR=${CMAKE_BINARY_DIR}"
+        "-DCHECK_SCRIPT=${PROJECT_SOURCE_DIR}/tests/${kind}/${name}.cmake"
+        -P "${PROJECT_SOURCE_DIR}/tests/run-program-test.cmake")
+    if(TARGET test)
+        add_dependencies(test ${name})
+    endif()
+endfunction()
+
 cplanets_add_program(cplanets-server src/cplanets-server.cw)
 cplanets_add_program(cplanets src/cplanets.cw)
 cplanets_add_program(cplanets-ai src/cplanets-ai.cw)
@@ -151,10 +267,7 @@ if(BUILD_TESTING)
         unit_clientPolicy
         unit_clientPublishDecode)
     foreach(unit IN LISTS cplanets_unit_programs)
-        cplanets_add_program(${unit} src/${unit}.cw)
-        add_test(NAME ${unit} COMMAND "${CMAKE_COMMAND}"
-            "-DEXECUTABLE=${${unit}_executable}"
-            -P "${PROJECT_SOURCE_DIR}/tests/unit/${unit}.cmake")
+        cplanets_add_cw_test(${unit} unit)
     endforeach()
     set(cplanets_fn_programs
         fn_tickCore
@@ -168,10 +281,7 @@ if(BUILD_TESTING)
         fn_ai
         fn_client)
     foreach(fn IN LISTS cplanets_fn_programs)
-        cplanets_add_program(${fn} src/${fn}.cw)
-        add_test(NAME ${fn} COMMAND "${CMAKE_COMMAND}"
-            "-DEXECUTABLE=${${fn}_executable}"
-            -P "${PROJECT_SOURCE_DIR}/tests/fn/${fn}.cmake")
+        cplanets_add_cw_test(${fn} fn)
     endforeach()
     foreach(program IN ITEMS cplanets-server cplanets cplanets-ai cplanets-tick)
         add_test(NAME smoke_${program} COMMAND "${CMAKE_COMMAND}"

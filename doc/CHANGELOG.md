@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- CPL-35: move stand-alone `unit_*` / `fn_*` programs from `src/` to
+  `tests/unit/` and `tests/fn/`. They build only with the CMake `test`
+  target / `ctest` (`cplanets_add_test_program`, `EXCLUDE`-from-`all`,
+  `cwhip -p src` for production includes), not with default `build`.
+
 - Phase G (CPL-33): human GTK list debugger — `src/client/` windows
   for planet list, fleet list, newspaper/digest, policy editors;
   explored-planet dialog (livability/quality 1–10; may change when

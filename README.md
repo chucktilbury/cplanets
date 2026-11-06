@@ -25,7 +25,9 @@ seeded RNG, start galaxy, empire pools, pure tick core, take/colony,
 shared multi-tick combat with screening, trade agreements / cycle,
 pirate midpoint ambush / identify, design develop / reclaim,
 attributed-attack confiscation, contact / partition couple, closed
-eliminate-all and all-humans-quit end), stub executables
+eliminate-all and all-humans-quit end, wire envelope v1 with RLE body
+codec and GET state / PUT policy / GET events-digest verbs — no listen
+socket yet), stub executables
 (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`), the
 closed default setup text in `scenarios/`, tests in `tests/`, and SDK
 discovery helpers in `scripts/`.

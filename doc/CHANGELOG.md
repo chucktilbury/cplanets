@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Phase E (CPL-30): messages library — envelope v1 (version, verb,
+  path, length, body), RLE body compress/decompress with store
+  fallback, verbs GET `/state`, PUT `/policy`, GET `/events` and
+  `/digest`. Reject unknown envelope version. No listen socket; no
+  all-players-ready / POST turn barrier. Unit: `unit_compress`,
+  `unit_envelope`, `unit_verbs`. Function: `fn_messages`.
+
 - Phase D5 (CPL-29): contact couples partitions and fills known
   competitors; closed eliminate-all end; all-humans-quit ends the
   live game; zombies (dropped last-policy seats) fall to normal

@@ -166,6 +166,8 @@ fn suite passes.)
 Envelope, compress/decompress body, verbs. Round-trip unit tests on
 bytes. No listen socket yet. Verbs: `GET` state, `PUT` policy, `GET`
 events/digest. **No** all-players-ready / `POST turn` barrier verb.
+**Wire name (v1):** envelope version `1` + RLE body codec with store
+fallback; reject unknown version.
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |

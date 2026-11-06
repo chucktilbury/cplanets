@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Phase F (CPL-31): server driver — real-time cadence (setup seconds
+  1–30), snapshot policies → tick → persist → publish state+digest,
+  no ready barrier, AFK=last policy, handshake AFK≠drop, pause only
+  with one human, injectable clock / admin advance N, setup lock on
+  first tick, stand-alone no save/rejoin, all-humans-quit ends game,
+  SQLite-shaped live snapshot, TCP accept (one writer). Unit:
+  `unit_serverClock`, `unit_serverPresence`, `unit_serverPolicy`.
+  Function: `fn_server`. Python: `functional_server_smoke`. Gaps:
+  no select/poll multiplex; one envelope per recv (localhost OK).
+
 - Phase E (CPL-30): messages library — envelope v1 (version, verb,
   path, length, body), RLE body compress/decompress with store
   fallback, verbs GET `/state`, PUT `/policy`, GET `/events` and

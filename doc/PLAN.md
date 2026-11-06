@@ -176,6 +176,10 @@ fallback; reject unknown version.
 
 ### F. Server
 
+**Status (2026-11-05):** implemented on mainline work — injectable
+clock driver, SQLite-shaped live snapshot (no save/rejoin API),
+TCP accept + handler, unit/fn/Python smoke. See CHANGELOG.
+
 TCP accept, one writer, SQLite snapshot. **Driver** (RULES §2):
 
 1. Configurable **real-time** cadence (tick period from setup,

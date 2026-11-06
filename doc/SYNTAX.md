@@ -54,6 +54,14 @@ and an RLE/store-compressed body. Unit programs `unit_compress`,
 `unit_envelope`, `unit_verbs` and function program `fn_messages`
 print a bool line. No TCP listen yet.
 
+Phase F adds `src/server/` (clock, policy table, presence, snapshot
+store, publish codec, driver, handler, listen) and turns
+`cplanets-server` into a TCP sole writer (`--serve`). Extra verbs
+on the server: PUT `/handshake`, `/quit`, `/pause`,
+`/admin/advance`. Unit: `unit_serverClock`, `unit_serverPresence`,
+`unit_serverPolicy`. Function: `fn_server`. Python functional:
+`tests/functional/test_server_smoke.py`.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

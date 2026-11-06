@@ -14,6 +14,7 @@
  *   2026-11-05  Phase D1: landAndSit preserves arrival order.
  *   2026-11-05  Phase D2: tradeArrive consumes trade landings.
  *   2026-11-05  Phase D3: skip ambush wait; credit loot on return.
+ *   2026-11-05  Phase D4: engaged fleets stay until fight ends.
  */
 
 include "event.cw"
@@ -56,7 +57,9 @@ class Motion {
         int64 index = 0
         while (index < fleets.length) {
             Fleet fleet = fleets[index]
-            if (fleet.departed and not fleet.stranded) {
+            if (fleet.departed
+                and not fleet.stranded
+                and fleet.engagementId < 0) {
                 if (fleet.eta > 0) {
                     fleet.eta = fleet.eta - 1
                     fleet.ticksTraveled = fleet.ticksTraveled + 1

@@ -1,9 +1,10 @@
 /*
- * src/lib/take.cw — take / occupy / colony populate (Phase D1).
+ * src/lib/take.cw — take / occupy / colony populate (Phase D1/D4).
  *
  * RULES §7.6 arrivals and §11: unowned free take; undefended owned
  * non-productive free; productive / satellites / parked fight via
  * Combat; colony required to populate; war fleets stay after take.
+ * D4: multi-tick screened combat, attributed attack, capture-use.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -11,43 +12,50 @@
  * Changelog:
  *   2026-11-05  Initial take/occupy/colony for Phase D1.
  *   2026-11-05  Phase D2: clear only take pendingArrivalOrder.
+ *   2026-11-05  Phase D4: participants, screened advance, attribute.
  */
 
 include "combat.cw"
+include "confiscate.cw"
 include "design.cw"
 include "engagement.cw"
 include "event.cw"
 include "fleet.cw"
 include "planet.cw"
+include "rng.cw"
 include "scenario.cw"
 
 /*
  * Take resolves arriving take orders into occupy or combat.
  *
  * Free takes transfer ownership immediately. Contested takes open
- * or join an Engagement; Combat.advanceAll finishes them later.
+ * or join an Engagement; advanceEngagements finishes them later.
  */
 class Take {
     Combat combat
+    Confiscate confiscate
+    int64 nextFleetIdOut
 
     /*
-     * Construct a take phase with a shared Combat helper.
+     * Construct a take phase with Combat and Confiscate helpers.
      *
-     * Purpose: keep planet-defense entry points in one place.
+     * Purpose: keep planet-defense and §9 attribution in one place.
      *
      * Parameters: none.
      *
-     * Returns: Take ready for processArrivals / finishResolved.
+     * Returns: Take ready for processArrivals / advanceEngagements.
      */
     Take() {
         combat = Combat()
+        confiscate = Confiscate()
+        nextFleetIdOut = 1
     }
 
     /*
      * Handle every fleet that arrived with a take order.
      *
      * Purpose: RULES §7.6 take/occupy and §11 colony gate. Clears
-     * pendingArrivalOrder for all fleets after handling.
+     * pendingArrivalOrder for take fleets after handling.
      *
      * Parameters:
      *   scenario — inherent-defense / battle knobs.
@@ -55,10 +63,17 @@ class Take {
      *   designs — hull templates.
      *   fleets — mutable fleet list.
      *   engagements — mutable open fights.
+     *   agreements — pacts (closed on attributed take).
+     *   arms — confiscation arms.
      *   events — tick event log.
+     *   rng — capture-use rolls.
      *   nextEngagementId — id counter.
+     *   nextFleetId — intern counter.
      *
-     * Returns: updated nextEngagementId.
+     * Returns: nothing; updates next* via out fields on driver —
+     *   this method returns a packed pair via mutating lists only;
+     *   caller reads engagement id from return value and fleet id
+     *   from nextFleetId inout pattern below.
      */
     int64 processArrivals(
         Scenario scenario,
@@ -66,8 +81,13 @@ class Take {
         list designs,
         list fleets,
         list engagements,
+        list agreements,
+        list arms,
         list events,
-        int64 nextEngagementId) {
+        SeededRng rng,
+        int64 nextEngagementId,
+        int64 nextFleetId) {
+        nextFleetIdOut = nextFleetId
         int64 index = 0
         while (index < fleets.length) {
             Fleet fleet = fleets[index]
@@ -78,7 +98,10 @@ class Take {
                     designs,
                     fleets,
                     engagements,
+                    agreements,
+                    arms,
                     events,
+                    rng,
                     nextEngagementId,
                     index)
                 fleet = fleets[index]
@@ -93,17 +116,10 @@ class Take {
     /*
      * Resolve one arriving take fleet at its location.
      *
-     * Purpose: free occupy vs open combat vs join open fight.
+     * Purpose: free occupy vs open combat vs join open fight;
+     * attributed attack ends agreement + confiscation (§9).
      *
-     * Parameters:
-     *   scenario — combat knobs.
-     *   planets — galaxy.
-     *   designs — designs.
-     *   fleets — fleets.
-     *   engagements — fights.
-     *   events — log.
-     *   nextEngagementId — next id.
-     *   fleetIndex — index of the arriving fleet.
+     * Parameters: see processArrivals; fleetIndex selects fleet.
      *
      * Returns: updated nextEngagementId.
      */
@@ -113,7 +129,10 @@ class Take {
         list designs,
         list fleets,
         list engagements,
+        list agreements,
+        list arms,
         list events,
+        SeededRng rng,
         int64 nextEngagementId,
         int64 fleetIndex) {
         Fleet fleet = fleets[fleetIndex]
@@ -128,11 +147,19 @@ class Take {
         Design design = designs[fleet.designId]
         fp64 atk = combat.fleetStrength(fleet, design)
         if (rock.ownerId == fleet.ownerId) {
-            # Already a possession: sit/move; colony may still populate.
             applyPopulateIfColony(rock, fleet, design, events)
             planets[fleet.locationPlanetId] = rock
             fleets[fleetIndex] = fleet
             return(nextEngagementId)
+        }
+        int64 priorOwner = rock.ownerId
+        if (priorOwner >= 0 and priorOwner != fleet.ownerId) {
+            confiscate.attributeAttack(
+                agreements,
+                arms,
+                fleet.ownerId,
+                priorOwner,
+                events)
         }
         fp64 parked = 0.0
         if (rock.ownerId >= 0) {
@@ -156,7 +183,13 @@ class Take {
         int64 existing = combat.findOpenAtPlanet(engagements, rock.id)
         if (existing >= 0) {
             Engagement fight = engagements[existing]
-            fight.attackerStrengthLeft = fight.attackerStrengthLeft + atk
+            combat.joinEngagement(fleets, fleetIndex, fight.id)
+            combat.refreshStrengths(
+                scenario,
+                fight,
+                rock,
+                fleets,
+                designs)
             engagements[existing] = fight
             events.append(
                 TickEvent(
@@ -176,18 +209,42 @@ class Take {
             atk,
             defn,
             events)
-        if (combat.shortCircuits(scenario, atk, defn)) {
-            Engagement fight = engagements[engagements.length - 1]
-            resolveEngagementOutcome(
+        Engagement fight = engagements[engagements.length - 1]
+        combat.markParticipants(
+            fleets,
+            fight.id,
+            rock.id,
+            fleet.ownerId,
+            rock.ownerId,
+            fleet.id)
+        combat.seedPlanetaryDefense(scenario, rock, fight)
+        combat.refreshStrengths(
+            scenario,
+            fight,
+            rock,
+            fleets,
+            designs)
+        if (combat.shortCircuits(
+            scenario,
+            fight.attackerStrengthLeft,
+            fight.defenderStrengthLeft)) {
+            bool win = (
+                fight.attackerStrengthLeft
+                >= fight.defenderStrengthLeft)
+            nextFleetIdOut = resolveEngagementOutcome(
+                scenario,
                 planets,
                 designs,
                 fleets,
                 events,
+                rng,
                 fight,
-                atk >= defn)
+                win,
+                nextFleetIdOut)
+            combat.clearParticipants(fleets, fight.id)
             fight.close()
-            engagements[engagements.length - 1] = fight
         }
+        engagements[engagements.length - 1] = fight
         return(nextEngagementId)
     }
 
@@ -199,7 +256,7 @@ class Take {
      *
      * Parameters:
      *   rock — destination planet (mutated).
-     *   fleet — arriving take fleet (mutated if colony dies N/A).
+     *   fleet — arriving take fleet.
      *   design — fleet design.
      *   events — log.
      *
@@ -261,28 +318,28 @@ class Take {
     /*
      * Apply win/loss after an engagement resolves.
      *
-     * Purpose: attacker win → occupy + colony gate; defender win →
-     * sink attacking hulls. Satellite layer clears on take.
+     * Purpose: attacker win → occupy + capture-use on defenders;
+     * defender win → sink attacking hulls.
      *
      * Parameters:
-     *   planets — galaxy.
-     *   designs — designs.
-     *   fleets — fleets.
-     *   events — log.
-     *   fight — resolved engagement.
-     *   attackerWins — true when attacker side won.
+     *   scenario — capture-use chance.
+     *   planets / designs / fleets / events / rng / fight / win.
+     *   nextFleetId — intern counter.
      *
-     * Returns: nothing.
+     * Returns: updated nextFleetId.
      */
-    void resolveEngagementOutcome(
+    int64 resolveEngagementOutcome(
+        Scenario scenario,
         list planets,
         list designs,
         list fleets,
         list events,
+        SeededRng rng,
         Engagement fight,
-        bool attackerWins) {
+        bool attackerWins,
+        int64 nextFleetId) {
         if (fight.planetId < 0 or fight.planetId >= planets.length) {
-            return()
+            return(nextFleetId)
         }
         Planet rock = planets[fight.planetId]
         if (attackerWins) {
@@ -294,7 +351,6 @@ class Take {
                     and fleet.designId < designs.length) {
                     design = designs[fleet.designId]
                 }
-                applyCombatLosses(fleet, fight.attackerStrengthLeft, design)
                 rock.satelliteDefense = 0.0
                 applyOccupy(rock, fleet, design, events)
                 fleets[fidx] = fleet
@@ -310,11 +366,16 @@ class Take {
                         fight.attackerOwnerId,
                         0))
             }
-            clearParkedDefenders(
+            nextFleetId = captureOrClearDefenders(
+                scenario,
                 fleets,
                 designs,
+                events,
+                rng,
                 rock.id,
-                fight.defenderOwnerId)
+                fight.defenderOwnerId,
+                fight.attackerOwnerId,
+                nextFleetId)
         } else {
             int64 fidx = findFleetIndex(fleets, fight.attackerFleetId)
             if (fidx >= 0) {
@@ -322,6 +383,10 @@ class Take {
                 fleet.hullCount = 0
                 fleets[fidx] = fleet
             }
+            zeroOwnerEngaged(
+                fleets,
+                fight.id,
+                fight.attackerOwnerId)
             events.append(
                 TickEvent(
                     "defend",
@@ -331,63 +396,84 @@ class Take {
                     0))
         }
         planets[fight.planetId] = rock
+        return(nextFleetId)
     }
 
     /*
-     * Scale hullCount down to match remaining strength.
+     * Capture-use roll on parked defenders, else destroy.
      *
-     * Purpose: D1 attrition stub — survivors stay for colony check.
+     * Purpose: RULES §5.3 captured hulls; conqueror clears the rock.
      *
-     * Parameters:
-     *   fleet — attacker fleet (mutated).
-     *   strengthLeft — remaining attacker strength.
-     *   design — hull template for per-hull strength.
+     * Parameters: scenario, fleets, designs, events, rng, planet,
+     *   defender, victor, nextFleetId.
      *
-     * Returns: nothing.
+     * Returns: updated nextFleetId.
      */
-    void applyCombatLosses(
-        Fleet fleet,
-        fp64 strengthLeft,
-        Design design) {
-        fp64 per = combat.hullStrength(design)
-        if (per <= 0.0) {
-            fleet.hullCount = 0
-            return()
-        }
-        int64 left = int64(strengthLeft / per + 0.0001)
-        if (left < 0) {
-            left = 0
-        }
-        if (left > fleet.hullCount) {
-            left = fleet.hullCount
-        }
-        fleet.hullCount = left
-    }
-
-    /*
-     * Zero hulls of parked defenders after a successful take.
-     *
-     * Purpose: conqueror clears the rock's defending mobile stock.
-     *
-     * Parameters:
-     *   fleets — fleet list.
-     *   designs — unused (signature symmetry).
-     *   planetId — rock.
-     *   ownerId — former owner.
-     *
-     * Returns: nothing.
-     */
-    void clearParkedDefenders(
+    int64 captureOrClearDefenders(
+        Scenario scenario,
         list fleets,
         list designs,
+        list events,
+        SeededRng rng,
         int64 planetId,
+        int64 defenderId,
+        int64 victorId,
+        int64 nextFleetId) {
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet fleet = fleets[index]
+            if (fleet.ownerId == defenderId
+                and fleet.locationPlanetId == planetId
+                and fleet.hullCount > 0) {
+                int64 hulls = fleet.hullCount
+                int64 designId = fleet.designId
+                fleet.hullCount = 0
+                fleets[index] = fleet
+                if (confiscate.rollCaptureUse(scenario, rng)) {
+                    nextFleetId = confiscate.internHulls(
+                        fleets,
+                        victorId,
+                        planetId,
+                        designId,
+                        hulls,
+                        events,
+                        nextFleetId)
+                } else {
+                    events.append(
+                        TickEvent(
+                            "capture_destroy",
+                            fleet.id,
+                            planetId,
+                            victorId,
+                            hulls))
+                }
+            }
+            index = index + 1
+        }
+        return(nextFleetId)
+    }
+
+    /*
+     * Zero hulls for one owner still tagged on an engagement.
+     *
+     * Purpose: wipe attacker participants after a defend win.
+     *
+     * Parameters:
+     *   fleets — list.
+     *   engagementId — fight.
+     *   ownerId — side to wipe.
+     *
+     * Returns: nothing.
+     */
+    void zeroOwnerEngaged(
+        list fleets,
+        int64 engagementId,
         int64 ownerId) {
         int64 index = 0
         while (index < fleets.length) {
             Fleet fleet = fleets[index]
-            if (fleet.ownerId == ownerId
-                and fleet.locationPlanetId == planetId
-                and fleet.sitting) {
+            if (fleet.engagementId == engagementId
+                and fleet.ownerId == ownerId) {
                 fleet.hullCount = 0
                 fleets[index] = fleet
             }
@@ -419,31 +505,72 @@ class Take {
     }
 
     /*
+     * Pull sitting same-owner fleets at a rock into an open fight.
+     *
+     * Purpose: recall into a fight — reinforcements at the sender
+     * under attack join and can reverse a defeat (RULES §5.2).
+     *
+     * Parameters:
+     *   fleets — mutable list.
+     *   fight — open planet engagement.
+     *
+     * Returns: nothing.
+     */
+    void absorbReinforcements(list fleets, Engagement fight) {
+        if (fight.planetId < 0) {
+            return()
+        }
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet fleet = fleets[index]
+            if (fleet.engagementId < 0
+                and fleet.locationPlanetId == fight.planetId
+                and fleet.sitting
+                and fleet.hullCount > 0
+                and (fleet.ownerId == fight.attackerOwnerId
+                    or fleet.ownerId == fight.defenderOwnerId)) {
+                fleet.engagementId = fight.id
+                fleets[index] = fleet
+            }
+            index = index + 1
+        }
+    }
+
+    /*
      * Advance open engagements one tick; resolve finished ones.
      *
      * Purpose: RULES §7.7 ongoing combat via shared Combat entry.
      *
      * Parameters:
      *   scenario — attrition knobs.
-     *   planets — galaxy.
-     *   designs — designs.
-     *   fleets — fleets.
-     *   engagements — open fights.
-     *   events — log.
+     *   planets / designs / fleets / engagements / events / rng.
+     *   nextFleetId — intern counter.
      *
-     * Returns: nothing.
+     * Returns: updated nextFleetId.
      */
-    void advanceEngagements(
+    int64 advanceEngagements(
         Scenario scenario,
         list planets,
         list designs,
         list fleets,
         list engagements,
-        list events) {
+        list events,
+        SeededRng rng,
+        int64 nextFleetId) {
+        nextFleetIdOut = nextFleetId
         int64 index = 0
         while (index < engagements.length) {
             Engagement fight = engagements[index]
-            if (fight.open) {
+            if (fight.open and fight.planetId >= 0
+                and fight.planetId < planets.length) {
+                Planet rock = planets[fight.planetId]
+                absorbReinforcements(fleets, fight)
+                combat.refreshStrengths(
+                    scenario,
+                    fight,
+                    rock,
+                    fleets,
+                    designs)
                 if (combat.shortCircuits(
                     scenario,
                     fight.attackerStrengthLeft,
@@ -451,26 +578,44 @@ class Take {
                     bool win = (
                         fight.attackerStrengthLeft
                         >= fight.defenderStrengthLeft)
-                    resolveEngagementOutcome(
+                    nextFleetIdOut = resolveEngagementOutcome(
+                        scenario,
                         planets,
                         designs,
                         fleets,
                         events,
+                        rng,
                         fight,
-                        win)
+                        win,
+                        nextFleetIdOut)
+                    combat.clearParticipants(fleets, fight.id)
                     fight.close()
                 } else {
-                    combat.advanceOne(scenario, fight)
+                    combat.advanceTick(
+                        scenario,
+                        fight,
+                        fleets,
+                        designs)
+                    combat.refreshStrengths(
+                        scenario,
+                        fight,
+                        rock,
+                        fleets,
+                        designs)
                     if (fight.attackerStrengthLeft <= 0.0
                         or fight.defenderStrengthLeft <= 0.0) {
                         bool win = fight.attackerStrengthLeft > 0.0
-                        resolveEngagementOutcome(
+                        nextFleetIdOut = resolveEngagementOutcome(
+                            scenario,
                             planets,
                             designs,
                             fleets,
                             events,
+                            rng,
                             fight,
-                            win)
+                            win,
+                            nextFleetIdOut)
+                        combat.clearParticipants(fleets, fight.id)
                         fight.close()
                     }
                 }
@@ -485,5 +630,6 @@ class Take {
             }
             index = index + 1
         }
+        return(nextFleetIdOut)
     }
 }

@@ -21,11 +21,12 @@ The game is a multi-player game that can also be played stand-alone; stand-alone
 ## Building and Installation
 
 This directory contains the shared machine in `src/lib/` (scenario,
-seeded RNG, start galaxy, empire pools, pure tick core, take/colony
-combat stub, trade agreements / cycle, pirate midpoint ambush /
-identify), stub executables (`cplanets-server`, `cplanets`,
-`cplanets-ai`, `cplanets-tick`), the closed default setup text in
-`scenarios/`, tests in `tests/`, and SDK discovery helpers in
+seeded RNG, start galaxy, empire pools, pure tick core, take/colony,
+shared multi-tick combat with screening, trade agreements / cycle,
+pirate midpoint ambush / identify, design develop / reclaim,
+attributed-attack confiscation), stub executables (`cplanets-server`,
+`cplanets`, `cplanets-ai`, `cplanets-tick`), the closed default setup
+text in `scenarios/`, tests in `tests/`, and SDK discovery helpers in
 `scripts/`.
 
 With a current Cwhip SDK installed, run `scripts/setup [--clean] [debug|release|profile]`

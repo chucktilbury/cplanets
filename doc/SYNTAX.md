@@ -36,6 +36,11 @@ Phase D3 adds pirate/identify modules: `identify.cw`, `midpoint.cw`
 Unit programs `unit_identify`, `unit_ambushHalf` and function
 program `fn_pirateIdentify` print a bool line.
 
+Phase D4 adds combat/design reclaim modules: `screen.cw`,
+`confiscate.cw` (plus ReclaimJob, engagement participants,
+`queueDesignDevelop` / `queueReclaim`). Unit program `unit_screen`
+and function program `fn_combatDesigns` print a bool line.
+
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not
 invoke the method; `identity()` invokes the captured method and retains its

@@ -16,6 +16,7 @@
  *   2026-11-07  lastError with host:port on dial / pull failure.
  *   2026-11-07  lastError on design / build / reclaim reject.
  *   2026-11-07  putOrderRemote hulls peel + lastError on reject.
+ *   2026-11-07  Surface server /order reject reason in lastError.
  */
 
 include "config.cw"
@@ -203,11 +204,20 @@ class AppCore {
         session.handshake()
         bool ok = session.putOrder(
             fleetId, order, destPlanetId, hulls)
+        String reject = session.lastRejectReason
         session.close()
         if (not ok) {
-            lastError = format(
-                "PUT /order rejected by {} (fleet={} order={} dest={} hulls={})",
-                endpointLabel(), fleetId, order, destPlanetId, hulls)
+            if (reject.length > 0) {
+                lastError = reject
+            } else {
+                lastError = format(
+                    "PUT /order rejected by {} (fleet={} order={} dest={} hulls={})",
+                    endpointLabel(),
+                    fleetId,
+                    order,
+                    destPlanetId,
+                    hulls)
+            }
         }
         return(ok)
     }

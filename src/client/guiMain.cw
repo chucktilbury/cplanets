@@ -20,6 +20,7 @@
  *   2026-11-07  Explored dialog hide-on-close; develop/build/reclaim
  *               keep status ack after refresh; fail via AlertDialog.
  *   2026-11-07  Split-dispatch: hulls Entry + clear reject status.
+ *   2026-11-07  Dispatch preflight: missing fleet id + server reason.
  */
 
 include "appCore.cw"
@@ -591,27 +592,43 @@ class GuiMain {
      * Returns: nothing.
      */
     void onDispatch() {
+        fleetPage.syncFleetIdEntry()
         int64 fleetId = fleetPage.fleetIdValue()
         String order = fleetPage.orderValue()
         int64 dest = fleetPage.destValue()
         int64 hulls = fleetPage.hullsValue()
         FleetRow row = core.view.findFleet(fleetId)
-        if (row.id >= 0 and row.orderLocked()) {
+        if (row.id < 0) {
+            String missing = format(
+                "fleet {} does not exist in this snapshot — Refresh, or pick a sitting fleet id from the list (yard builds merge into same-design sit stacks; fleets never use id 0)",
+                fleetId)
+            reportFailure("Dispatch failed", missing)
+            return()
+        }
+        if (row.orderLocked()) {
             status.setText("fleet locked — use Recall")
             fleetPage.syncLockChrome()
             return()
         }
-        if (row.id >= 0 and hulls > row.hullCount) {
+        if (hulls > row.hullCount) {
             String over = format(
                 "hulls {} > fleet {} stack {}",
                 hulls, fleetId, row.hullCount)
             reportFailure("Dispatch failed", over)
             return()
         }
-        if (row.id >= 0 and not row.sitting and hulls > 0) {
+        if (not row.sitting and hulls > 0) {
             reportFailure(
                 "Dispatch failed",
                 "hull peel needs a sitting fleet")
+            return()
+        }
+        if (not row.sitting) {
+            reportFailure(
+                "Dispatch failed",
+                format(
+                    "fleet {} not sitting (locked or in flight)",
+                    fleetId))
             return()
         }
         if (core.config.port < 1) {

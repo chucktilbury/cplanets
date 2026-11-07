@@ -187,7 +187,7 @@ still **Intended playable**.
 
 | Surface | When | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists** — list Entries (fleet / order / dest / **hulls**, `0`=all) → `PUT /order` peels subset from sitting stack; map pick sets dest; ContextMenu dispatch reuses same chrome |
+| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists** — list Entries (fleet id auto-pins to sitting stack — never `0` / order / dest / **hulls**, `0`=all) → `PUT /order` peels subset from sitting stack; map pick sets dest; ContextMenu dispatch reuses same chrome; reject reason on missing/locked fleet |
 | **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; list shows `LOCKED` + Dispatch disabled (**TUNING B**) |
 | **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Recall → `PUT /recall` |
 | **Fleet list** | Always | Read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list |

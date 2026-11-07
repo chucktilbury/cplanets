@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Dispatch after yard build: Fleets **Fleet id** Entry defaults to
+  `1` and re-pins to a sitting owned stack when empty/`0`/stale
+  (fleets never use id `0` — that looked like “fleet does not exist
+  yet” after builds). Yard completion still merges/spawns sit
+  fleets as before. `PUT /order` reject ack carries a reason
+  (`fleet N does not exist`, not sitting, …); GUI AlertDialog +
+  server verbosity ≥3 show it. Unit: `unit_orderReject`.
+
 - Split-dispatch sitting stacks: Fleets tab **Hulls to send**
   Entry (`0` = whole fleet) peels a subset from a multi-hull sit
   fleet (yard builds merge same-design hulls) before `PUT /order`.

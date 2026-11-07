@@ -17,6 +17,7 @@
  *   2026-11-07  Ship create: putDesign / putBuild / putReclaimHulls.
  *   2026-11-07  putBudget / putMessage for list chrome.
  *   2026-11-07  putOrder trailing hulls peel count.
+ *   2026-11-07  lastRejectReason from optional /order ack trailer.
  */
 
 import networking as Networking
@@ -45,6 +46,7 @@ class HumanSession {
     VerbGetDigest getDigestVerb
     PublishDecode decoder
     bool connected
+    String lastRejectReason
 
     /*
      * Construct a session around a config.
@@ -64,6 +66,7 @@ class HumanSession {
         getDigestVerb = VerbGetDigest()
         decoder = PublishDecode()
         connected = false
+        lastRejectReason = ""
     }
 
     /*
@@ -269,6 +272,7 @@ class HumanSession {
         String order,
         int64 destPlanetId,
         int64 hulls) {
+        lastRejectReason = ""
         WireBytes w = WireBytes()
         w.writeU32(config.playerId)
         w.writeU32(fleetId)
@@ -443,6 +447,8 @@ class HumanSession {
      * Decode a flag-ack response (accepted u8 + tick + ended).
      *
      * Purpose: share pause / order / recall / handshake ack shape.
+     * When accepted is 0 and a trailing reason string is present
+     * (PUT /order), store it in lastRejectReason for the GUI.
      *
      * Parameters:
      *   resp — raw response envelope bytes.
@@ -451,6 +457,7 @@ class HumanSession {
      * Returns: true when path matches and accepted == 1.
      */
     bool flagAccepted(buffer resp, String expectPath) {
+        lastRejectReason = ""
         if (resp.length < 1) {
             return(false)
         }
@@ -461,6 +468,19 @@ class HumanSession {
         WireBytes r = WireBytes()
         r.setRead(out.body)
         int64 accepted = r.readU8()
-        return(r.ok() and accepted == 1)
+        if (not r.ok()) {
+            return(false)
+        }
+        if (accepted == 1) {
+            return(true)
+        }
+        if (r.offset + 5 <= out.body.length) {
+            r.readU32()
+            r.readU8()
+            if (r.ok() and r.offset < out.body.length) {
+                lastRejectReason = r.readString()
+            }
+        }
+        return(false)
     }
 }

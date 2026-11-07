@@ -17,6 +17,7 @@
  *               (pause + design/yard progress).
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
+ *   2026-11-07  Planet allocationPct; known competitors; digest text.
  */
 
 include "../lib/event.cw"
@@ -34,14 +35,16 @@ include "policyTable.cw"
  * planetCount + rows, fleetCount + rows.
  *
  * Digest blob: tick u32, eventCount u32, then each event kind
- * string + fleet/planet/player/value u32s (value as i32 cast).
+ * string + fleet/planet/player/value u32s + text string (compose
+ * and tick lines; text empty for pure tick phases).
  *
  * After fleet rows (TUNING B): CHROME_MARKER u32, paused u8,
  * designDevelopTicks u32, yardBuildTicks u32, developing design
  * count + (id, ticksLeft), build count + BuildJob rows, reclaim
  * count + ReclaimJob rows, then (ship create) viewer wealth /
- * resources milli + design catalog rows. Older decoders stop
- * early when they do not read further.
+ * resources milli + design catalog rows, then known-competitor
+ * count + ids for the viewer. Older decoders stop early when
+ * they do not read further.
  */
 class PublishCodec {
     enum {
@@ -211,6 +214,14 @@ class PublishCodec {
             int64 yMilli = int64(rock.y * 1000.0)
             w.writeI32(xMilli)
             w.writeI32(yMilli)
+            int64 alloc = rock.allocationPct
+            if (alloc < 0) {
+                alloc = 0
+            }
+            if (alloc > 100) {
+                alloc = 100
+            }
+            w.writeU8(alloc)
             index = index + 1
         }
     }
@@ -396,6 +407,40 @@ class PublishCodec {
             w.writeU32(milliOf(design.cargoHold))
             index = index + 1
         }
+        writeKnownCompetitors(w, game, viewerId)
+    }
+
+    /*
+     * Append the viewer's known-competitor id list.
+     *
+     * Purpose: Digest/Compose chrome (RULES §13) — names appear
+     * only after contact; no contact → count 0.
+     *
+     * Parameters:
+     *   w — WireBytes writer past the design catalog.
+     *   game — current State.
+     *   viewerId — seat, or -1 → seat 0.
+     *
+     * Returns: nothing; mutates w.
+     */
+    void writeKnownCompetitors(
+        WireBytes w, State game, int64 viewerId) {
+        int64 seatId = viewerId
+        if (seatId < 0 or seatId >= game.players.length) {
+            seatId = 0
+        }
+        if (seatId < 0 or seatId >= game.players.length) {
+            w.writeU32(0)
+            return()
+        }
+        Player seat = game.players[seatId]
+        w.writeU32(seat.knownCompetitors.length)
+        int64 index = 0
+        while (index < seat.knownCompetitors.length) {
+            int64 other = seat.knownCompetitors[index]
+            w.writeU32(other)
+            index = index + 1
+        }
     }
 
     /*
@@ -542,6 +587,7 @@ class PublishCodec {
             w.writeU32(ev.planetId + 1)
             w.writeU32(ev.playerId + 1)
             w.writeU32(ev.value)
+            w.writeString(ev.text)
             index = index + 1
         }
         if (not w.ok()) {

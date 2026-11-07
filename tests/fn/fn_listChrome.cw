@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-06  Initial list-chrome function program.
  *   2026-11-07  Design develop / yard build + catalog decode.
+ *   2026-11-07  Budget + known-competitor compose asserts.
  */
 
 include "client/exploredTrack.cw"
@@ -181,6 +182,71 @@ start {
     home.productive = true
     PlanetRow flipped = track.nextToPresent([home])
     if (ok and flipped.id != 0) {
+        ok = false
+    }
+
+    # --- planet budget stand-in ---
+    if (ok and not drv.setOwnedBudget(0, 0, 75)) {
+        ok = false
+    }
+    Planet rock = drv.game.galaxy.planets[0]
+    if (ok and rock.allocationPct != 75) {
+        ok = false
+    }
+    if (ok and drv.setOwnedBudget(9, 0, 10)) {
+        ok = false
+    }
+    blob = codec.encodeStateView(
+        drv.game, drv.policies, 0, drv.paused)
+    view = decoder.decodeState(blob, 0)
+    PlanetRow budgetRow = view.findPlanet(0)
+    if (ok and budgetRow.allocationPct != 75) {
+        ok = false
+    }
+
+    # --- known competitors + private compose ---
+    Player seat0 = drv.game.players[0]
+    seat0.addCompetitor(1)
+    drv.game.players[0] = seat0
+    if (ok and drv.postOwnedMessage(0, 9, "nope", false)) {
+        ok = false
+    }
+    if (ok and not drv.postOwnedMessage(
+        0, 1, "hello", false)) {
+        ok = false
+    }
+    if (ok and not drv.postOwnedMessage(
+        0, 0, "all", true)) {
+        ok = false
+    }
+    buffer dig0 = drv.digestForSeat(0)
+    ClientStateView digView = ClientStateView(0)
+    if (ok and not decoder.decodeDigest(dig0, digView)) {
+        ok = false
+    }
+    if (ok and digView.digest.length < 2) {
+        ok = false
+    }
+    buffer dig1 = drv.digestForSeat(1)
+    ClientStateView otherView = ClientStateView(1)
+    if (ok and not decoder.decodeDigest(dig1, otherView)) {
+        ok = false
+    }
+    if (ok and otherView.digest.length < 1) {
+        ok = false
+    }
+    buffer dig2 = drv.digestForSeat(2)
+    ClientStateView stranger = ClientStateView(2)
+    if (ok and not decoder.decodeDigest(dig2, stranger)) {
+        ok = false
+    }
+    if (ok and stranger.digest.length != 0) {
+        ok = false
+    }
+    blob = codec.encodeStateView(
+        drv.game, drv.policies, 0, drv.paused)
+    view = decoder.decodeState(blob, 0)
+    if (ok and view.knownCompetitors.length < 1) {
         ok = false
     }
 

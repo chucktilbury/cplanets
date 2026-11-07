@@ -11,6 +11,7 @@
  *   2026-11-05  Initial ClientStateView.
  *   2026-11-06  TUNING B: pause / humanCount / progress chrome.
  *   2026-11-07  Design catalog + seat wealth/resources milli.
+ *   2026-11-07  Known competitors list for compose chrome.
  */
 
 include "designRow.cw"
@@ -41,6 +42,7 @@ class ClientStateView {
     list designs
     list digest
     list progressLines
+    list knownCompetitors
     HumanPolicyShape policy
 
     /*
@@ -69,7 +71,31 @@ class ClientStateView {
         designs = []
         digest = []
         progressLines = []
+        knownCompetitors = []
         policy = HumanPolicyShape()
+    }
+
+    /*
+     * Join known-competitor ids for the Digest compose list.
+     *
+     * Purpose: RULES §13 — no contact, no name on the list.
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line competitor text, or a stub.
+     */
+    String knownCompetitorsText() {
+        if (knownCompetitors.length < 1) {
+            return("(no known competitors — make contact)\n")
+        }
+        String text = ""
+        int64 index = 0
+        while (index < knownCompetitors.length) {
+            int64 other = knownCompetitors[index]
+            text.append(format("competitor {}\n", other))
+            index = index + 1
+        }
+        return(text)
     }
 
     /*

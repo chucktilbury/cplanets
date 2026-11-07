@@ -9,14 +9,16 @@
  *
  * Changelog:
  *   2026-11-05  Initial TickEvent helper.
+ *   2026-11-07  Optional text payload for private/broadcast lines.
  */
 
 /*
  * TickEvent is one digest line from a tick phase.
  *
  * kind names the rule cluster ("production", "cancel", "depart",
- * "recall", "arrive", "stranded", "yard"). id fields are optional
- * context (fleet, planet, player).
+ * "recall", "arrive", "stranded", "yard", "private", "broadcast").
+ * id fields are optional context (fleet, planet, player). text is
+ * empty for tick phases; compose fills it for messages (§13).
  */
 class TickEvent {
     String kind
@@ -24,6 +26,7 @@ class TickEvent {
     int64 planetId
     int64 playerId
     int64 value
+    String text
 
     /*
      * Construct a tick event with context ids.
@@ -51,5 +54,6 @@ class TickEvent {
         planetId = planet
         playerId = player
         value = amount
+        text = ""
     }
 }

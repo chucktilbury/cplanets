@@ -12,6 +12,7 @@
  *   2026-11-05  Initial PlanetRow view model.
  *   2026-11-07  List label notes shipyard rocks.
  *   2026-11-07  Phase I: published x/y for map canvas.
+ *   2026-11-07  allocationPct for planet budget chrome.
  */
 
 /*
@@ -31,6 +32,7 @@ class PlanetRow {
     int64 ownerId
     int64 livabilityDisplay
     int64 resourcesDisplay
+    int64 allocationPct
     fp64 x
     fp64 y
 
@@ -54,6 +56,7 @@ class PlanetRow {
         ownerId = -1
         livabilityDisplay = 0
         resourcesDisplay = 0
+        allocationPct = 50
         x = 0.0
         y = 0.0
     }
@@ -170,12 +173,12 @@ class PlanetRow {
         }
         if (not qualityKnown) {
             return(format(
-                "Planet {} owner={} quality=unknown{}",
-                id, ownerId, yard))
+                "Planet {} owner={} quality=unknown{} alloc={}%",
+                id, ownerId, yard, allocationPct))
         }
         return(format(
-            "Planet {} owner={} liv={}/10 res={}/10{}",
+            "Planet {} owner={} liv={}/10 res={}/10{} alloc={}%",
             id, ownerId, livabilityDisplay, resourcesDisplay,
-            yard))
+            yard, allocationPct))
     }
 }

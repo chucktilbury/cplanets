@@ -24,6 +24,7 @@
  *   2026-11-07  Config defaults for every CLI flag but --config.
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
  *   2026-11-07  Phase I: map canvas panel in --gui / --test.
+ *   2026-11-07  Wire budget + compose Send actions.
  */
 
 import cli as Cli
@@ -343,6 +344,8 @@ class HumanMain {
         gui.developAction = gui.onDevelop
         gui.buildAction = gui.onBuild
         gui.reclaimAction = gui.onReclaimHulls
+        gui.budgetAction = gui.onBudget
+        gui.sendAction = gui.onSendMessage
         gui.pauseAction = gui.onPauseToggled
         gui.testAction = gui.onTest
         app.onActivate(gui.activateAction)

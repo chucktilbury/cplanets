@@ -2,8 +2,9 @@
  * src/client/guiMapPage.cw — Phase I map canvas panel.
  *
  * DrawingArea + pan/zoom + Scrollbars + ContextMenu (status +
- * zoom-to-known). Draws visible planets with status colors and
- * in-flight dotted ETA paths when outboundEta is published.
+ * zoom-to-known + dispatch/budget). Draws visible planets with
+ * status colors and in-flight dotted ETA paths when outboundEta
+ * is published. Primary pick fills Fleets dest via GuiMain.
  * List notebook stays alongside via GuiMain Paned (PLAN §4.I).
  *
  * Created: 2026-11-07
@@ -11,6 +12,7 @@
  *
  * Changelog:
  *   2026-11-07  Initial map panel wiring.
+ *   2026-11-07  Pick-to-dispatch + ContextMenu budget/dispatch.
  */
 
 include "appCore.cw"
@@ -46,6 +48,9 @@ class GuiMapPage {
     fp64 viewH
     bool syncingBars
     void<> showExploredAction
+    void<int64> planetPickedAction
+    void<> dispatchHereAction
+    void<> budgetHereAction
     void<int64, int64> paintAction
     void<int64, fp64, fp64> clickAction
     void<int64, fp64, fp64, fp64, fp64> dragAction
@@ -86,6 +91,9 @@ class GuiMapPage {
         viewH = 1.0
         syncingBars = false
         showExploredAction = null
+        planetPickedAction = null
+        dispatchHereAction = null
+        budgetHereAction = null
         paintAction = null
         clickAction = null
         dragAction = null
@@ -111,7 +119,8 @@ class GuiMapPage {
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 4)
-        pickLabel = Gtk.Label("Map: click to pick; drag pan; wheel zoom")
+        pickLabel = Gtk.Label(
+            "Map: click sets fleet dest; drag pan; wheel zoom")
         pickLabel.setHExpand(true)
         page.append(pickLabel)
         Gtk.Grid layout = Gtk.Grid(0)
@@ -169,15 +178,18 @@ class GuiMapPage {
         }
         if (selectedId < 0) {
             pickLabel.setText(
-                "Map: click to pick; drag pan; wheel zoom")
+                "Map: click sets fleet dest; drag pan; wheel zoom")
             return()
         }
         PlanetRow row = core.view.findPlanet(selectedId)
         if (row.id < 0) {
-            pickLabel.setText(format("Selected planet {}", selectedId))
+            pickLabel.setText(format(
+                "Selected planet {} (fleet dest)", selectedId))
             return()
         }
-        pickLabel.setText(row.mapStatusLabel(core.view.viewerId))
+        pickLabel.setText(format(
+            "{} (fleet dest)",
+            row.mapStatusLabel(core.view.viewerId)))
     }
 
     /*
@@ -375,6 +387,9 @@ class GuiMapPage {
         selectedId = math.pickPlanet(
             core.view.planets, x, y, viewW, viewH, panX, panY, zoom)
         updatePickLabel()
+        if (selectedId >= 0 and planetPickedAction != null) {
+            planetPickedAction(selectedId)
+        }
         area.queueDraw()
     }
 
@@ -504,6 +519,15 @@ class GuiMapPage {
                 menu.addItem(
                     "Open explored dialog", showSelectedAction)
             }
+            if (dispatchHereAction != null) {
+                menu.addItem(
+                    "Dispatch fleet here", dispatchHereAction)
+            }
+            if (budgetHereAction != null
+                and row.ownerId == core.view.viewerId) {
+                menu.addItem(
+                    "Budget this planet", budgetHereAction)
+            }
         } else {
             menu.addItem("(no planet under cursor)", showSelectedAction)
         }
@@ -536,7 +560,8 @@ class GuiMapPage {
     /*
      * Context menu: open explored dialog for the selected rock.
      *
-     * Purpose: status / explored entry without inventing dispatch.
+     * Purpose: status / explored entry; dispatch/budget are
+     * separate ContextMenu actions wired by GuiMain.
      *
      * Parameters: none.
      *

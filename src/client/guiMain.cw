@@ -48,6 +48,7 @@ class GuiMain {
     GuiDigestPage digestPage
     GuiPolicyPage policyPage
     GuiMapPage mapPage
+    Gtk.Notebook notebook
     ExploredTrack explored
     bool suppressPauseToggle
     void<> activateAction
@@ -66,6 +67,9 @@ class GuiMain {
     void<> sendAction
     void<bool> pauseAction
     void<> testAction
+    void<int64> mapPickAction
+    void<> mapDispatchAction
+    void<> mapBudgetAction
     bool testMode
 
     /*
@@ -90,6 +94,7 @@ class GuiMain {
         digestPage = GuiDigestPage(appCore)
         policyPage = GuiPolicyPage(appCore)
         mapPage = GuiMapPage(appCore)
+        notebook = null
         explored = ExploredTrack()
         suppressPauseToggle = false
         activateAction = null
@@ -108,6 +113,9 @@ class GuiMain {
         sendAction = null
         pauseAction = null
         testAction = null
+        mapPickAction = null
+        mapDispatchAction = null
+        mapBudgetAction = null
         testMode = false
     }
 
@@ -148,6 +156,9 @@ class GuiMain {
         split.setHExpand(true)
         split.setVExpand(true)
         mapPage.showExploredAction = showMapExploredAction
+        mapPage.planetPickedAction = mapPickAction
+        mapPage.dispatchHereAction = mapDispatchAction
+        mapPage.budgetHereAction = mapBudgetAction
         mapPage.paintAction = mapPage.onPaint
         mapPage.clickAction = mapPage.onClick
         mapPage.dragAction = mapPage.onDrag
@@ -158,7 +169,7 @@ class GuiMain {
         mapPage.showSelectedAction = mapPage.onShowSelected
         mapPage.zoomPlanetAction = mapPage.zoomToPlanet
         split.append(mapPage.buildPage())
-        Gtk.Notebook notebook = Gtk.Notebook()
+        notebook = Gtk.Notebook()
         notebook.setHExpand(true)
         notebook.setVExpand(true)
         planetPage.showExploredAction = showExploredAction
@@ -312,6 +323,77 @@ class GuiMain {
         PlanetRow row = mapPage.selectedPlanet()
         if (row.id >= 0 and row.qualityKnown) {
             planetDialog.presentRow(window, row)
+        }
+    }
+
+    /*
+     * Map primary-click: fill Fleets dest Entry.
+     *
+     * Purpose: pick-to-dispatch fewest-hoops path — same PUT
+     * /order chrome; click only sets destination.
+     *
+     * Parameters:
+     *   planetId — hot-spot rock under the cursor.
+     *
+     * Returns: nothing.
+     */
+    void onMapPlanetPicked(int64 planetId) {
+        fleetPage.setDestPlanet(planetId)
+        if (status != null) {
+            status.setText(format(
+                "map dest={} (Fleets → Dispatch)", planetId))
+        }
+    }
+
+    /*
+     * Map ContextMenu: dispatch toward the selected rock.
+     *
+     * Purpose: set dest from selection then reuse onDispatch
+     * (fleet id + order still come from Fleets Entries).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onMapDispatchHere() {
+        if (mapPage.selectedId < 0) {
+            status.setText("dispatch needs a map planet")
+            return()
+        }
+        fleetPage.setDestPlanet(mapPage.selectedId)
+        if (notebook != null) {
+            notebook.setCurrentPage(1)
+        }
+        onDispatch()
+    }
+
+    /*
+     * Map ContextMenu: open Planets budget for the rock.
+     *
+     * Purpose: fill allocation Entry/Scale for an owned planet;
+     * Apply still uses PUT /budget.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onMapBudgetHere() {
+        if (mapPage.selectedId < 0) {
+            status.setText("budget needs a map planet")
+            return()
+        }
+        PlanetRow row = mapPage.selectedPlanet()
+        if (row.id < 0 or row.ownerId != core.view.viewerId) {
+            status.setText("budget needs an owned planet")
+            return()
+        }
+        planetPage.setPlanetId(row.id)
+        if (notebook != null) {
+            notebook.setCurrentPage(0)
+        }
+        if (status != null) {
+            status.setText(format(
+                "budget planet={} (Planets → Apply)", row.id))
         }
     }
 

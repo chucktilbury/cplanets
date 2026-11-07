@@ -123,17 +123,18 @@ fog engine.
 
 ### 3.3 Map click (non-menu)
 
-**Intended playable.** Click hot spot → select / send ships (README).
-In-flight: dotted line origin→progress; arrival clears line for arrival
-graphic. Planet color = status (green settled OK → red taken by other;
-in-between = intermediate). Pan/zoom overview ↔ detail. Scroll bars
-for pan in addition to mouse pan/zoom.
+**Exists.** Click hot spot → select and set Fleets dest (README send
+path via Dispatch / ContextMenu). In-flight: dotted line
+origin→progress; arrival clears line for arrival graphic. Planet color
+= status (green settled OK → red taken by other; in-between =
+intermediate). Pan/zoom overview ↔ detail. Scroll bars for pan in
+addition to mouse pan/zoom.
 
-**Exists:** map panel pick/pan/zoom/scrollbars; primary pick fills
-Fleets dest Entry; ContextMenu status + zoom-to-known + “Dispatch
-fleet here” / “Budget this planet”; dotted hop paths when
-`outboundEta` published. Dispatch still uses Fleets fleet-id/order
-Entries + `PUT /order` (no second order surface).
+Map panel pick/pan/zoom/scrollbars; primary pick fills Fleets dest
+Entry; ContextMenu status + zoom-to-known + “Dispatch fleet here” /
+“Budget this planet”; dotted hop paths when `outboundEta` published.
+Dispatch still uses Fleets fleet-id/order Entries + `PUT /order` (no
+second order surface).
 
 ---
 
@@ -296,26 +297,27 @@ v1. File/scenario edit remains the v1 path.
 - Main window + File Refresh/Quit
 - **Map canvas** Paned panel: DrawingArea hot spots, status colors,
   dotted hop paths, pick/pan/zoom, Scrollbars, ContextMenu status +
-  zoom-to-known (**Phase I**)
+  zoom-to-known + dispatch/budget; pick fills fleet dest
+  (**Phase I + pick-to-dispatch**)
 - Notebook: Planets, Fleets, Ships, Digest, Policy
 - Explored-planet TransientWindow (1–10 + populated/productive note);
   manual “Show first explored” + auto-present on quality /
   productive / populated flips (**TUNING B**); map menu open explored
 - Policy role Entry + % **Scales** + Apply PUT; no dumb-order warnings
-- Planets-tab budget Scale → `PUT /budget` (allocationPct; tick spend)
+- Planets-tab budget Scale → `PUT /budget` (allocationPct; tick spend);
+  map ContextMenu budget for owned rocks
 - Digest known-competitors + private/broadcast compose →
   `PUT /message` (seat-scoped digest)
 - TCP pull of seat-scoped publish flags (no second fog)
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
 - Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
-  with in-flight lock labels (**B**)
+  with in-flight lock labels (**B**); map pick-to-dispatch
 - Design/build/reclaim progress label from chrome trailer (**B**)
 - Ships tab design develop / yard build / reclaim + design catalog
   (`PUT /design`, `/build`, `/reclaim-hulls`)
 
 ### Remaining for intended playable human UI
 
-- Map pick-to-dispatch / budget + dispatch from ContextMenu
 - Richer planet budget knobs once RULES names them (beyond
   allocationPct production fraction)
 - Richer design editor (weapons/shields fields) beyond Entries

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Map pick-to-dispatch: primary map pick fills Fleets dest Entry;
+  ContextMenu “Dispatch fleet here” reuses `PUT /order`; owned-rock
+  “Budget this planet” fills Planets allocation chrome. Docs:
+  [DIALOGS.md](DIALOGS.md). Client-only.
+
 - Phase I map canvas: `GuiMapPage` DrawingArea in a main-window
   `Paned` beside the list notebook; publish planet `x`/`y` milli and
   fleet `outboundEta`; status colors; dotted in-flight ETA paths;

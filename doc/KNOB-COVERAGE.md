@@ -34,11 +34,11 @@ written — include it when merged; not required for this docs PR.
    (Ships tab list stand-ins; see [DIALOGS.md](DIALOGS.md) §6 /
    [CPLANETS.md](CPLANETS.md)). Remaining chrome gaps are map /
    Scale / richer design fields.
-2. **Externalize remaining knobs to text** — every planet / ship /
-   player / combat / travel / production / identify / clock
-   coefficient that still lives as a magic number → scenario (or AI)
-   key; wire named-but-unused keys; fail loud on unknown keys
-   (already).
+2. **Externalize remaining knobs to text** — **done** for the
+   playable-first gap set below (production/build/design costs,
+   galaxy spawn fractions, design templates, attack_bump /
+   AFK wire-up, handshake miss / accept poll). Fail loud on
+   unknown keys (already). Large GUI chrome is a separate task.
 3. **Selective GUI setters** — human client for policy / planet
    budget / design-build chrome; **most server settings stay
    textfile** (RULES §14 deferred setup GUI).
@@ -56,9 +56,9 @@ written — include it when merged; not required for this docs PR.
 | `tick_period_seconds` (clamp 1–30) | setup + `Scenario.clampTickPeriod` | textfile already · server-textfile-only · GUI candidate (future admin) |
 | `tick_auto_config_from_ai_lag` | setup | textfile already · server-textfile-only |
 | `ai_reaction_lag_ticks` / `_seconds` (scenario side) | setup | textfile already · server-textfile-only |
-| `afk_timeout_seconds` / `afk_shrink_factor` | **named in setup**, not applied by server presence | needs textfile (wire) · server-textfile-only |
-| Handshake miss window | **hardcoded** `5000u` ms in `cplanets-server` → `GameDriver` | needs textfile · server-textfile-only |
-| Accept/poll timeout | **hardcoded** `50` ms listen loop | needs textfile (optional) · server-textfile-only |
+| `afk_timeout_seconds` / `afk_shrink_factor` | setup → `GameDriver.applyAfkProductionScales` (connected idle seats scale production) | textfile already · server-textfile-only |
+| `handshake_miss_ms` | `config/server-*.cfg` → `GameDriver` / `PresenceBook` | textfile already · server-textfile-only |
+| `accept_poll_ms` | `config/server-*.cfg` → `ServerListen` | textfile already · server-textfile-only |
 | `verbosity` (0–10 clamped; provisional: 0 errors / 3 settings / 6 combat / 10 full) | `config/server-*.cfg` + CLI `--verbosity` overlay | textfile already · server-textfile-only |
 | `setup` / `host` (`address` alias) / `serve` / `port` / `players` / `seed` / `cycles` / `injectable` | `config/server-*.cfg` + CLI overlay (path `--config` excluded) | textfile already · server-textfile-only |
 
@@ -70,10 +70,10 @@ written — include it when merged; not required for this docs PR.
 | --- | --- | --- |
 | `world_count`, `useful_mix`, `scout_range`, `galaxy_radius` | setup | textfile already · server-textfile-only |
 | Livability display map (`livability_*`) | setup | textfile already · server-textfile-only |
-| Home spawn min/max radius fractions (`0.25` / `0.95` / `0.5`) | `galaxy.cw` literals | needs textfile · server-textfile-only |
-| Useful/poor livability fractions (`0.6` / `0.2` span) + poor `resources * 0.5` | `galaxy.cw` | needs textfile · server-textfile-only |
-| Home fallback livability/resources `50.0` | `galaxy.cw` | needs textfile · server-textfile-only |
-| Contact reach fallback `4.0` | `galaxy.cw` | needs textfile · server-textfile-only |
+| `home_spawn_min_radius_fraction` / `_max_` / `_min_radius_floor` | setup → `galaxy.cw` | textfile already · server-textfile-only |
+| `useful_livability_fraction` / `poor_livability_fraction` / `poor_resources_fraction` | setup → `galaxy.cw` | textfile already · server-textfile-only |
+| `home_fallback_livability` / `home_fallback_resources` | setup → sandbox home claim | textfile already · server-textfile-only |
+| `contact_reach` | setup → sandbox neighborhood stamp | textfile already · server-textfile-only |
 | Per-planet budget / allocation set | open (RULES); policy % only | needs textfile (when locked) · GUI candidate |
 
 ---
@@ -94,10 +94,10 @@ written — include it when merged; not required for this docs PR.
 | --- | --- | --- |
 | `design_develop_ticks`, `yard_build_ticks` | setup | textfile already · GUI candidate (show durations) |
 | `design_speed_cost_coeff`, `design_range_cost_coeff` | setup (used in develop cost) | textfile already · server-textfile-only |
-| Yard build cost basis `design.size * 10.0` | `state.cw` literal | needs textfile · server-textfile-only |
-| Design develop cost basis `design.size * 50.0` | `state.cw` literal | needs textfile · server-textfile-only |
-| Default scout/colony/freighter/… template speeds, sizes, holds | `design.cw` `make*` | needs textfile (fixture templates) · GUI candidate (design editor) |
-| Colony hop = `scoutRange * 0.5` | `state.cw` | needs textfile · server-textfile-only |
+| `yard_build_cost_per_size` | setup → yard build / reclaim basis | textfile already · server-textfile-only |
+| `design_develop_cost_per_size` | setup → design develop wealth cost | textfile already · server-textfile-only |
+| `design_scout_*` / `design_colony_*` / `design_freighter_*` / `design_escort_*` / `design_frigate_*` / `design_destroyer_*` | setup → `seedDefaultDesigns` / `make*` args | textfile already · GUI candidate (design editor) |
+| `colony_hop_fraction` | setup → colony hop = scoutRange × fraction | textfile already · server-textfile-only |
 | `dispatch_weight_scout` / `_colony`, `voyage_cost`, `reclaim_percent` | setup | textfile already · server-textfile-only |
 | Ship create / design editor / yard queue chrome | **Exists** Ships tab Entries → `/design` `/build` `/reclaim-hulls` | GUI candidate (Scale / weapons later) |
 
@@ -113,9 +113,9 @@ written — include it when merged; not required for this docs PR.
 | Battle duration / short-circuit gap | setup | textfile already · server-textfile-only |
 | Identify attacker/defender base + per-attr | setup | textfile already · server-textfile-only |
 | `trade_bump` | setup + `tradeArrive.cw` | textfile already · server-textfile-only |
-| `attack_bump` | **named in setup**, **unused** in combat code | needs textfile (wire) · server-textfile-only |
+| `attack_bump` | setup → defender-win wealth/resources credit (`take.cw`) | textfile already · server-textfile-only |
 | `capture_use_chance`, `cover_factor` | setup (`cover_factor` used in production) | textfile already · server-textfile-only |
-| Production tick rate `* 0.01` on livability/resources | `production.cw` literal | needs textfile · server-textfile-only |
+| `production_tick_rate` | setup → productive wealth/resource gains | textfile already · server-textfile-only |
 
 ---
 
@@ -136,11 +136,10 @@ Human difficulty GUI is **not** required; AI stays file-driven.
 
 ## 7. Top gaps (summary)
 
-1. **Playable chrome:** ship create / design / yard — **shipped** (Ships tab); Scale / weapons later.
-2. **Named but unwired:** `attack_bump`, `afk_timeout_seconds`, `afk_shrink_factor`.
-3. **Hardcoded sim rates/costs:** production `0.01`, build `*10`, design `*50`, galaxy spawn fractions, design `make*` templates, colony hop fraction.
-4. **Server constants:** handshake miss `5000` ms (and optional accept poll) → scenario/server text.
-5. **Balance passes:** only after (1)–(3) above; harness A–C is plumbing for those passes, not balance-complete.
+1. **Playable chrome:** ship create / design / yard — **shipped** (Ships tab); Scale / weapons / richer map chrome later (e.g. CPL-63).
+2. **Named-but-unwired / hardcoded sim rates** — **shipped** (`attack_bump`, AFK timeout/shrink, production rate, build/design cost bases, galaxy spawn fractions, design `make*` templates, colony hop fraction, handshake miss / accept poll).
+3. **Per-planet budget / allocation** — still open until RULES lock.
+4. **Balance passes:** after playable + textfile coverage; harness A–C is plumbing for those passes, not balance-complete.
 
 ---
 

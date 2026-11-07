@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-05  Initial galaxy placement from scenario + RNG.
  *   2026-11-05  Phase D5: partition tags + sandbox home yards.
+ *   2026-11-07  Spawn/mix/fallback/contact knobs from Scenario.
  */
 
 import math as Math
@@ -106,11 +107,11 @@ class Galaxy {
         Scenario scenario,
         SeededRng rng) {
         fp64 scoutReach = scenario.scoutRange
-        fp64 minR = scoutReach * 0.25
-        if (minR < 0.5) {
-            minR = 0.5
+        fp64 minR = scoutReach * scenario.homeSpawnMinRadiusFraction
+        if (minR < scenario.homeSpawnMinRadiusFloor) {
+            minR = scenario.homeSpawnMinRadiusFloor
         }
-        fp64 maxR = scoutReach * 0.95
+        fp64 maxR = scoutReach * scenario.homeSpawnMaxRadiusFraction
         if (maxR <= minR) {
             maxR = scoutReach
             minR = scoutReach * 0.5
@@ -212,13 +213,20 @@ class Galaxy {
         SeededRng rng) {
         bool useful = rng.nextFp01() < scenario.usefulMix
         rock.useful = useful
-        fp64 span = scenario.livabilityInternalMax - scenario.livabilityInternalMin
+        fp64 span = (
+            scenario.livabilityInternalMax
+            - scenario.livabilityInternalMin)
         if (useful) {
-            rock.livability = scenario.livabilityInternalMin + 0.6 * span
+            rock.livability = (
+                scenario.livabilityInternalMin
+                + scenario.usefulLivabilityFraction * span)
             rock.resources = rock.livability
         } else {
-            rock.livability = scenario.livabilityInternalMin + 0.2 * span
-            rock.resources = rock.livability * 0.5
+            rock.livability = (
+                scenario.livabilityInternalMin
+                + scenario.poorLivabilityFraction * span)
+            rock.resources = (
+                rock.livability * scenario.poorResourcesFraction)
         }
         rock.productive = false
         rock.shipyard = false
@@ -237,12 +245,16 @@ class Galaxy {
      * partition of the same map until contact (RULES §2).
      *
      * Parameters:
+     *   scenario — home fallback livability/resources + contact reach.
      *   ownerPlayerId — empire receiving the home (>= 1 typical).
      *   partitionId — sandbox partition tag (usually owner id).
      *
      * Returns: planet id claimed, or −1 when no free remote rock.
      */
-    int64 claimSandboxHome(int64 ownerPlayerId, int64 partitionId) {
+    int64 claimSandboxHome(
+        Scenario scenario,
+        int64 ownerPlayerId,
+        int64 partitionId) {
         int64 index = planets.length - 1
         while (index >= 1) {
             Planet rock = planets[index]
@@ -250,8 +262,8 @@ class Galaxy {
                 rock.useful = true
                 rock.livability = rock.livability
                 if (rock.livability < 1.0) {
-                    rock.livability = 50.0
-                    rock.resources = 50.0
+                    rock.livability = scenario.homeFallbackLivability
+                    rock.resources = scenario.homeFallbackResources
                 }
                 rock.productive = true
                 rock.shipyard = true
@@ -260,7 +272,8 @@ class Galaxy {
                 rock.population = 1.0
                 rock.partitionId = partitionId
                 planets[index] = rock
-                stampNearbyPartition(rock.x, rock.y, partitionId)
+                stampNearbyPartition(
+                    scenario, rock.x, rock.y, partitionId)
                 return(rock.id)
             }
             index = index - 1
@@ -275,14 +288,19 @@ class Galaxy {
      * conquest contact has a clear foreign partition to couple.
      *
      * Parameters:
+     *   scenario — contactReach knob.
      *   hx — home x.
      *   hy — home y.
      *   partitionId — sandbox id to stamp.
      *
      * Returns: nothing.
      */
-    void stampNearbyPartition(fp64 hx, fp64 hy, int64 partitionId) {
-        fp64 reach = 4.0
+    void stampNearbyPartition(
+        Scenario scenario,
+        fp64 hx,
+        fp64 hy,
+        int64 partitionId) {
+        fp64 reach = scenario.contactReach
         int64 index = 0
         while (index < planets.length) {
             Planet rock = planets[index]

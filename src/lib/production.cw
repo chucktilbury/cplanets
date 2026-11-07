@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial production phase for tick core.
  *   2026-11-05  Phase D4: advance reclaim jobs at yards.
+ *   2026-11-07  Use scenario.productionTickRate + afkProductionScale.
  */
 
 include "design.cw"
@@ -111,8 +112,12 @@ class Production {
             return()
         }
         Player seat = players[rock.ownerId]
-        fp64 wealthGain = rock.livability * scenario.coverFactor * 0.01
-        fp64 resGain = rock.resources * scenario.coverFactor * 0.01
+        fp64 rate = scenario.productionTickRate
+        fp64 scale = seat.afkProductionScale
+        fp64 wealthGain = (
+            rock.livability * scenario.coverFactor * rate * scale)
+        fp64 resGain = (
+            rock.resources * scenario.coverFactor * rate * scale)
         seat.wealth = seat.wealth + wealthGain
         seat.resources = seat.resources + resGain
         players[rock.ownerId] = seat

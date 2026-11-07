@@ -13,6 +13,7 @@
  *   2026-11-05  Initial take/occupy/colony for Phase D1.
  *   2026-11-05  Phase D2: clear only take pendingArrivalOrder.
  *   2026-11-05  Phase D4: participants, screened advance, attribute.
+ *   2026-11-07  Wire attack_bump on defender wins (RULES §11.2).
  */
 
 include "combat.cw"
@@ -22,6 +23,7 @@ include "engagement.cw"
 include "event.cw"
 include "fleet.cw"
 include "planet.cw"
+include "player.cw"
 include "rng.cw"
 include "scenario.cw"
 
@@ -60,6 +62,7 @@ class Take {
      * Parameters:
      *   scenario — inherent-defense / battle knobs.
      *   planets — mutable galaxy.
+     *   players — empire pools (attack bump credits).
      *   designs — hull templates.
      *   fleets — mutable fleet list.
      *   engagements — mutable open fights.
@@ -78,6 +81,7 @@ class Take {
     int64 processArrivals(
         Scenario scenario,
         list planets,
+        list players,
         list designs,
         list fleets,
         list engagements,
@@ -95,6 +99,7 @@ class Take {
                 nextEngagementId = resolveTakeArrival(
                     scenario,
                     planets,
+                    players,
                     designs,
                     fleets,
                     engagements,
@@ -126,6 +131,7 @@ class Take {
     int64 resolveTakeArrival(
         Scenario scenario,
         list planets,
+        list players,
         list designs,
         list fleets,
         list engagements,
@@ -234,6 +240,7 @@ class Take {
             nextFleetIdOut = resolveEngagementOutcome(
                 scenario,
                 planets,
+                players,
                 designs,
                 fleets,
                 events,
@@ -319,11 +326,13 @@ class Take {
      * Apply win/loss after an engagement resolves.
      *
      * Purpose: attacker win → occupy + capture-use on defenders;
-     * defender win → sink attacking hulls.
+     * defender win → sink attacking hulls and credit attack_bump
+     * wealth/resources from attacker size (RULES §11.2).
      *
      * Parameters:
-     *   scenario — capture-use chance.
-     *   planets / designs / fleets / events / rng / fight / win.
+     *   scenario — capture-use chance + attackBump.
+     *   planets / players / designs / fleets / events / rng /
+     *   fight / win.
      *   nextFleetId — intern counter.
      *
      * Returns: updated nextFleetId.
@@ -331,6 +340,7 @@ class Take {
     int64 resolveEngagementOutcome(
         Scenario scenario,
         list planets,
+        list players,
         list designs,
         list fleets,
         list events,
@@ -377,6 +387,10 @@ class Take {
                 fight.attackerOwnerId,
                 nextFleetId)
         } else {
+            fp64 atkSize = attackerEngagedSize(
+                fleets, designs, fight)
+            creditAttackBump(
+                scenario, players, fight.defenderOwnerId, atkSize)
             int64 fidx = findFleetIndex(fleets, fight.attackerFleetId)
             if (fidx >= 0) {
                 Fleet fleet = fleets[fidx]
@@ -397,6 +411,71 @@ class Take {
         }
         planets[fight.planetId] = rock
         return(nextFleetId)
+    }
+
+    /*
+     * Sum design.size * hulls for attacker fleets in a fight.
+     *
+     * Purpose: attack_bump basis before hulls are zeroed.
+     *
+     * Parameters:
+     *   fleets — fleet list.
+     *   designs — design list.
+     *   fight — engagement being resolved.
+     *
+     * Returns: total attacker size points (>= 0).
+     */
+    fp64 attackerEngagedSize(
+        list fleets,
+        list designs,
+        Engagement fight) {
+        fp64 total = 0.0
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet fleet = fleets[index]
+            if (fleet.ownerId == fight.attackerOwnerId
+                and fleet.engagementId == fight.id
+                and fleet.hullCount > 0
+                and fleet.designId >= 0
+                and fleet.designId < designs.length) {
+                Design design = designs[fleet.designId]
+                total = total + design.size * fp64(fleet.hullCount)
+            }
+            index = index + 1
+        }
+        return(total)
+    }
+
+    /*
+     * Credit defender wealth/resources from attack_bump.
+     *
+     * Purpose: RULES §11.2 — defender win yields attack bump from
+     * attacker size. Magnitude = size * attackBump (placeholder).
+     *
+     * Parameters:
+     *   scenario — attackBump.
+     *   players — empire pools.
+     *   defenderId — seat receiving the bump.
+     *   attackerSize — summed design.size * hulls.
+     *
+     * Returns: nothing.
+     */
+    void creditAttackBump(
+        Scenario scenario,
+        list players,
+        int64 defenderId,
+        fp64 attackerSize) {
+        if (defenderId < 0 or defenderId >= players.length) {
+            return()
+        }
+        if (attackerSize <= 0.0) {
+            return()
+        }
+        fp64 credit = attackerSize * scenario.attackBump
+        Player seat = players[defenderId]
+        seat.wealth = seat.wealth + credit
+        seat.resources = seat.resources + credit
+        players[defenderId] = seat
     }
 
     /*
@@ -543,7 +622,8 @@ class Take {
      *
      * Parameters:
      *   scenario — attrition knobs.
-     *   planets / designs / fleets / engagements / events / rng.
+     *   planets / players / designs / fleets / engagements /
+     *   events / rng.
      *   nextFleetId — intern counter.
      *
      * Returns: updated nextFleetId.
@@ -551,6 +631,7 @@ class Take {
     int64 advanceEngagements(
         Scenario scenario,
         list planets,
+        list players,
         list designs,
         list fleets,
         list engagements,
@@ -581,6 +662,7 @@ class Take {
                     nextFleetIdOut = resolveEngagementOutcome(
                         scenario,
                         planets,
+                        players,
                         designs,
                         fleets,
                         events,
@@ -608,6 +690,7 @@ class Take {
                         nextFleetIdOut = resolveEngagementOutcome(
                             scenario,
                             planets,
+                            players,
                             designs,
                             fleets,
                             events,

@@ -16,6 +16,7 @@
  *   2026-11-07  Assert verbosity setup key.
  *   2026-11-07  Assert process CLI mirror keys.
  *   2026-11-07  Drop process-key asserts; reject them as unknown.
+ *   2026-11-07  Assert production/galaxy/design template overlays.
  */
 
 include "lib/setupParse.cw"
@@ -29,6 +30,13 @@ start {
     text.append("identify_defender_base = 0.15\n")
     text.append("tech_teleport_threshold = 9.5\n")
     text.append("productive_inherent_defense = 1.5\n")
+    text.append("production_tick_rate = 0.02\n")
+    text.append("yard_build_cost_per_size = 12.0\n")
+    text.append("design_develop_cost_per_size = 55.0\n")
+    text.append("colony_hop_fraction = 0.4\n")
+    text.append("home_spawn_min_radius_fraction = 0.3\n")
+    text.append("design_scout_speed = 2.5\n")
+    text.append("attack_bump = 1.25\n")
     text.append("livability_display_max = 10\n")
     text.append("tick_period_seconds = 40\n")
     SetupParse parser = SetupParse()
@@ -56,6 +64,27 @@ start {
         ok = false
     }
     if (s.productiveInherentDefense != 1.5f64) {
+        ok = false
+    }
+    if (s.productionTickRate != 0.02f64) {
+        ok = false
+    }
+    if (s.yardBuildCostPerSize != 12.0f64) {
+        ok = false
+    }
+    if (s.designDevelopCostPerSize != 55.0f64) {
+        ok = false
+    }
+    if (s.colonyHopFraction != 0.4f64) {
+        ok = false
+    }
+    if (s.homeSpawnMinRadiusFraction != 0.3f64) {
+        ok = false
+    }
+    if (s.designScoutSpeed != 2.5f64) {
+        ok = false
+    }
+    if (s.attackBump != 1.25f64) {
         ok = false
     }
     if (s.livabilityDisplayMax != 10) {

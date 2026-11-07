@@ -17,7 +17,7 @@ include "lib/state.cw"
 start {
     bool ok = true
     Design sample = Design(0)
-    sample.makeFreighter(10.0, 10.0)
+    sample.makeFreighter(10.0, 10.0, 1.0, 2.0)
     if (sample.coversTradeSize(9, 100.0)) {
         ok = false
     }
@@ -49,7 +49,7 @@ start {
 
     Design freighter = Design(game.nextDesignId)
     game.nextDesignId = game.nextDesignId + 1
-    freighter.makeFreighter(game.scenario.scoutRange, 10.0)
+    freighter.makeFreighter(game.scenario.scoutRange, 10.0, 1.0, 2.0)
     game.designs.append(freighter)
     int64 fid = game.designs.length - 1
 
@@ -102,7 +102,7 @@ start {
     rich.players[1] = rb
     Design f2 = Design(rich.nextDesignId)
     rich.nextDesignId = rich.nextDesignId + 1
-    f2.makeFreighter(rich.scenario.scoutRange, 10.0)
+    f2.makeFreighter(rich.scenario.scoutRange, 10.0, 1.0, 2.0)
     rich.designs.append(f2)
     int64 fid2 = rich.designs.length - 1
     int64 pact2 = rich.proposeAgreement(0, 1, 100.0)

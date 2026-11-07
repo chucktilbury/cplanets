@@ -14,6 +14,7 @@
  *   2026-11-05  Phase D2: tradeArrive before take.
  *   2026-11-05  Phase D3: midpoint ambush + pirate idle.
  *   2026-11-05  Phase D4: reclaim list, confiscation, capture rng.
+ *   2026-11-07  Pass players into take for attack_bump credits.
  *   2026-11-05  Phase D5: contact couple + end-game checks.
  */
 
@@ -178,6 +179,7 @@ class TickDriver {
         nextEngagementId = take.processArrivals(
             scenario,
             planets,
+            players,
             designs,
             fleets,
             engagements,
@@ -191,6 +193,7 @@ class TickDriver {
         nextFleetId = take.advanceEngagements(
             scenario,
             planets,
+            players,
             designs,
             fleets,
             engagements,

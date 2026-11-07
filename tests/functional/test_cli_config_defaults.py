@@ -211,7 +211,9 @@ def test_ai_file_defaults_and_override(ai: Path) -> int:
     return 0
 
 
-def test_human_file_defaults_and_override(client: Path) -> int:
+def test_human_file_defaults_and_override(
+    client: Path, human_default: Path
+) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "human.cfg"
         path.write_text(
@@ -237,14 +239,58 @@ def test_human_file_defaults_and_override(client: Path) -> int:
         if "cplanets" not in proc.stdout:
             print(f"human once summary missing: {proc.stdout!r}")
             return 1
-        # Smoke still when no config and no mode flags.
-        smoke = run_bin(client, [])
+        # Modes false in sample → smoke identity.
+        smoke = run_bin(client, ["--config", str(human_default)])
         if smoke.returncode != 0:
             print(f"human smoke exit {smoke.returncode}")
             return 1
-        if "cplanets\n" not in smoke.stdout and not smoke.stdout.startswith("cplanets"):
+        if "cplanets\n" not in smoke.stdout and not smoke.stdout.startswith(
+            "cplanets"
+        ):
             print(f"human smoke missing name: {smoke.stdout!r}")
             return 1
+    return 0
+
+
+def help_mentions_config(text: str) -> bool:
+    return "--config" in text or "config" in text.lower()
+
+
+def test_missing_config_prints_help(bin_path: Path, label: str) -> int:
+    """Bare argv (no --config) must print help and exit 2."""
+    missing = run_bin(bin_path, [])
+    if missing.returncode != 2:
+        print(
+            f"{label} missing-config exit {missing.returncode} "
+            f"(want 2); out={missing.stdout!r} err={missing.stderr!r}"
+        )
+        return 1
+    combined = missing.stdout + missing.stderr
+    if not help_mentions_config(combined):
+        print(f"{label} missing-config help missing --config: {combined!r}")
+        return 1
+    # Explicit -h still exits 0.
+    help_proc = run_bin(bin_path, ["-h"])
+    if help_proc.returncode != 0:
+        print(f"{label} -h exit {help_proc.returncode}")
+        return 1
+    if not help_mentions_config(help_proc.stdout + help_proc.stderr):
+        print(f"{label} -h missing --config text")
+        return 1
+    return 0
+
+
+def test_tick_requires_config(tick: Path, tick_config: Path) -> int:
+    rc = test_missing_config_prints_help(tick, "tick")
+    if rc != 0:
+        return rc
+    smoke = run_bin(tick, ["--config", str(tick_config)])
+    if smoke.returncode != 0:
+        print(f"tick smoke exit {smoke.returncode}: {smoke.stderr!r}")
+        return 1
+    if not smoke.stdout.startswith("cplanets-tick"):
+        print(f"tick smoke missing name: {smoke.stdout!r}")
+        return 1
     return 0
 
 
@@ -253,11 +299,17 @@ def main() -> int:
     parser.add_argument("--server", required=True, type=Path)
     parser.add_argument("--ai", required=True, type=Path)
     parser.add_argument("--client", required=True, type=Path)
+    parser.add_argument("--tick", required=True, type=Path)
+    parser.add_argument("--human-config", required=True, type=Path)
+    parser.add_argument("--tick-config", required=True, type=Path)
     args = parser.parse_args()
     for label, path in (
         ("server", args.server),
         ("ai", args.ai),
         ("client", args.client),
+        ("tick", args.tick),
+        ("human-config", args.human_config),
+        ("tick-config", args.tick_config),
     ):
         if not path.is_file():
             print(f"missing {label}: {path}", file=sys.stderr)
@@ -266,7 +318,24 @@ def main() -> int:
     for name, fn in (
         ("server", lambda: test_server_file_defaults_and_override(args.server)),
         ("ai", lambda: test_ai_file_defaults_and_override(args.ai)),
-        ("human", lambda: test_human_file_defaults_and_override(args.client)),
+        (
+            "human",
+            lambda: test_human_file_defaults_and_override(
+                args.client, args.human_config
+            ),
+        ),
+        (
+            "missing-config",
+            lambda: (
+                test_missing_config_prints_help(args.server, "server")
+                or test_missing_config_prints_help(args.ai, "ai")
+                or test_missing_config_prints_help(args.client, "human")
+            ),
+        ),
+        (
+            "tick",
+            lambda: test_tick_requires_config(args.tick, args.tick_config),
+        ),
     ):
         rc = fn()
         if rc != 0:

@@ -1,9 +1,11 @@
 /*
  * src/cplanets-tick.cw — headless N-tick host stub (Phase A).
  *
- * Optional CLI that will call lib-only tick for unit/fn tests so
- * they need not link GTK or SQLite (PLAN §1). Phase A only prints
- * the program name and lib identity. User-facing argv uses stdlib
+ * --config PATH is mandatory. Missing or empty path prints help
+ * and exits 2. Optional CLI that will call lib-only tick for
+ * unit/fn tests so they need not link GTK or SQLite (PLAN §1).
+ * For now loads the config file (no keys yet) and prints the
+ * program name + lib identity. User-facing argv uses stdlib
  * `cli` (including --help / -h); no advance-N flags yet.
  *
  * Created: 2026-11-05
@@ -15,6 +17,7 @@
  *   2026-11-05  Phase C: still identity smoke; lib tick is covered
  *               by unit/fn programs (CLI advance-N later).
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
+ *   2026-11-07  --config mandatory; missing prints help, exit 2.
  */
 
 import cli as Cli
@@ -60,7 +63,8 @@ class TickMain {
     /*
      * Build the registered Cli.CommandLine for this binary.
      *
-     * Purpose: declare help now; advance-N options land later.
+     * Purpose: declare --config (required) and help now;
+     * advance-N options land later.
      *
      * Parameters: none.
      *
@@ -78,6 +82,13 @@ class TickMain {
         help.description = "show this help"
         help.action = Cli.Action().HELP
         commandLine.addOption(help)
+        Cli.Option config = Cli.Option()
+        config.longName = "config"
+        config.name = "config"
+        config.description = (
+            "required: tick host config (placeholder; no keys yet)")
+        config.valueType = Cli.ValueType().STRING
+        commandLine.addOption(config)
         return(commandLine)
     }
 
@@ -85,12 +96,14 @@ class TickMain {
      * Parse argv; print help or an error and exit when needed.
      *
      * Purpose: single parse path; unknown flags fail loud.
+     * --config PATH is mandatory (non-empty); missing path prints
+     * the same help as -h and exits 2.
      *
      * Parameters:
      *   commandLine — registered CommandLine from buildCli().
      *
      * Returns: true when the caller should continue; false when this
-     * method already exited the process (help / parse error).
+     * method already exited the process (help / parse / missing config).
      */
     bool parseOrExit(Cli.CommandLine commandLine) {
         String problem = ""
@@ -110,20 +123,55 @@ class TickMain {
             Sys.Process().exit(2)
             return(false)
         }
+        if (not commandLine.wasProvided("config")
+            or commandLine.value("config").length == 0) {
+            print(commandLine.helpText())
+            Sys.Process().exit(2)
+            return(false)
+        }
         return(true)
     }
 
     /*
-     * Dispatch the identity smoke path.
+     * Open the required config path (fail loud if unreadable).
      *
-     * Purpose: current stub behavior after a successful parse.
+     * Purpose: tick has no keys yet; still require a real file so
+     * the mandatory --config contract matches the other bins.
      *
      * Parameters:
-     *   commandLine — parsed Cli.CommandLine (unused until advance-N).
+     *   commandLine — parsed Cli.CommandLine with non-empty config.
+     *
+     * Returns: true when the file opened; false after exit(1).
+     */
+    bool loadConfig(Cli.CommandLine commandLine) {
+        String path = commandLine.value("config")
+        try {
+            Sys.File input = Sys.File(path, "r")
+            input.readAll()
+            input.close()
+        } except() as error {
+            print(format("cplanets-tick: config error: {}\n", error))
+            Sys.Process().exit(1)
+            return(false)
+        }
+        return(true)
+    }
+
+    /*
+     * Dispatch the identity smoke path after a successful parse.
+     *
+     * Purpose: current stub behavior; advance-N will use config
+     * keys later.
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
      *
      * Returns: nothing.
      */
     void run(Cli.CommandLine commandLine) {
+        if (not loadConfig(commandLine)) {
+            return()
+        }
         printSmoke()
     }
 }

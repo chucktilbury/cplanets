@@ -98,11 +98,13 @@ def parse_digest_body(body: bytes) -> tuple[int, int, int]:
 
 
 def spawn_server(
-    server: Path, setup: Path, seed: int
+    server: Path, setup: Path, server_config: Path, seed: int
 ) -> tuple[subprocess.Popen, int]:
     env = os.environ.copy()
     cmd = [
         str(server),
+        "--config",
+        str(server_config),
         "--serve",
         "--port",
         "0",
@@ -252,6 +254,7 @@ def test_session(
     ai: Path,
     client: Path,
     setup: Path,
+    server_config: Path,
     human_cfg: Path,
     *,
     expected_worlds: int,
@@ -260,7 +263,9 @@ def test_session(
         print(f"missing setup: {setup}", file=sys.stderr)
         return 2
 
-    proc, port = spawn_server(server, setup, HARNESS_SEED)
+    proc, port = spawn_server(
+        server, setup, server_config, HARNESS_SEED
+    )
     try:
         # No human handshake before injectable advance: a handshake
         # at clock 0 ages out when advanceMs(period) hits the
@@ -346,9 +351,13 @@ def test_session(
     return 0
 
 
-def test_seed_banner(server: Path, setup: Path) -> int:
+def test_seed_banner(
+    server: Path, setup: Path, server_config: Path
+) -> int:
     """Same seed banner must echo for comparable re-runs."""
-    proc, _port = spawn_server(server, setup, HARNESS_SEED)
+    proc, _port = spawn_server(
+        server, setup, server_config, HARNESS_SEED
+    )
     try:
         # spawn_server already required SEED=; second spawn proves
         # restart-with-same-seed path is stable.
@@ -359,7 +368,9 @@ def test_seed_banner(server: Path, setup: Path) -> int:
             proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
             proc.kill()
-    proc2, _port2 = spawn_server(server, setup, HARNESS_SEED)
+    proc2, _port2 = spawn_server(
+        server, setup, server_config, HARNESS_SEED
+    )
     try:
         return 0
     finally:
@@ -375,6 +386,11 @@ def main() -> int:
     parser.add_argument("--server", required=True)
     parser.add_argument("--ai", required=True)
     parser.add_argument("--client", required=True)
+    parser.add_argument(
+        "--server-config",
+        required=True,
+        help="server --config path (mandatory on the binary)",
+    )
     parser.add_argument(
         "--fixture",
         required=True,
@@ -395,6 +411,7 @@ def main() -> int:
     server = Path(args.server)
     ai = Path(args.ai)
     client = Path(args.client)
+    server_config = Path(args.server_config)
     fixture = Path(args.fixture)
     human_cfg = Path(args.human_config) if args.human_config else (
         Path(__file__).resolve().parents[2] / "config" / "human-default.cfg"
@@ -403,13 +420,14 @@ def main() -> int:
         (server, "server"),
         (ai, "ai"),
         (client, "client"),
+        (server_config, "server-config"),
         (human_cfg, "human-config"),
     ):
         if not path.is_file():
             print(f"missing {label}: {path}", file=sys.stderr)
             return 2
 
-    rc = test_seed_banner(server, fixture)
+    rc = test_seed_banner(server, fixture, server_config)
     if rc != 0:
         return rc
     rc = test_session(
@@ -417,6 +435,7 @@ def main() -> int:
         ai,
         client,
         fixture,
+        server_config,
         human_cfg,
         expected_worlds=args.worlds,
     )

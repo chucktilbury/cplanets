@@ -1,8 +1,8 @@
 /*
  * src/cplanets-server.cw — server executable (Phase F / TUNING A).
  *
- * Default (no args): print program name + lib identity (smoke).
- * --config PATH loads process/network defaults (not the scenario).
+ * --config PATH is mandatory (process/network defaults; not the
+ * scenario). Missing or empty path prints help and exits 2.
  * --serve [--host ADDR] [--port N] [--players N] [--seed N]
  * [--setup PATH] [--verbosity N] [--injectable] [--cycles N]:
  * bind TCP, load scenario from setup path or closed builtins, run
@@ -10,7 +10,8 @@
  * stdout). Stand-alone and online share this driver (RULES §2 /
  * PLAN §4.F). Knob edits take effect on process restart (no
  * mid-game retune). User-facing argv uses stdlib `cli`
- * (including --help / -h).
+ * (including --help / -h). With serve=false from file/argv, prints
+ * smoke identity (name + lib).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -25,6 +26,7 @@
  *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
  *   2026-11-07  Process keys in setup; CLI silent overlay.
  *   2026-11-07  --config server runtime file; --setup scenario only.
+ *   2026-11-07  --config mandatory; missing prints help, exit 2.
  */
 
 import cli as Cli
@@ -100,7 +102,7 @@ class ServerMain {
         config.longName = "config"
         config.name = "config"
         config.description = (
-            "server runtime config (not the scenario setup file)")
+            "required: server runtime config (not the scenario)")
         config.valueType = Cli.ValueType().STRING
         commandLine.addOption(config)
         Cli.Option serve = Cli.Option()
@@ -181,13 +183,14 @@ class ServerMain {
      * Parse argv; print help or an error and exit when needed.
      *
      * Purpose: single parse path for smoke and serve; unknown flags
-     * fail loud via stdlib cli.
+     * fail loud via stdlib cli. --config PATH is mandatory (non-empty);
+     * missing path prints the same help as -h and exits 2.
      *
      * Parameters:
      *   commandLine — registered CommandLine from buildCli().
      *
      * Returns: true when the caller should continue; false when this
-     * method already exited the process (help / parse error).
+     * method already exited the process (help / parse / missing config).
      */
     bool parseOrExit(Cli.CommandLine commandLine) {
         String problem = ""
@@ -204,6 +207,12 @@ class ServerMain {
         if (problem.length > 0) {
             print(format("cplanets-server: {}\n", problem))
             print("Try 'cplanets-server --help' for usage.\n")
+            Sys.Process().exit(2)
+            return(false)
+        }
+        if (not commandLine.wasProvided("config")
+            or commandLine.value("config").length == 0) {
+            print(commandLine.helpText())
             Sys.Process().exit(2)
             return(false)
         }
@@ -256,35 +265,33 @@ class ServerMain {
     }
 
     /*
-     * Load ServerConfig from --config; overlay every CLI flag but path.
+     * Load ServerConfig from required --config; overlay every CLI
+     * flag but path.
      *
      * Purpose: process/network defaults live in the server config
      * file (like AI/human). --config PATH is the only flag with no
      * in-file key. --setup overlays the setup key when provided.
-     * Unknown config keys fail loud and exit(1).
+     * Unknown config keys fail loud and exit(1). Caller already
+     * required a non-empty --config path.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
      *
-     * Returns: clamped ServerConfig (defaults when no --config).
+     * Returns: clamped ServerConfig from the file + argv overlays.
      */
     ServerConfig loadConfig(Cli.CommandLine commandLine) {
         ServerConfig cfg = ServerConfig()
-        if (commandLine.wasProvided("config")) {
-            String path = commandLine.value("config")
-            if (path.length > 0) {
-                Sys.File input = Sys.File(path, "r")
-                String text = input.readAll()
-                input.close()
-                ServerConfigParse parser = ServerConfigParse()
-                cfg = parser.parseText(text)
-                if (not parser.ok) {
-                    print("cplanets-server: config error: ")
-                    print(parser.lastError)
-                    print("\n")
-                    Sys.Process().exit(1)
-                }
-            }
+        String path = commandLine.value("config")
+        Sys.File input = Sys.File(path, "r")
+        String text = input.readAll()
+        input.close()
+        ServerConfigParse parser = ServerConfigParse()
+        cfg = parser.parseText(text)
+        if (not parser.ok) {
+            print("cplanets-server: config error: ")
+            print(parser.lastError)
+            print("\n")
+            Sys.Process().exit(1)
         }
         if (commandLine.wasProvided("setup")) {
             cfg.setup = commandLine.value("setup")
@@ -383,8 +390,8 @@ class ServerMain {
      *
      * Purpose: every CLI flag except --config may come from the
      * server config file; flags present on argv override silently.
-     * Scenario/setup holds §14 galaxy knobs only. Bare run stays
-     * smoke unless serve is true from file or argv.
+     * Scenario/setup holds §14 galaxy knobs only. With serve false
+     * from file/argv, print smoke identity.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.

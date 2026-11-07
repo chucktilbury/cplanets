@@ -81,10 +81,17 @@ def state_payload(body: bytes) -> bytes:
     return body[8 : 8 + blob_len]
 
 
-def spawn_server(server: Path, setup: Path, seed: int = 42) -> tuple[subprocess.Popen, int]:
+def spawn_server(
+    server: Path,
+    setup: Path,
+    server_config: Path,
+    seed: int = 42,
+) -> tuple[subprocess.Popen, int]:
     env = os.environ.copy()
     cmd = [
         str(server),
+        "--config",
+        str(server_config),
         "--serve",
         "--port",
         "0",
@@ -170,7 +177,7 @@ def write_setup(
     )
 
 
-def test_knob_path(server: Path) -> int:
+def test_knob_path(server: Path, server_config: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         setup = Path(tmp) / "tuning.setup"
         world_count = 10
@@ -181,7 +188,7 @@ def test_knob_path(server: Path) -> int:
             start_wealth=start_wealth,
             cover_factor=2.0,
         )
-        proc, port = spawn_server(server, setup, seed=99)
+        proc, port = spawn_server(server, setup, server_config, seed=99)
         try:
             resp = exchange("127.0.0.1", port, get_state(0, 0))
             _, verb, path, body = decode_envelope(resp)
@@ -235,7 +242,7 @@ def test_knob_path(server: Path) -> int:
     return 0
 
 
-def test_unknown_key(server: Path) -> int:
+def test_unknown_key(server: Path, server_config: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         setup = Path(tmp) / "bad.setup"
         setup.write_text(
@@ -245,6 +252,8 @@ def test_unknown_key(server: Path) -> int:
         env = os.environ.copy()
         cmd = [
             str(server),
+            "--config",
+            str(server_config),
             "--serve",
             "--port",
             "0",
@@ -279,11 +288,13 @@ def test_unknown_key(server: Path) -> int:
     return 0
 
 
-def test_repo_fixture(server: Path, fixture: Path) -> int:
+def test_repo_fixture(
+    server: Path, server_config: Path, fixture: Path
+) -> int:
     if not fixture.is_file():
         print(f"missing fixture: {fixture}", file=sys.stderr)
         return 2
-    proc, port = spawn_server(server, fixture, seed=7)
+    proc, port = spawn_server(server, fixture, server_config, seed=7)
     try:
         resp = exchange("127.0.0.1", port, get_state(0, 0))
         _, verb, path, body = decode_envelope(resp)
@@ -312,24 +323,35 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", required=True)
     parser.add_argument(
+        "--server-config",
+        required=True,
+        help="server --config path (mandatory on the binary)",
+    )
+    parser.add_argument(
         "--fixture",
         default="",
         help="optional path to scenarios/closed-default.setup",
     )
     args = parser.parse_args()
     server_path = Path(args.server)
+    server_config = Path(args.server_config)
     if not server_path.is_file():
         print(f"missing server: {server_path}", file=sys.stderr)
         return 2
+    if not server_config.is_file():
+        print(f"missing server config: {server_config}", file=sys.stderr)
+        return 2
 
-    rc = test_knob_path(server_path)
+    rc = test_knob_path(server_path, server_config)
     if rc != 0:
         return rc
-    rc = test_unknown_key(server_path)
+    rc = test_unknown_key(server_path, server_config)
     if rc != 0:
         return rc
     if args.fixture:
-        rc = test_repo_fixture(server_path, Path(args.fixture))
+        rc = test_repo_fixture(
+            server_path, server_config, Path(args.fixture)
+        )
         if rc != 0:
             return rc
 

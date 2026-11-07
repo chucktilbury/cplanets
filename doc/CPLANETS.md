@@ -24,11 +24,18 @@ Default `build` installs these into `bin/`:
 | `cplanets-ai` | Stand-alone AI client on the same protocol. Own config file. Never ticks. |
 | `cplanets-tick` | Headless identity / future N-tick host stub (no TCP, no GTK). |
 
-Bare invocation (no flags) of each production binary prints the
-program name and the shared lib identity string — useful as a smoke
-check after build. All four user-facing binaries parse argv with the
-Cwhip stdlib `cli` package (`import cli as Cli`); `--help` / `-h`
-prints generated usage. Unknown flags fail loud (exit 2).
+`--config PATH` is **mandatory** on every production binary. Missing
+or empty path prints the same help as `-h` / `--help` and exits **2**.
+With a config whose mode flags are off (`serve` / `once` / … false),
+each binary prints its program name + shared lib identity — useful as
+a smoke check after build (`--config config/…-default.cfg`). All four
+user-facing binaries parse argv with the Cwhip stdlib `cli` package
+(`import cli as Cli`); `--help` / `-h` prints generated usage and
+exits **0**. Unknown flags fail loud (exit 2).
+
+**Planned follow-on (not implemented):** when `--config` is omitted,
+auto-load a default config from the user's home directory. Until that
+lands, always pass an explicit `--config PATH`.
 
 **Map canvas (Phase I) is not available yet.** The human UI is a list /
 notebook debugger only — no planet grid DrawingArea, pan/zoom, or
@@ -86,27 +93,28 @@ Paths below assume you are at the project root after a successful
 
 ### CLI vs config defaults
 
-Every command-line parameter **except the config-file path itself**
-(`--config`) may also be set as a default in that file. Load the
-file first; any flag **present on argv** overrides the corresponding
-file value **silently** (no warning). For the server, `--setup` is a
-normal overridable key (scenario path inside the server config);
-`--config` is the only path without an in-file default.
-`cplanets-tick` has no value flags yet (help only).
+`--config PATH` is **required**. Every other command-line parameter
+may also be set as a default in that file. Load the file first; any
+flag **present on argv** overrides the corresponding file value
+**silently** (no warning). For the server, `--setup` is a normal
+overridable key (scenario path inside the server config); `--config`
+is the only path without an in-file default. `cplanets-tick` has a
+placeholder config (`config/tick-default.cfg`) and no advance-N
+value flags yet.
+
+**Planned:** home-directory default config when `--config` is
+omitted — not implemented; keep passing `--config` explicitly.
 
 ### `cplanets-server`
 
 ```text
 bin/cplanets-server --config config/server-default.cfg [flags…]
-# or bare flags without a config file:
-bin/cplanets-server --serve [--host ADDR] [--port N] [--players N] \
-  [--seed N] [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
 ```
 
 | Flag | Default | Config key | Meaning |
 | --- | --- | --- | --- |
 | `-h`, `--help` | — | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(none)* | *(path only)* | Server runtime config (not the scenario) |
+| `--config PATH` | *(required)* | *(path only)* | Server runtime config (not the scenario) |
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
 | `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
 | `--port N` | `0` (ephemeral) | `port` | Listen port; `0` picks a free port |
@@ -159,7 +167,7 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | Flag | Config key | Meaning |
 | --- | --- | --- |
 | `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(path only)* | Human settings file (not the AI config) |
+| `--config PATH` | *(required; path only)* | Human settings file (not the AI config) |
 | `--host HOST` | `host` | Dial host |
 | `--port N` | `port` | Dial port (`> 0` for TCP) |
 | `--player N` | `player_id` | Seat id |
@@ -196,7 +204,7 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | Flag | Config key | Meaning |
 | --- | --- | --- |
 | `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(path only)* | AI config (not human settings) |
+| `--config PATH` | *(required; path only)* | AI config (not human settings) |
 | `--host HOST` / `--port N` | `host` / `port` | Dial |
 | `--verbosity N` | `verbosity` | stdout log level 0–10 (clamped) |
 | `--once` | `once` | Print one local policy shape (no TCP) |
@@ -223,13 +231,15 @@ summary.
 ### `cplanets-tick`
 
 ```text
-bin/cplanets-tick
+bin/cplanets-tick --config config/tick-default.cfg
 bin/cplanets-tick --help
 ```
 
-Prints name + lib identity. `-h` / `--help` prints stdlib `cli`
-usage. No advance-N CLI yet; lib tick coverage lives in
-`tests/unit/` and `tests/fn/`.
+`--config PATH` is required (sample: `config/tick-default.cfg`;
+no keys yet). With a readable config, prints name + lib identity.
+`-h` / `--help` prints stdlib `cli` usage (exit 0). Missing
+`--config` prints that same help and exits 2. No advance-N CLI yet;
+lib tick coverage lives in `tests/unit/` and `tests/fn/`.
 
 ---
 
@@ -237,9 +247,10 @@ usage. No advance-N CLI yet; lib tick coverage lives in
 
 Three terminals (or background jobs): server, human, AI.
 
-**`--serve` (or server-config `serve = true`)** is required for play.
-Without serve from argv or the server config, `cplanets-server`
-prints smoke identity and exits — no TCP, no ticks.
+**`--config`** is always required. **`--serve` (or server-config
+`serve = true`)** is required for play. Without serve from argv or
+the server config, `cplanets-server` prints smoke identity and exits
+— no TCP, no ticks.
 
 The server uses **one request per TCP connection** (closes after each
 reply). Clients redial per verb; wall-clock cadence advances even with

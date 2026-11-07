@@ -23,6 +23,11 @@ def main() -> int:
     parser.add_argument("--server", required=True)
     parser.add_argument("--client", required=True)
     parser.add_argument(
+        "--server-config",
+        required=True,
+        help="server --config path (mandatory on the binary)",
+    )
+    parser.add_argument(
         "--setup",
         default="",
         help="optional scenario --setup path",
@@ -30,13 +35,19 @@ def main() -> int:
     args = parser.parse_args()
     server = Path(args.server)
     client = Path(args.client)
+    server_config = Path(args.server_config)
     if not server.is_file() or not client.is_file():
         print(f"missing bins: {server} {client}", file=sys.stderr)
+        return 2
+    if not server_config.is_file():
+        print(f"missing server config: {server_config}", file=sys.stderr)
         return 2
 
     env = os.environ.copy()
     cmd = [
         str(server),
+        "--config",
+        str(server_config),
         "--serve",
         "--port",
         "0",

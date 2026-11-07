@@ -118,7 +118,7 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--config PATH` | *(required)* | *(path only)* | Server runtime config (not the scenario) |
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
 | `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
-| `--port N` | `0` (ephemeral) | `port` | Listen port; `0` picks a free port |
+| `--port N` | `7700` (sample) | `port` | Listen port; `0` still picks an ephemeral free port (CI / harnesses) |
 | `--players N` | `2` | `players` | Seat count for the closed start galaxy |
 | `--seed N` | `7` | `seed` | PRNG seed for the start galaxy |
 | `--setup PATH` | (empty → builtin) | `setup` | Scenario file (§14 knobs only) |
@@ -178,7 +178,13 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | `--test` | `test` | GTK path that auto-quits after a short schedule |
 
 With `--gui` / `--test` and `port > 0`, the client pulls from the
-server; otherwise it prefills an offline closed galaxy.
+server; otherwise (`port = 0`) it prefills an offline closed galaxy.
+Sample configs use **port 7700** so a normal play session matches the
+server without extra flags. A failed TCP connect / pull prints
+`cplanets: cannot connect to HOST:PORT` (or `no state from …`);
+`--pull` exits **1**. `--gui` / `--test` also show an `AlertDialog`
+with the same host:port detail (status line updated; `--test` skips
+the dialog so auto-quit stays quiet).
 
 **Tuning-loop chrome (workstream B + ship create, no map):** Pause
 CheckButton (sensitive only with exactly one human; `PUT /pause`).
@@ -269,16 +275,14 @@ build
 # 1) Server — note HOST=/PORT=; process knobs from server config,
 #    galaxy knobs from --setup (or config setup=…)
 bin/cplanets-server --config config/server-default.cfg --serve \
-  --host 127.0.0.1 --port 7700 --players 2 --seed 7 \
   --setup scenarios/closed-default.setup
 
-# 2) Human list debugger (seat 0)
-bin/cplanets --config config/human-default.cfg \
-  --host 127.0.0.1 --port 7700 --player 0 --gui
+# 2) Human list debugger (seat 0) — sample dials 127.0.0.1:7700
+bin/cplanets --config config/human-default.cfg --gui
 
 # 3) AI client (seat 1 presets: config/ai-mid.cfg etc.)
 bin/cplanets-ai --config config/ai-mid.cfg \
-  --host 127.0.0.1 --port 7700 --serve-loop --cycles 20
+  --player 1 --serve-loop --cycles 20
 ```
 
 **Solo human (no AI):** use `--players 1` so pause is offered, or keep

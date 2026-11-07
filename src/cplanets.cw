@@ -26,6 +26,8 @@
  *   2026-11-07  Phase I: map canvas panel in --gui / --test.
  *   2026-11-07  Wire budget + compose Send actions.
  *   2026-11-07  Map pick-to-dispatch + ContextMenu budget.
+ *   2026-11-07  Connect failure: print host:port; exit 1;
+ *               GUI AlertDialog (no silent empty session).
  */
 
 import cli as Cli
@@ -290,18 +292,19 @@ class HumanMain {
     /*
      * Dial the server and print GET state + digest summary.
      *
-     * Purpose: --pull without GTK.
+     * Purpose: --pull without GTK. Connect / pull failure prints
+     * a clear host:port error and exits non-zero (never silent).
      *
      * Parameters:
      *   cfg — loaded human config with host/port.
      *
-     * Returns: nothing.
+     * Returns: nothing (exits 1 on failure).
      */
     void runPull(HumanConfig cfg) {
         AppCore core = AppCore(cfg)
         if (not core.pullRemote()) {
-            print("cplanets\n")
-            print("pull_failed\n")
+            print(format("cplanets: {}\n", core.lastError))
+            Sys.Process().exit(1)
             return()
         }
         core.printSummary()
@@ -311,7 +314,8 @@ class HumanMain {
      * Run the GTK list debugger.
      *
      * Purpose: --gui / --test. Prefills from in-process galaxy
-     * when offline; pulls when port > 0.
+     * when offline (port 0); pulls when port > 0. A failed pull
+     * sets GuiMain.startupError so activate shows AlertDialog.
      *
      * Parameters:
      *   cfg — loaded human config.
@@ -321,8 +325,12 @@ class HumanMain {
      */
     void runGui(HumanConfig cfg, bool testMode) {
         AppCore core = AppCore(cfg)
+        String startupError = ""
         if (cfg.port > 0) {
-            core.pullRemote()
+            if (not core.pullRemote()) {
+                startupError = core.lastError
+                print(format("cplanets: {}\n", startupError))
+            }
         } else {
             State game = State()
             game.startClosed(11u, 2)
@@ -333,6 +341,7 @@ class HumanMain {
         Gtk.Application app = Gtk.Application("org.cplanets.Client")
         GuiMain gui = GuiMain(core)
         gui.testMode = testMode
+        gui.startupError = startupError
         gui.activateAction = gui.activate
         gui.refreshAction = gui.onRefresh
         gui.applyAction = gui.onApply

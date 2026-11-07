@@ -13,6 +13,7 @@
  *   2026-11-06  pullRemote fails when GET /state returns tick -1.
  *   2026-11-07  Ship create: design / build / reclaim remote.
  *   2026-11-07  Budget + message remote helpers.
+ *   2026-11-07  lastError with host:port on dial / pull failure.
  */
 
 include "config.cw"
@@ -35,6 +36,8 @@ class AppCore {
     ClientStateView view
     HumanPolicyShape draft
     PublishDecode decoder
+    # Cleared on success; set on dial / pull failure (host:port).
+    String lastError
 
     /*
      * Construct a core around a config.
@@ -51,6 +54,20 @@ class AppCore {
         view = ClientStateView(cfg.playerId)
         draft = HumanPolicyShape()
         decoder = PublishDecode()
+        lastError = ""
+    }
+
+    /*
+     * Build a host:port endpoint label for diagnostics.
+     *
+     * Purpose: share one format for CLI errors and GUI alerts.
+     *
+     * Parameters: none (uses config.host / config.port).
+     *
+     * Returns: "host:port" string.
+     */
+    String endpointLabel() {
+        return(format("{}:{}", config.host, config.port))
     }
 
     /*
@@ -84,15 +101,19 @@ class AppCore {
     /*
      * Dial, handshake, GET state + digest over TCP.
      *
-     * Purpose: --pull and GUI refresh.
+     * Purpose: --pull and GUI refresh. On failure sets lastError
+     * to a clear host:port message (never silent).
      *
      * Parameters: none (uses config).
      *
      * Returns: true when state pull succeeded.
      */
     bool pullRemote() {
+        lastError = ""
         HumanSession session = HumanSession(config)
         if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
             return(false)
         }
         session.close()
@@ -100,6 +121,8 @@ class AppCore {
         session.handshake()
         ClientStateView next = session.pullState()
         if (next.tick < 0) {
+            lastError = format(
+                "no state from {}", endpointLabel())
             return(false)
         }
         session.pullDigest(next)

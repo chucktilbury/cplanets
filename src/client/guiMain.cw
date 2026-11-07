@@ -16,6 +16,7 @@
  *   2026-11-07  Ships tab: design develop / yard build / reclaim.
  *   2026-11-07  Phase I: map canvas panel beside list notebook.
  *   2026-11-07  Budget Scales + known-competitor compose pages.
+ *   2026-11-07  AlertDialog + status on connect / refresh failure.
  */
 
 include "appCore.cw"
@@ -71,6 +72,8 @@ class GuiMain {
     void<> mapDispatchAction
     void<> mapBudgetAction
     bool testMode
+    # Non-empty when startup TCP pull failed (host:port detail).
+    String startupError
 
     /*
      * Construct the GUI around an AppCore.
@@ -117,6 +120,29 @@ class GuiMain {
         mapDispatchAction = null
         mapBudgetAction = null
         testMode = false
+        startupError = ""
+    }
+
+    /*
+     * Present a connection / pull failure to the operator.
+     *
+     * Purpose: never fail silently — status line always; AlertDialog
+     * when a window exists and we are not in --test auto-quit.
+     *
+     * Parameters:
+     *   detail — host:port failure text (already formatted).
+     *
+     * Returns: nothing.
+     */
+    void reportConnectFailure(String detail) {
+        if (status != null) {
+            status.setText(detail)
+        }
+        if (testMode or window == null or window.disposed()) {
+            return()
+        }
+        Gtk.AlertDialog().show(
+            window, "Connection failed", detail)
     }
 
     /*
@@ -197,6 +223,9 @@ class GuiMain {
         planetDialog.closeAction = dialogCloseAction
         window.present()
         refreshLists()
+        if (startupError.length > 0) {
+            reportConnectFailure(startupError)
+        }
         if (testMode and testAction != null) {
             Gtk.Application().schedule(150, testAction)
         }
@@ -276,7 +305,8 @@ class GuiMain {
     /*
      * Refresh handler: pull remote when port set, else redraw.
      *
-     * Purpose: File→Refresh and test hooks.
+     * Purpose: File→Refresh and test hooks. Failed TCP pull shows
+     * status + AlertDialog with host:port (never silent).
      *
      * Parameters: none.
      *
@@ -284,7 +314,10 @@ class GuiMain {
      */
     void onRefresh() {
         if (core.config.port > 0) {
-            core.pullRemote()
+            if (not core.pullRemote()) {
+                reportConnectFailure(core.lastError)
+                return()
+            }
         }
         refreshLists()
     }

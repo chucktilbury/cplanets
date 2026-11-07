@@ -28,6 +28,7 @@
  *   2026-11-07  --config server runtime file; --setup scenario only.
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
  *   2026-11-07  handshake_miss_ms / accept_poll_ms from server cfg.
+ *   2026-11-07  CLI port help default 7700 (0 still ephemeral).
  */
 
 import cli as Cli
@@ -124,10 +125,11 @@ class ServerMain {
         Cli.Option port = Cli.Option()
         port.longName = "port"
         port.name = "port"
-        port.description = "listen port (0 = ephemeral)"
+        port.description = (
+            "listen port (sample 7700; 0 = ephemeral)")
         port.valueType = Cli.ValueType().NUMBER
         port.hasDefault = true
-        port.defaultValue = "0"
+        port.defaultValue = "7700"
         commandLine.addOption(port)
         Cli.Option players = Cli.Option()
         players.longName = "players"

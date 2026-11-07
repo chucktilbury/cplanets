@@ -337,6 +337,10 @@ if(BUILD_TESTING)
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_pull.cmake")
+    add_test(NAME functional_client_connect_fail COMMAND "${CMAKE_COMMAND}"
+        "-DCLIENT=${cplanets_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_connect_fail.cmake")
     add_test(NAME functional_list_chrome COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"

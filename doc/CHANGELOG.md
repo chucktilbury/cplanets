@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Sample play port **7700** (was `0` / ephemeral lookalike) in
+  `config/server-default.cfg`, `config/human-default.cfg`, and
+  `config/ai-*.cfg`. Server still accepts `port = 0` / `--port 0`
+  for ephemeral CI binds. Human client no longer fails silently on
+  TCP connect/pull: prints `cannot connect to HOST:PORT` (or
+  `no state from …`); `--pull` exits **1**; `--gui` shows
+  `AlertDialog` + status (`--test` skips the dialog). Docs:
+  [CPLANETS.md](CPLANETS.md). CTest: `functional_client_connect_fail`.
+
 - Map pick-to-dispatch: primary map pick fills Fleets dest Entry;
   ContextMenu “Dispatch fleet here” reuses `PUT /order`; owned-rock
   “Budget this planet” fills Planets allocation chrome. Docs:

@@ -15,6 +15,8 @@ Changelog:
 - 2026-11-06  User-facing binaries must use stdlib `cli` for argv.
 - 2026-11-07  Knobs/tuning preference: textfile coverage + playable
   before balance; point at KNOB-COVERAGE / TUNING-PLAYABLE.
+- 2026-11-07  Verbosity shared pattern: 0–10 scale, clamp out of
+  range, provisional category thresholds.
 
 ## File size
 
@@ -116,12 +118,15 @@ including generated help via `-h` / `--help` (`Action.HELP` +
 test programs are exempt unless migration is trivial.
 
 Headless operator bins that emit decision / settings logs use a
-shared pattern: textfile key `verbosity = N` (default `0` quiet)
-plus CLI `--verbosity N` that overlays the file when
-`wasProvided("verbosity")`. Keep level `0` silent; higher levels
-log useful operator lines to stdout (not a GUI). Server and AI
-share the flag/key name; log payloads differ (combat vs seat /
-policy / cycle).
+shared pattern: textfile key `verbosity = N` (default `0`) plus
+CLI `--verbosity N` that overlays the file when
+`wasProvided("verbosity")`. Scale is **0–10**; out-of-range values
+**clamp** (not reject). Level `0` is errors-only for optional
+lines; higher levels open provisional categories (server:
+settings≈3, combat≈6, full≈10; AI: decisions≈3, full≈10).
+Thresholds will firm up over time — do not invent log spam under
+reserved bands. Server and AI share the flag/key name; log
+payloads differ (combat vs seat / policy / cycle).
 
 ## Knobs and “tuning”
 

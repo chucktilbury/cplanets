@@ -1,16 +1,22 @@
 /*
  * src/server/verboseLog.cw — headless server verbosity logger.
  *
- * Levels (operators): 0 quiet (default), 1 player settings /
- * policy PUT detail, 2+ combat / battle events with fleet
- * strength. Emits to stdout; also keeps a short in-memory line
- * list for unit asserts. Not a GUI.
+ * Scale is 0–10 (clamped). Out-of-range values clamp, they are not
+ * rejected. Provisional category thresholds (may firm up later):
+ *   0     errors only (optional lines silent)
+ *   1–2   reserved
+ *   3+    settings / policy PUT detail
+ *   6+    combat / battle events + engagement strengths
+ *   10    full dumps / statistics (gate only; no spam yet)
+ * Emits to stdout; also keeps a short in-memory line list for
+ * unit asserts. Not a GUI.
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
  *   2026-11-07  Initial ServerVerboseLog (settings + combat).
+ *   2026-11-07  Remap to 0–10 scale; clamp; provisional thresholds.
  */
 
 include "../lib/engagement.cw"
@@ -22,12 +28,19 @@ include "../lib/wireBytes.cw"
  *
  * level is copied from Scenario.verbosity (CLI may overlay).
  * lines stores recent emits for tests without scraping pipes.
+ * Threshold fields document the provisional ladder for growth.
  */
 class ServerVerboseLog {
     int64 level
     list lines
     int64 maxLines
     bool echo
+    # Provisional thresholds on the 0–10 scale (not permanent law).
+    int64 levelMin
+    int64 levelMax
+    int64 settingsAt
+    int64 combatAt
+    int64 fullAt
 
     /*
      * Construct a quiet logger with an empty capture buffer.
@@ -45,51 +58,91 @@ class ServerVerboseLog {
         lines = []
         maxLines = 64
         echo = true
+        levelMin = 0
+        levelMax = 10
+        settingsAt = 3
+        combatAt = 6
+        fullAt = 10
+    }
+
+    /*
+     * Clamp a raw verbosity into the legal 0–10 band.
+     *
+     * Purpose: shared guard for setLevel, Scenario, and CLI. Out
+     * of range values clamp (not reject) so operators and configs
+     * stay usable while the ladder is provisional.
+     *
+     * Parameters:
+     *   value — raw requested level.
+     *
+     * Returns: value forced into [levelMin, levelMax].
+     */
+    int64 clampLevel(int64 value) {
+        if (value < levelMin) {
+            return(levelMin)
+        }
+        if (value > levelMax) {
+            return(levelMax)
+        }
+        return(value)
     }
 
     /*
      * Set the active verbosity level.
      *
      * Purpose: apply setup key and optional CLI --verbosity.
-     * Negative values clamp to 0.
+     * Values outside 0–10 clamp into range.
      *
      * Parameters:
-     *   value — 0 quiet, 1 settings, 2+ combat detail.
+     *   value — 0–10 on the provisional ladder.
      *
      * Returns: nothing.
      */
     void setLevel(int64 value) {
-        if (value < 0) {
-            value = 0
-        }
-        level = value
+        level = clampLevel(value)
     }
 
     /*
      * True when policy / settings PUTs should be logged.
      *
      * Purpose: gate putPolicy logging without scattering level
-     * compares at call sites.
+     * compares at call sites. Provisional: settingsAt (3).
      *
      * Parameters: none.
      *
-     * Returns: true when level >= 1.
+     * Returns: true when level >= settingsAt.
      */
     bool settingsEnabled() {
-        return(level >= 1)
+        return(level >= settingsAt)
     }
 
     /*
      * True when combat / battle tick detail should be logged.
      *
-     * Purpose: gate fireOne combat logging.
+     * Purpose: gate fireOne combat logging. Provisional: combatAt
+     * (6).
      *
      * Parameters: none.
      *
-     * Returns: true when level >= 2.
+     * Returns: true when level >= combatAt.
      */
     bool combatEnabled() {
-        return(level >= 2)
+        return(level >= combatAt)
+    }
+
+    /*
+     * True when full dumps / statistics should be logged.
+     *
+     * Purpose: reserve the top of the ladder for future decision
+     * dumps and statistics without inventing spam yet. No call
+     * sites emit under this gate today.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when level >= fullAt (10).
+     */
+    bool fullEnabled() {
+        return(level >= fullAt)
     }
 
     /*
@@ -141,7 +194,7 @@ class ServerVerboseLog {
     }
 
     /*
-     * Log a player settings / policy PUT at level >= 1.
+     * Log a player settings / policy PUT at settingsAt+.
      *
      * Purpose: operators see who changed standing policy and the
      * decoded v1 fields when the blob matches the shared layout.
@@ -229,7 +282,7 @@ class ServerVerboseLog {
     /*
      * Log combat tick events and open engagement strengths.
      *
-     * Purpose: level >= 2 detail for battles — event kinds plus
+     * Purpose: combatAt+ detail for battles — event kinds plus
      * attacker/defender strength left on still-open fights. Quiet
      * when no combat-shaped events and no open engagements.
      *

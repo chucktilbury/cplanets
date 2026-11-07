@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial AiConfig axes + clamp helpers.
  *   2026-11-07  verbosity (0 quiet / 1+ seat, policy, cycle).
+ *   2026-11-07  Verbosity 0–10 scale; clamp in clampAll.
  */
 
 /*
@@ -33,8 +34,9 @@ class AiConfig {
     int64 playerId
     String host
     int64 port
-    # Stdout decision log level. CLI --verbosity may overlay after
-    # load. 0 quiet (default); 1+ seat / policy PUT / cycle actions.
+    # Stdout decision log level. Scale 0–10 (clamped). CLI
+    # --verbosity may overlay after load. Provisional: 0 errors
+    # only; 3+ seat / policy / cycle; 10 full dumps (AiVerboseLog).
     int64 verbosity
 
     /*
@@ -99,6 +101,8 @@ class AiConfig {
         }
         if (verbosity < 0) {
             verbosity = 0
+        } else (verbosity > 10) {
+            verbosity = 10
         }
     }
 

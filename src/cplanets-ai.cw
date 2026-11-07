@@ -19,6 +19,7 @@
  *   2026-11-06  Fail loud on unknown AI config keys (TUNING A).
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  *   2026-11-07  --verbosity N (overlay AI config verbosity key).
+ *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
  */
 
 import cli as Cli
@@ -132,7 +133,7 @@ class AiMain {
         verbosity.longName = "verbosity"
         verbosity.name = "verbosity"
         verbosity.description = (
-            "stdout log level (0 quiet, 1+ seat/policy/cycle)")
+            "stdout log level 0-10 (0 errors, 3+ decisions, 10 full; clamped)")
         verbosity.valueType = Cli.ValueType().NUMBER
         verbosity.hasDefault = true
         verbosity.defaultValue = "0"
@@ -216,11 +217,7 @@ class AiMain {
         }
         # CLI --verbosity overlays the AI config key when given.
         if (commandLine.wasProvided("verbosity")) {
-            int64 level = commandLine.value("verbosity").toInt64()
-            if (level < 0) {
-                level = 0
-            }
-            cfg.verbosity = level
+            cfg.verbosity = commandLine.value("verbosity").toInt64()
         }
         cfg.clampAll()
         return(cfg)

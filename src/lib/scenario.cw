@@ -13,6 +13,7 @@
  *   2026-11-05  Initial §14 knob surface + closed defaults.
  *   2026-11-05  Phase H: applyAiLagAutoConfig helper.
  *   2026-11-07  Server verbosity (0 quiet / 1 settings / 2+ combat).
+ *   2026-11-07  Verbosity 0–10 scale; clampVerbosity (clamp, not reject).
  */
 
 /*
@@ -79,7 +80,9 @@ class Scenario {
     fp64 startExperience
 
     # Headless server stdout logging (operators / debug). Not a
-    # balance magnitude. CLI --verbosity may overlay after load.
+    # balance magnitude. Scale 0–10 (clamped). CLI --verbosity may
+    # overlay after load. Provisional: 0 errors only, 3+ settings,
+    # 6+ combat, 10 full dumps (see ServerVerboseLog).
     int64 verbosity
 
     /*
@@ -171,6 +174,25 @@ class Scenario {
             tickPeriodSeconds = 30
         }
         return(tickPeriodSeconds)
+    }
+
+    /*
+     * Clamp verbosity into the legal 0–10 band.
+     *
+     * Purpose: harden after text load or CLI overlay. Out-of-range
+     * values clamp (not reject) while the ladder is provisional.
+     *
+     * Parameters: none (mutates this scenario).
+     *
+     * Returns: the clamped verbosity value.
+     */
+    int64 clampVerbosity() {
+        if (verbosity < 0) {
+            verbosity = 0
+        } else (verbosity > 10) {
+            verbosity = 10
+        }
+        return(verbosity)
     }
 
     /*

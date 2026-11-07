@@ -1,15 +1,17 @@
 /*
  * tests/unit/unit_aiVerbose.cw — AI verbosity logger + config key.
  *
- * Checks AI config verbosity parse, quiet default, policy / seat /
- * cycle emits at level 1, and AiClient.setVerbosity overlay.
- * Capture list is asserted; stdout echo is off.
+ * Checks AI config verbosity parse, 0–10 clamp, quiet default,
+ * policy / seat / cycle emits at provisional decisionsAt (3), and
+ * AiClient.setVerbosity overlay. Capture list is asserted; stdout
+ * echo is off.
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
  *   2026-11-07  Initial AI verbosity unit program.
+ *   2026-11-07  Remap asserts to 0–10 provisional thresholds + clamp.
  */
 
 include "ai/client.cw"
@@ -23,8 +25,18 @@ start {
 
     # --- config key ---
     AiConfigParse parser = AiConfigParse()
-    AiConfig loaded = parser.parseText("verbosity = 1\n")
-    if (not parser.ok or loaded.verbosity != 1) {
+    AiConfig loaded = parser.parseText("verbosity = 3\n")
+    if (not parser.ok or loaded.verbosity != 3) {
+        ok = false
+    }
+
+    # --- clamp out of range ---
+    AiConfig high = parser.parseText("verbosity = 99\n")
+    if (not parser.ok or high.verbosity != 10) {
+        ok = false
+    }
+    AiConfig low = parser.parseText("verbosity = -3\n")
+    if (not parser.ok or low.verbosity != 0) {
         ok = false
     }
 
@@ -51,10 +63,20 @@ start {
         ok = false
     }
 
-    # --- level 1: policy / seat / cycle ---
+    # --- below decisionsAt: still quiet ---
+    AiVerboseLog midLow = AiVerboseLog()
+    midLow.echo = false
+    midLow.setLevel(2)
+    midLow.logPolicy(0, shape, "once")
+    midLow.logSeat(0, true)
+    if (midLow.lines.length != 0) {
+        ok = false
+    }
+
+    # --- level decisionsAt (3): policy / seat / cycle ---
     AiVerboseLog decisions = AiVerboseLog()
     decisions.echo = false
-    decisions.setLevel(1)
+    decisions.setLevel(3)
     decisions.logPolicy(2, shape, "put")
     if (not decisions.linesContain("verbosity: policy player=2")) {
         ok = false
@@ -81,16 +103,26 @@ start {
         ok = false
     }
 
+    # --- setLevel clamps + full gate ---
+    decisions.setLevel(42)
+    if (decisions.level != 10 or not decisions.fullEnabled()) {
+        ok = false
+    }
+    decisions.setLevel(-1)
+    if (decisions.level != 0) {
+        ok = false
+    }
+
     # --- AiClient copies config verbosity + setVerbosity ---
     AiConfig cfg = AiConfig()
-    cfg.verbosity = 1
+    cfg.verbosity = 3
     cfg.surpriseRate = 0.0
     cfg.reactionLagTicks = 1
     cfg.reactionLagSeconds = 0.0
     cfg.clampAll()
     AiClient client = AiClient(cfg)
     client.verbose.echo = false
-    if (client.verbose.level != 1) {
+    if (client.verbose.level != 3) {
         ok = false
     }
     AiView view = AiView(cfg.playerId)
@@ -114,6 +146,10 @@ start {
         ok = false
     }
     if (client.verbose.lines.length != 0) {
+        ok = false
+    }
+    client.setVerbosity(99)
+    if (client.config.verbosity != 10 or client.verbose.level != 10) {
         ok = false
     }
 

@@ -2,10 +2,19 @@
 
 ## Unreleased
 
+- Align server + AI verbosity to a shared **0–10** scale (preference):
+  `0` errors only, `10` full dumps / statistics. Out-of-range values
+  **clamp** into `0..10` (not rejected). Existing message categories
+  stay; provisional thresholds: server settings≈3 / combat≈6 /
+  full≈10; AI decisions≈3 / full≈10. Intermediate bands reserved for
+  growth (no new log spam yet). Docs: [CPLANETS.md](CPLANETS.md),
+  [CODING.md](CODING.md), [KNOB-COVERAGE.md](KNOB-COVERAGE.md).
+  CTest: `unit_serverVerbose`, `unit_aiVerbose`,
+  `functional_server_verbose`, `functional_ai_verbose`.
+
 - AI client verbosity logging (headless stdout): AI config key
-  `verbosity` and CLI `--verbosity N` (0 quiet, 1+ seat /
-  handshake, policy PUT shape, cycle put|skip|fail). CLI overlays
-  the config key when provided. Docs: [CPLANETS.md](CPLANETS.md),
+  `verbosity` and CLI `--verbosity N`. CLI overlays the config key
+  when provided. Docs: [CPLANETS.md](CPLANETS.md),
   [KNOB-COVERAGE.md](KNOB-COVERAGE.md), [CODING.md](CODING.md).
   CTest: `unit_aiVerbose`, `functional_ai_verbose`
   (extends `unit_aiConfig`).
@@ -20,8 +29,7 @@
   `functional_design_yard`.
 
 - Server verbosity logging (headless stdout): setup key `verbosity`
-  and CLI `--verbosity N` (0 quiet, 1 settings / policy PUT, 2+
-  combat with fleet strength). Hooks `PUT /policy` and combat tick
+  and CLI `--verbosity N`. Hooks `PUT /policy` and combat tick
   events. Docs: [CPLANETS.md](CPLANETS.md),
   [KNOB-COVERAGE.md](KNOB-COVERAGE.md). CTest: `unit_serverVerbose`,
   `functional_server_verbose`.

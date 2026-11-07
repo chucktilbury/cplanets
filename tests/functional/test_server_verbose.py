@@ -87,10 +87,10 @@ def v1_policy_blob() -> bytes:
 
 
 def test_cli_verbosity(server: Path) -> int:
-    proc, port, preamble = spawn(server, ["--verbosity", "1"])
+    proc, port, preamble = spawn(server, ["--verbosity", "3"])
     try:
-        if "VERBOSITY=1" not in preamble:
-            print(f"missing VERBOSITY=1 in {preamble!r}")
+        if "VERBOSITY=3" not in preamble:
+            print(f"missing VERBOSITY=3 in {preamble!r}")
             return 1
         resp = exchange("127.0.0.1", port, put_policy(0, v1_policy_blob()))
         _, verb, path, body = decode_envelope(resp)
@@ -131,7 +131,7 @@ def test_setup_verbosity(server: Path) -> int:
                     "tick_period_seconds = 5",
                     "tick_auto_config_from_ai_lag = false",
                     "world_count = 8",
-                    "verbosity = 2",
+                    "verbosity = 6",
                     "",
                 ]
             ),
@@ -141,7 +141,7 @@ def test_setup_verbosity(server: Path) -> int:
             server, ["--setup", str(setup)]
         )
         try:
-            if "VERBOSITY=2" not in preamble:
+            if "VERBOSITY=6" not in preamble:
                 print(f"setup verbosity not applied: {preamble!r}")
                 return 1
             # CLI overlay wins when provided.
@@ -158,6 +158,21 @@ def test_setup_verbosity(server: Path) -> int:
         try:
             if "VERBOSITY=0" not in preamble:
                 print(f"CLI overlay failed: {preamble!r}")
+                return 1
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
+        # Out-of-range CLI clamps into 0..10.
+        proc, port, preamble = spawn(
+            server, ["--verbosity", "99"]
+        )
+        try:
+            if "VERBOSITY=10" not in preamble:
+                print(f"CLI clamp failed: {preamble!r}")
                 return 1
         finally:
             proc.terminate()

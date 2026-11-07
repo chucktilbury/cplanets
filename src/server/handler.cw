@@ -17,6 +17,7 @@
  *   2026-11-06  TUNING B: PUT /order, PUT /recall; pause in state.
  *   2026-11-07  Ship create: PUT /design, /build, /reclaim-hulls.
  *   2026-11-07  Planet budget + private/broadcast compose.
+ *   2026-11-07  PUT /order optional trailing hulls peel count.
  */
 
 include "driver.cw"
@@ -267,14 +268,16 @@ class ServerHandler {
     }
 
     /*
-     * Serve PUT /order body (player, fleet, dest, order string).
+     * Serve PUT /order body (player, fleet, dest, order [, hulls]).
      *
      * Purpose: list-client dispatch for explore/take/trade/…
      * (TUNING-PLAYABLE B2). Ownership checked in the driver.
+     * Optional trailing hulls peels a subset from a sitting stack
+     * (0 or omitted = whole fleet).
      *
      * Parameters:
      *   body — playerId u32, fleetId u32, destPlanetId u32,
-     *          order string.
+     *          order string, optional hulls u32.
      *
      * Returns: ack envelope on /order.
      */
@@ -285,11 +288,15 @@ class ServerHandler {
         int64 fleet = r.readU32()
         int64 dest = r.readU32()
         String order = r.readString()
+        int64 hulls = 0
+        if (r.ok() and r.offset < body.length) {
+            hulls = r.readU32()
+        }
         if (not r.ok() or r.offset != body.length) {
             return(errorFrame("bad_order"))
         }
         bool ok = driver.issueOwnedOrder(
-            player, fleet, order, dest)
+            player, fleet, order, dest, hulls)
         return(flagAck("/order", ok))
     }
 

@@ -58,14 +58,14 @@ start {
     game.startClosed(23u, 1)
     GameDriver drv = GameDriver(
         game, true, "", false, 10000u)
-    if (ok and not drv.issueOwnedOrder(0, 1, "explore", 1)) {
+    if (ok and not drv.issueOwnedOrder(0, 1, "explore", 1, 0)) {
         ok = false
     }
     Fleet pending = drv.game.findFleet(1)
     if (ok and not pending.pendingDeparture) {
         ok = false
     }
-    if (ok and drv.issueOwnedOrder(0, 1, "take", 1)) {
+    if (ok and drv.issueOwnedOrder(0, 1, "take", 1, 0)) {
         # mid-dispatch lock must refuse rewrite
         ok = false
     }
@@ -77,7 +77,7 @@ start {
         ok = false
     }
     # Wrong owner rejected.
-    if (ok and drv.issueOwnedOrder(9, 1, "explore", 1)) {
+    if (ok and drv.issueOwnedOrder(9, 1, "explore", 1, 0)) {
         ok = false
     }
 

@@ -190,7 +190,10 @@ the dialog so auto-quit stays quiet).
 CheckButton (sensitive only with exactly one human; `PUT /pause`).
 Fleets tab Entries + Dispatch / Recall (`PUT /order`, `PUT /recall`)
 for explore / take / trade / move / ambush / recall — in-flight
-fleets show `LOCKED` and Dispatch is disabled until Recall. **Ships
+fleets show `LOCKED` and Dispatch is disabled until Recall.
+**Hulls to send** (`0` = whole sitting stack) peels a subset when
+yard builds have merged same-design hulls into one sit fleet, so
+you can send 2 of 4 to planet 1 and the rest elsewhere. **Ships
 tab** (design / yard): inspect the published design catalog and
 owned yards; **Start develop** (`PUT /design`) queues timed design
 development (wealth; `design_develop_ticks`); **Queue build**

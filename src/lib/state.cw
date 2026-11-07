@@ -22,6 +22,8 @@
  *   2026-11-05  Phase D5: contact/end + sandbox partition homes.
  *   2026-11-06  startFromScenario for path-loaded setup (TUNING A).
  *   2026-11-07  Build/design costs + default templates from Scenario.
+ *   2026-11-07  peelSittingHulls + issueOrderHulls for split
+ *               dispatch of a multi-hull sitting stack.
  */
 
 include "agreement.cw"
@@ -368,6 +370,57 @@ class State {
     }
 
     /*
+     * Peel hulls from a sitting stack into a new sitting fleet.
+     *
+     * Purpose: yard builds merge same-design hulls into one sit
+     * fleet; dispatch subsets (e.g. 2 of 4 to planet 1) need a
+     * peel before issueTravel so the remainder stays parked.
+     * hulls <= 0 or hulls >= stack count leaves the original
+     * fleet and returns its id (whole-stack dispatch).
+     *
+     * Parameters:
+     *   fleetId — sitting unlocked fleet to peel from.
+     *   hulls — hulls for the departing subset (0 = all).
+     *
+     * Returns: fleet id to order (new or original), or -1 when
+     * the peel is refused (missing / locked / not sitting /
+     * hulls out of range above the stack).
+     */
+    int64 peelSittingHulls(int64 fleetId, int64 hulls) {
+        Fleet fleet = findFleet(fleetId)
+        if (fleet.id < 0) {
+            return(-1)
+        }
+        if (not fleet.sitting
+            or fleet.pendingDeparture
+            or fleet.departed
+            or fleet.stranded
+            or fleet.engagementId >= 0) {
+            return(-1)
+        }
+        if (fleet.hullCount < 1) {
+            return(-1)
+        }
+        if (hulls <= 0 or hulls >= fleet.hullCount) {
+            if (hulls > fleet.hullCount) {
+                return(-1)
+            }
+            return(fleet.id)
+        }
+        Fleet born = Fleet(
+            nextFleetId,
+            fleet.ownerId,
+            fleet.locationPlanetId,
+            fleet.designId,
+            hulls)
+        nextFleetId = nextFleetId + 1
+        fleet.hullCount = fleet.hullCount - hulls
+        storeFleet(fleet)
+        fleets.append(born)
+        return(born.id)
+    }
+
+    /*
      * Issue a move/sit travel order for a sitting fleet.
      *
      * Purpose: policy entry for sit/move and explore-style hops
@@ -417,6 +470,32 @@ class State {
             storeFleet(fleet)
         }
         return(ok)
+    }
+
+    /*
+     * Peel optional hulls then issue a travel order.
+     *
+     * Purpose: one call for split-dispatch from a multi-hull sit
+     * stack (Fleets hulls Entry / PUT /order trailing count).
+     *
+     * Parameters:
+     *   fleetId — sitting stack to order or peel-from.
+     *   order — "move", "explore", "take", or "ambush".
+     *   destPlanetId — destination rock.
+     *   hulls — subset size; 0 means the whole stack.
+     *
+     * Returns: true when peel (if any) and issueOrder succeeded.
+     */
+    bool issueOrderHulls(
+        int64 fleetId,
+        String order,
+        int64 destPlanetId,
+        int64 hulls) {
+        int64 orderId = peelSittingHulls(fleetId, hulls)
+        if (orderId < 0) {
+            return(false)
+        }
+        return(issueOrder(orderId, order, destPlanetId))
     }
 
     /*

@@ -133,8 +133,9 @@ addition to mouse pan/zoom.
 Map panel pick/pan/zoom/scrollbars; primary pick fills Fleets dest
 Entry; ContextMenu status + zoom-to-known + “Dispatch fleet here” /
 “Budget this planet”; dotted hop paths when `outboundEta` published.
-Dispatch still uses Fleets fleet-id/order Entries + `PUT /order` (no
-second order surface).
+Dispatch still uses Fleets fleet-id/order/dest/**hulls** Entries +
+`PUT /order` (no second order surface). Hulls peels a subset from a
+sitting multi-hull stack so remaining hulls can go elsewhere.
 
 ---
 
@@ -186,7 +187,7 @@ still **Intended playable**.
 
 | Surface | When | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists** — list Entries → `PUT /order`; map pick sets dest; ContextMenu dispatch reuses same chrome |
+| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists** — list Entries (fleet / order / dest / **hulls**, `0`=all) → `PUT /order` peels subset from sitting stack; map pick sets dest; ContextMenu dispatch reuses same chrome |
 | **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; list shows `LOCKED` + Dispatch disabled (**TUNING B**) |
 | **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Recall → `PUT /recall` |
 | **Fleet list** | Always | Read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list |
@@ -311,7 +312,8 @@ v1. File/scenario edit remains the v1 path.
 - TCP pull of seat-scoped publish flags (no second fog)
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
 - Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
-  with in-flight lock labels (**B**); map pick-to-dispatch
+  with in-flight lock labels (**B**); hulls peel for split-
+  dispatch of sitting stacks; map pick-to-dispatch
 - Design/build/reclaim progress label from chrome trailer (**B**)
 - Ships tab design develop / yard build / reclaim + design catalog
   (`PUT /design`, `/build`, `/reclaim-hulls`)

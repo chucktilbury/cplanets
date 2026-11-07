@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-05  Initial AppCore.
  *   2026-11-06  TUNING B: pause / order / recall remote helpers.
+ *   2026-11-06  pullRemote fails when GET /state returns tick -1.
  */
 
 include "config.cw"
@@ -92,10 +93,14 @@ class AppCore {
         if (not session.dial()) {
             return(false)
         }
+        session.close()
+        # Each verb redials inside exchange (one-shot TCP).
         session.handshake()
         ClientStateView next = session.pullState()
+        if (next.tick < 0) {
+            return(false)
+        }
         session.pullDigest(next)
-        session.close()
         view = next
         draft = view.policy
         return(true)

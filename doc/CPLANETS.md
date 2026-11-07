@@ -174,6 +174,14 @@ usage. No advance-N CLI yet; lib tick coverage lives in
 
 Three terminals (or background jobs): server, human, AI.
 
+**`--serve` is required** for play. Without it, `cplanets-server`
+prints smoke identity and exits — no TCP, no ticks.
+
+The server uses **one request per TCP connection** (closes after each
+reply). Clients redial per verb; wall-clock cadence advances even with
+zero clients attached (no seat barrier). `--injectable` freezes wall
+ticks until `PUT /admin/advance` (CI only).
+
 ```sh
 # 0) Build (project shell; SDK via scripts/setup)
 ./scripts/setup
@@ -192,10 +200,20 @@ bin/cplanets-ai --config config/ai-mid.cfg \
   --host 127.0.0.1 --port 7700 --serve-loop --cycles 20
 ```
 
+**Solo human (no AI):** use `--players 1` so pause is offered, or keep
+`--players 2` and leave seat 1 idle (last policy / empty). Wall ticks
+still run. Prefer `scripts/tuning-session` (server + AI) for the
+documented tuning loop.
+
 Without a display, use `--pull` / `--once` on the human binary and
 `--once` or `--serve-loop` on the AI. For automated harnesses, add
 `--injectable` on the server so tests can advance ticks without
 waiting on wall time.
+
+**Ship create / design / yard build:** not in the list client yet —
+Fleets has dispatch/recall of **existing** fleets plus a design/build
+**progress** label. First moves are policy Apply and fleet Dispatch
+(explore / take / …), not a “create ship” dialog.
 
 ### Tuning session harness (workstream C)
 

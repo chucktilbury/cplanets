@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial AiClient request helpers.
+ *   2026-11-06  One-shot TCP: redial per exchange (server closes).
  */
 
 import networking as Networking
@@ -95,8 +96,9 @@ class AiClient {
     /*
      * Send one framed request and read one response envelope.
      *
-     * Purpose: share the request/response burst used by listen
-     * (one complete envelope per recv on localhost).
+     * Purpose: match ServerListen — one envelope per TCP
+     * connection; the server closes after the reply, so each
+     * verb must dial fresh (same contract as HumanSession).
      *
      * Parameters:
      *   request — full envelope bytes.
@@ -104,14 +106,25 @@ class AiClient {
      * Returns: response buffer, or empty on failure.
      */
     buffer exchange(buffer request) {
-        if (not connected) {
+        # Socket.close() drops the fd to -1; construct a new Socket
+        # so connect() gets a fresh OS handle each verb.
+        sock.close()
+        sock = Networking.Socket()
+        connected = false
+        if (not sock.connect(config.host, config.port)) {
             return(buffer[])
         }
+        connected = true
         int64 sent = sock.send(request)
         if (sent < 1) {
+            sock.close()
+            connected = false
             return(buffer[])
         }
-        return(sock.recv(65536))
+        buffer resp = sock.recv(65536)
+        sock.close()
+        connected = false
+        return(resp)
     }
 
     /*

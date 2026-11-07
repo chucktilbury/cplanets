@@ -12,6 +12,7 @@
  *   2026-11-05  Initial setup-load unit program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-06  Unknown keys fail loud (TUNING A2).
+ *   2026-11-07  Assert verbosity setup key.
  */
 
 include "lib/setupParse.cw"
@@ -26,11 +27,15 @@ start {
     text.append("tech_teleport_threshold = 9.5\n")
     text.append("productive_inherent_defense = 1.5\n")
     text.append("livability_display_max = 10\n")
+    text.append("verbosity = 2\n")
     text.append("tick_period_seconds = 40\n")
     SetupParse parser = SetupParse()
     Scenario s = parser.parseText(text)
     bool ok = true
     if (not parser.ok) {
+        ok = false
+    }
+    if (s.verbosity != 2) {
         ok = false
     }
     if (not s.isClosed()) {

@@ -259,6 +259,7 @@ if(BUILD_TESTING)
         unit_serverClock
         unit_serverPresence
         unit_serverPolicy
+        unit_serverVerbose
         unit_aiConfig
         unit_aiTickSuggest
         unit_aiReaction
@@ -295,6 +296,10 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_smoke.cmake")
+    add_test(NAME functional_server_verbose COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_verbose.cmake")
     add_test(NAME functional_setup_path COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"

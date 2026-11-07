@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-05  Initial key=value setup loader.
  *   2026-11-06  Fail loud on unknown keys (TUNING A2).
+ *   2026-11-07  verbosity setup key (server stdout logging).
  */
 
 include "scenario.cw"
@@ -215,6 +216,8 @@ class SetupParse {
             scenario.startPower = val.toFp64()
         } else (key.equals("start_experience")) {
             scenario.startExperience = val.toFp64()
+        } else (key.equals("verbosity")) {
+            scenario.verbosity = val.toInt64()
         } else {
             if (ok) {
                 ok = false

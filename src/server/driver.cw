@@ -15,6 +15,7 @@
  *   2026-11-05  Phase H: apply AI-lag tick auto-config at start.
  *   2026-11-06  TUNING B: owned fleet issueOrder / recallFleet
  *               + pause flag in publish.
+ *   2026-11-07  Server verbosity: policy PUT + combat tick logs.
  */
 
 include "clock.cw"
@@ -23,6 +24,7 @@ include "policyTable.cw"
 include "presence.cw"
 include "publish.cw"
 include "snapshotStore.cw"
+include "verboseLog.cw"
 
 /*
  * GameDriver is the server-side sole writer for one live game.
@@ -45,6 +47,7 @@ class GameDriver {
     bool paused
     bool storeEnabled
     int64 fireCount
+    ServerVerboseLog verbose
 
     /*
      * Construct a driver around a started State.
@@ -92,6 +95,8 @@ class GameDriver {
         lastSnapshot = []
         paused = false
         fireCount = 0
+        verbose = ServerVerboseLog()
+        verbose.setLevel(game.scenario.verbosity)
         publishedState = publisher.encodeState(
             game, policies, paused)
         publishedDigest = publisher.encodeDigest(
@@ -99,10 +104,27 @@ class GameDriver {
     }
 
     /*
+     * Overlay the active verbosity level (CLI / tests).
+     *
+     * Purpose: --verbosity after setup load, or unit programs that
+     * enable logging without rewriting Scenario text.
+     *
+     * Parameters:
+     *   value — 0 quiet, 1 settings, 2+ combat.
+     *
+     * Returns: nothing.
+     */
+    void setVerbosity(int64 value) {
+        game.scenario.verbosity = value
+        verbose.setLevel(value)
+    }
+
+    /*
      * Accept a policy PUT for a seat.
      *
      * Purpose: anytime write; applies on next tick snapshot. Does
-     * not advance the clock or tick.
+     * not advance the clock or tick. At verbosity >= 1, logs the
+     * settings change to stdout.
      *
      * Parameters:
      *   playerId — empire id.
@@ -114,7 +136,11 @@ class GameDriver {
         if (game.ended) {
             return(false)
         }
-        return(policies.put(playerId, blob))
+        bool ok = policies.put(playerId, blob)
+        if (ok) {
+            verbose.logPolicyPut(playerId, blob)
+        }
+        return(ok)
     }
 
     /*
@@ -385,6 +411,8 @@ class GameDriver {
         # tick() still advances fleets/orders already on State.
         lastSnapshot = policies.snapshot()
         lastEvents = game.tick()
+        verbose.logCombatTick(
+            game.tickCount, lastEvents, game.engagements)
         publishedState = publisher.encodeState(
             game, policies, paused)
         publishedDigest = publisher.encodeDigest(

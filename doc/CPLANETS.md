@@ -88,7 +88,7 @@ Paths below assume you are at the project root after a successful
 
 ```text
 bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
-  [--setup PATH] [--injectable] [--cycles N]
+  [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
 ```
 
 | Flag | Default | Meaning |
@@ -99,12 +99,19 @@ bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
 | `--players N` | `2` | Seat count for the closed start galaxy |
 | `--seed N` | `7` | PRNG seed for the start galaxy |
 | `--setup PATH` | (builtin closed defaults) | Load §14 knobs from a scenario file |
+| `--verbosity N` | setup key or `0` | Stdout log level; overlays setup when given |
 | `--injectable` | off | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | Cap accept/serve loop iterations |
 
+**Verbosity** (headless stdout, not a GUI): `0` quiet (default),
+`1` player settings / `PUT /policy` detail, `2+` combat / battle
+events with comparative fleet strength (`atk_milli` /
+`def_milli`). Same key in the scenario file: `verbosity = N`.
+CLI `--verbosity` overlays the setup value when provided.
+
 On start it prints `PORT=<n>`, `SETUP=<path|builtin>`, `SEED=<n>`,
-and `INJECTABLE=0|1`. Use that port for clients. Pass
-`scenarios/closed-default.setup` (or a copy you edited) via
+`VERBOSITY=<n>`, and `INJECTABLE=0|1`. Use that port for clients.
+Pass `scenarios/closed-default.setup` (or a copy you edited) via
 `--setup` so combat / economy / travel / identify magnitudes come
 from the file. Unknown keys fail loud and the process exits before
 listen. **Knob edits take effect on process restart** — there is no

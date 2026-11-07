@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-05  Initial §14 knob surface + closed defaults.
  *   2026-11-05  Phase H: applyAiLagAutoConfig helper.
+ *   2026-11-07  Server verbosity (0 quiet / 1 settings / 2+ combat).
  */
 
 /*
@@ -76,6 +77,10 @@ class Scenario {
     fp64 startTech
     fp64 startPower
     fp64 startExperience
+
+    # Headless server stdout logging (operators / debug). Not a
+    # balance magnitude. CLI --verbosity may overlay after load.
+    int64 verbosity
 
     /*
      * Construct the closed-scenario default fixture.
@@ -145,6 +150,8 @@ class Scenario {
         startTech = 1.0
         startPower = 1.0
         startExperience = 0.0
+
+        verbosity = 0
     }
 
     /*

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Server verbosity logging (headless stdout): setup key `verbosity`
+  and CLI `--verbosity N` (0 quiet, 1 settings / policy PUT, 2+
+  combat with fleet strength). Hooks `PUT /policy` and combat tick
+  events. Docs: [CPLANETS.md](CPLANETS.md),
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md). CTest: `unit_serverVerbose`,
+  `functional_server_verbose`.
+
 - Docs: reframe [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) — A–C harness
   is plumbing, not balance-complete; next priority is playable chrome
   + full textfile knobs, then balance. New inventory

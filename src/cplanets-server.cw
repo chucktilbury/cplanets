@@ -3,11 +3,13 @@
  *
  * Default (no args): print program name + lib identity (smoke).
  * --serve [--port N] [--players N] [--seed N] [--setup PATH]
- * [--injectable] [--cycles N]: bind TCP, load scenario from path
- * or closed builtins, run accept + cadence loop (sole writer).
- * Stand-alone and online share this driver (RULES §2 / PLAN §4.F).
- * Knob edits take effect on process restart (no mid-game retune).
- * User-facing argv uses stdlib `cli` (including --help / -h).
+ * [--verbosity N] [--injectable] [--cycles N]: bind TCP, load
+ * scenario from path or closed builtins, run accept + cadence
+ * loop (sole writer). Verbosity 0 quiet / 1 settings / 2+ combat
+ * (stdout). Stand-alone and online share this driver (RULES §2 /
+ * PLAN §4.F). Knob edits take effect on process restart (no
+ * mid-game retune). User-facing argv uses stdlib `cli`
+ * (including --help / -h).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -18,6 +20,7 @@
  *   2026-11-05  Phase F: TCP serve + injectable driver entry.
  *   2026-11-06  --setup PATH + --seed; fail loud on bad setup.
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
+ *   2026-11-07  --verbosity N (overlay setup verbosity key).
  */
 
 import cli as Cli
@@ -139,6 +142,15 @@ class ServerMain {
         cycles.hasDefault = true
         cycles.defaultValue = "0"
         commandLine.addOption(cycles)
+        Cli.Option verbosity = Cli.Option()
+        verbosity.longName = "verbosity"
+        verbosity.name = "verbosity"
+        verbosity.description = (
+            "stdout log level (0 quiet, 1 settings, 2+ combat)")
+        verbosity.valueType = Cli.ValueType().NUMBER
+        verbosity.hasDefault = true
+        verbosity.defaultValue = "0"
+        commandLine.addOption(verbosity)
         return(commandLine)
     }
 
@@ -180,8 +192,9 @@ class ServerMain {
      *
      * Purpose: Phase F driver under --serve. Optional --setup
      * PATH loads §14 knobs from a fixture file (restart to
-     * retune). Prints PORT= / SETUP= / SEED= for operators and
-     * Python functional tests.
+     * retune). Optional --verbosity overlays the setup key when
+     * provided. Prints PORT= / SETUP= / SEED= / VERBOSITY= for
+     * operators and Python functional tests.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine with serve options.
@@ -222,6 +235,14 @@ class ServerMain {
         } else {
             game.startClosed(seed, players)
         }
+        # CLI --verbosity overlays setup when the flag was given.
+        if (commandLine.wasProvided("verbosity")) {
+            int64 level = commandLine.value("verbosity").toInt64()
+            if (level < 0) {
+                level = 0
+            }
+            game.scenario.verbosity = level
+        }
 
         GameDriver driver = GameDriver(
             game,
@@ -241,6 +262,8 @@ class ServerMain {
         print(format("PORT={}\n", listener.getPort()))
         print(format("SETUP={}\n", setupLabel))
         print(format("SEED={}\n", seedRaw))
+        print(format(
+            "VERBOSITY={}\n", game.scenario.verbosity))
         if (injectable) {
             print("INJECTABLE=1\n")
         } else {

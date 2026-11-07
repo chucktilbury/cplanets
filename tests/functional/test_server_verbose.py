@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI + setup verbosity; settings PUT emits when verbose."""
+"""CLI + server-config verbosity; settings PUT emits when verbose."""
 
 from __future__ import annotations
 
@@ -121,30 +121,53 @@ def test_cli_verbosity(server: Path) -> int:
     return 0
 
 
-def test_setup_verbosity(server: Path) -> int:
+def test_config_verbosity(server: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
-        setup = Path(tmp) / "verbose.setup"
-        setup.write_text(
+        cfg = Path(tmp) / "verbose.cfg"
+        cfg.write_text(
             "\n".join(
                 [
-                    "scenario_mode = closed",
-                    "tick_period_seconds = 5",
-                    "tick_auto_config_from_ai_lag = false",
-                    "world_count = 8",
+                    "serve = true",
+                    "host = 127.0.0.1",
+                    "port = 0",
+                    "players = 2",
+                    "cycles = 200",
+                    "injectable = true",
                     "verbosity = 6",
                     "",
                 ]
             ),
             encoding="utf-8",
         )
-        proc, port, preamble = spawn(
-            server, ["--setup", str(setup)]
+        # File verbosity alone (spawn still passes --serve etc.;
+        # --verbosity omitted so config key wins).
+        env = os.environ.copy()
+        cmd = [str(server), "--config", str(cfg)]
+        if Path("/usr/bin/stdbuf").is_file():
+            cmd = ["/usr/bin/stdbuf", "-oL", "-eL", *cmd]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            bufsize=1,
         )
+        assert proc.stdout is not None
+        preamble: list[str] = []
+        deadline = time.time() + 5.0
+        while time.time() < deadline:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            stripped = line.strip()
+            preamble.append(stripped)
+            if stripped.startswith("VERBOSITY="):
+                break
         try:
             if "VERBOSITY=6" not in preamble:
-                print(f"setup verbosity not applied: {preamble!r}")
+                print(f"config verbosity not applied: {preamble!r}")
                 return 1
-            # CLI overlay wins when provided.
         finally:
             proc.terminate()
             try:
@@ -152,8 +175,8 @@ def test_setup_verbosity(server: Path) -> int:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
-        proc, port, preamble = spawn(
-            server, ["--setup", str(setup), "--verbosity", "0"]
+        proc, _port, preamble = spawn(
+            server, ["--config", str(cfg), "--verbosity", "0"]
         )
         try:
             if "VERBOSITY=0" not in preamble:
@@ -167,7 +190,7 @@ def test_setup_verbosity(server: Path) -> int:
                 proc.kill()
 
         # Out-of-range CLI clamps into 0..10.
-        proc, port, preamble = spawn(
+        proc, _port, preamble = spawn(
             server, ["--verbosity", "99"]
         )
         try:
@@ -195,7 +218,7 @@ def main() -> int:
     rc = test_cli_verbosity(server_path)
     if rc != 0:
         return rc
-    rc = test_setup_verbosity(server_path)
+    rc = test_config_verbosity(server_path)
     if rc != 0:
         return rc
 

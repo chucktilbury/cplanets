@@ -2,11 +2,21 @@
 
 ## Unreleased
 
+- Server runtime config file (preference): process/network knobs
+  move out of scenario setup into `config/server-default.cfg`
+  (`setup`, `host`/`address`, `port`, `players`, `seed`, `serve`,
+  `cycles`, `injectable`, `verbosity`). CLI `--config PATH` is the
+  only path without an in-file key; `--setup` overlays the config
+  `setup` key. Default bind `127.0.0.1` (was hard-coded); banner
+  adds `HOST=`. Scenario files keep §14 galaxy knobs only. Docs:
+  [CPLANETS.md](CPLANETS.md), [CODING.md](CODING.md),
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md). CTest: `unit_serverConfig`,
+  `functional_cli_config_defaults`, `functional_server_verbose`.
+
 - CLI vs config defaults (preference): every user-facing flag except
-  the config/setup **path** (`--setup` / `--config`) is settable in
-  the file; argv present on the command line overrides **silently**.
-  Server setup keys: `serve`, `port`, `players`, `seed`, `cycles`,
-  `injectable` (plus existing `verbosity`). AI: `cycles`, `once`,
+  the config **path** (`--config`) is settable in the file; argv
+  present on the command line overrides **silently**. Server:
+  process keys in server config (see above). AI: `cycles`, `once`,
   `serve_loop`. Human: `once`, `pull`, `gui`, `test`. Banner adds
   `PLAYERS=` / `CYCLES=`. Docs: [CPLANETS.md](CPLANETS.md),
   [CODING.md](CODING.md), [KNOB-COVERAGE.md](KNOB-COVERAGE.md).

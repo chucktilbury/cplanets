@@ -119,12 +119,15 @@ including generated help via `-h` / `--help` (`Action.HELP` +
 `helpText()`). Do not hand-roll flag loops for those bins. Unit/fn
 test programs are exempt unless migration is trivial.
 
-**CLI vs config:** every parameter except the config/setup **path**
-(`--setup` / `--config`) must be settable as a default in that
-file. Load the file first; any flag **present on argv**
-(`wasProvided`) overrides the file value **silently** (no warning).
-Mode FLAGs follow the same rule (file `true`/`false`; argv presence
-forces the switch on).
+**CLI vs config:** every parameter except the config-file **path**
+(`--config`) must be settable as a default in that file. Load the
+file first; any flag **present on argv** (`wasProvided`) overrides
+the file value **silently** (no warning). Mode FLAGs follow the same
+rule (file `true`/`false`; argv presence forces the switch on).
+Server: process/network keys live in `config/server-*.cfg`;
+`--setup` is an ordinary overridable key (scenario path). Scenario
+files hold §14 galaxy knobs only. AI/human keep their own
+`--config` surfaces.
 
 Headless operator bins that emit decision / settings logs use a
 shared pattern: textfile key `verbosity = N` (default `0`) plus
@@ -135,7 +138,9 @@ lines; higher levels open provisional categories (server:
 settings≈3, combat≈6, full≈10; AI: decisions≈3, full≈10).
 Thresholds will firm up over time — do not invent log spam under
 reserved bands. Server and AI share the flag/key name; log
-payloads differ (combat vs seat / policy / cycle).
+payloads differ (combat vs seat / policy / cycle). Server
+verbosity defaults live in the server config (copied onto
+`Scenario.verbosity` at serve start).
 
 ## Knobs and “tuning”
 

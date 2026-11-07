@@ -62,7 +62,7 @@ def stop(proc: subprocess.Popen[str]) -> None:
 
 def test_server_file_defaults_and_override(server: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
-        setup = Path(tmp) / "defaults.setup"
+        setup = Path(tmp) / "galaxy.setup"
         setup.write_text(
             "\n".join(
                 [
@@ -70,23 +70,35 @@ def test_server_file_defaults_and_override(server: Path) -> int:
                     "tick_period_seconds = 5",
                     "tick_auto_config_from_ai_lag = false",
                     "world_count = 8",
-                    "verbosity = 3",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        cfg = Path(tmp) / "server.cfg"
+        cfg.write_text(
+            "\n".join(
+                [
+                    f"setup = {setup}",
+                    "host = 127.0.0.1",
                     "serve = true",
                     "port = 0",
                     "players = 3",
                     "seed = 99",
                     "cycles = 40",
                     "injectable = true",
+                    "verbosity = 3",
                     "",
                 ]
             ),
             encoding="utf-8",
         )
         # File defaults alone (no --serve / --seed / … on argv).
-        proc, preamble = spawn_server(server, ["--setup", str(setup)])
+        proc, preamble = spawn_server(server, ["--config", str(cfg)])
         try:
             joined = "\n".join(preamble)
             for needle in (
+                "HOST=127.0.0.1",
                 "SEED=99",
                 "PLAYERS=3",
                 "CYCLES=40",
@@ -96,25 +108,41 @@ def test_server_file_defaults_and_override(server: Path) -> int:
                 if needle not in preamble:
                     print(f"missing {needle} in file-default preamble: {joined!r}")
                     return 1
-            if not any(item.startswith("PORT=") and item != "PORT=0" for item in preamble):
-                # ephemeral 0 becomes a real port > 0
-                port_line = next((item for item in preamble if item.startswith("PORT=")), "")
-                try:
-                    port = int(port_line.split("=", 1)[1])
-                except (IndexError, ValueError):
-                    port = 0
-                if port <= 0:
-                    print(f"bad PORT from file defaults: {joined!r}")
-                    return 1
+            if not any(item.startswith("SETUP=") and str(setup) in item for item in preamble):
+                print(f"missing SETUP from config: {joined!r}")
+                return 1
+            port_line = next((item for item in preamble if item.startswith("PORT=")), "")
+            try:
+                port = int(port_line.split("=", 1)[1])
+            except (IndexError, ValueError):
+                port = 0
+            if port <= 0:
+                print(f"bad PORT from file defaults: {joined!r}")
+                return 1
         finally:
             stop(proc)
 
-        # CLI silently overrides seed / verbosity / players.
+        # CLI silently overrides seed / verbosity / players / setup.
+        other_setup = Path(tmp) / "other.setup"
+        other_setup.write_text(
+            "\n".join(
+                [
+                    "scenario_mode = closed",
+                    "tick_period_seconds = 5",
+                    "tick_auto_config_from_ai_lag = false",
+                    "world_count = 6",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
         proc, preamble = spawn_server(
             server,
             [
+                "--config",
+                str(cfg),
                 "--setup",
-                str(setup),
+                str(other_setup),
                 "--seed",
                 "11",
                 "--verbosity",
@@ -128,6 +156,12 @@ def test_server_file_defaults_and_override(server: Path) -> int:
                 if needle not in preamble:
                     print(f"CLI overlay missing {needle}: {preamble!r}")
                     return 1
+            if not any(
+                item.startswith("SETUP=") and str(other_setup) in item
+                for item in preamble
+            ):
+                print(f"--setup overlay failed: {preamble!r}")
+                return 1
         finally:
             stop(proc)
     return 0

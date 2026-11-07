@@ -5,9 +5,8 @@
  * a simple line-oriented key = value form (not JSON/TOML/HTTP).
  * Unknown keys fail loud (ok=false + lastError) so tuning typos
  * cannot silently no-op. Known keys overlay closed defaults.
- * Process / CLI mirror keys (port, players, seed, cycles,
- * injectable, serve) live on this parser — not on Scenario — so
- * the server can apply file defaults then let argv override.
+ * Process / network runtime (host, port, serve, seed, …) lives in
+ * the server config file — not here (RULES §2 / server config).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -18,6 +17,7 @@
  *   2026-11-07  verbosity setup key (server stdout logging).
  *   2026-11-07  Clamp verbosity to 0–10 after parse.
  *   2026-11-07  Process CLI mirror keys (port/players/seed/…).
+ *   2026-11-07  Drop process keys — server config owns them.
  */
 
 include "scenario.cw"
@@ -26,31 +26,20 @@ include "scenario.cw"
  * SetupParse turns application text into a Scenario snapshot.
  *
  * Starts from Scenario() closed defaults, then overlays each
- * recognized key. Always clampTickPeriod() before returning.
+ * recognized §14 key. Always clampTickPeriod() before returning.
  * Callers must check ok after parseText; lastError names the
  * first unknown key or malformed line. Process defaults
- * (port / players / seed / cycles / injectable / serve) are
- * reset to the same values as cplanets-server CLI defaults and
- * overlaid when those keys appear in the setup file.
+ * (port / host / serve / …) belong on ServerConfigParse.
  */
 class SetupParse {
     bool ok
     String lastError
-    # Process / CLI mirror defaults (not Scenario §14 knobs).
-    int64 port
-    int64 players
-    int64 seed
-    int64 cycles
-    bool injectable
-    bool serve
 
     /*
-     * Construct a parser helper with CLI-matching process defaults.
+     * Construct a parser helper.
      *
      * Purpose: match other Phase B value objects; all work lives in
      * parseText / applyPair. ok starts true until a bad line.
-     * Process fields match cplanets-server CLI defaults so a
-     * missing key leaves the same baseline as bare argv.
      *
      * Parameters: none.
      *
@@ -59,26 +48,6 @@ class SetupParse {
     SetupParse() {
         ok = true
         lastError = ""
-        resetProcessDefaults()
-    }
-
-    /*
-     * Reset process / CLI mirror fields to server CLI defaults.
-     *
-     * Purpose: keep file-absent keys aligned with buildCli()
-     * defaults (port 0, players 2, seed 7, cycles 0, flags off).
-     *
-     * Parameters: none (mutates this parser).
-     *
-     * Returns: nothing.
-     */
-    void resetProcessDefaults() {
-        port = 0
-        players = 2
-        seed = 7
-        cycles = 0
-        injectable = false
-        serve = false
     }
 
     /*
@@ -86,23 +55,19 @@ class SetupParse {
      *
      * Purpose: load admin/application text without a stdlib format.
      * Blank lines and # comments are skipped. Resets ok/lastError
-     * and process defaults for this parse. On unknown key or
-     * malformed line, ok becomes false and lastError is set;
-     * overlay still continues so tests can inspect both the
-     * partial Scenario and the error.
+     * for this parse. On unknown key or malformed line, ok becomes
+     * false and lastError is set; overlay still continues so tests
+     * can inspect both the partial Scenario and the error.
      *
      * Parameters:
      *   text — entire setup body (newline-separated key = value).
      *
      * Returns: Scenario with overlays applied and tick period
      * clamped. Check ok / lastError before trusting the result.
-     * Read port / players / seed / cycles / injectable / serve
-     * on this parser for process defaults after return.
      */
     Scenario parseText(String text) {
         ok = true
         lastError = ""
-        resetProcessDefaults()
         Scenario scenario = Scenario()
         list lines = text.split("\n")
         int64 index = 0
@@ -154,7 +119,8 @@ class SetupParse {
      *
      * Purpose: name every §14 knob the closed fixture ships so text
      * and code stay aligned. Unknown keys fail loud (first error
-     * wins in lastError).
+     * wins in lastError). Process keys are rejected so they move
+     * to config/server-*.cfg instead of silently living here.
      *
      * Parameters:
      *   scenario — mutable snapshot.
@@ -258,20 +224,6 @@ class SetupParse {
             scenario.startPower = val.toFp64()
         } else (key.equals("start_experience")) {
             scenario.startExperience = val.toFp64()
-        } else (key.equals("verbosity")) {
-            scenario.verbosity = val.toInt64()
-        } else (key.equals("port")) {
-            port = val.toInt64()
-        } else (key.equals("players")) {
-            players = val.toInt64()
-        } else (key.equals("seed")) {
-            seed = val.toInt64()
-        } else (key.equals("cycles")) {
-            cycles = val.toInt64()
-        } else (key.equals("injectable")) {
-            injectable = parseBool(val)
-        } else (key.equals("serve")) {
-            serve = parseBool(val)
         } else {
             if (ok) {
                 ok = false

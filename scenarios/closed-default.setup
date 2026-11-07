@@ -16,22 +16,10 @@ ai_reaction_lag_ticks = 1
 ai_reaction_lag_seconds = 5.0
 afk_timeout_seconds = 120.0
 afk_shrink_factor = 1.0
-# Server stdout verbosity 0–10 (clamped). Provisional: 0 errors
-# only, 3+ settings PUTs, 6+ combat, 10 full dumps. CLI
-# --verbosity overlays this when provided.
-verbosity = 0
-
-# --- process / CLI defaults ---
-# Every cplanets-server flag except --setup PATH may be set here.
-# Argv present on the command line overrides silently (no warning).
-serve = false
-port = 0
-players = 2
-seed = 7
-cycles = 0
-injectable = false
 
 # --- galaxy ---
+# Process / network runtime (host, port, serve, seed, players,
+# cycles, injectable, verbosity) lives in config/server-*.cfg.
 world_count = 24
 useful_mix = 0.35
 scout_range = 3.0

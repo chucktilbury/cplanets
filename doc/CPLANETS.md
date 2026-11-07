@@ -86,30 +86,41 @@ Paths below assume you are at the project root after a successful
 
 ### CLI vs config defaults
 
-Every command-line parameter **except the config/setup file path
-itself** (`--setup` / `--config`) may also be set as a default in
-that file. Load the file first; any flag **present on argv**
-overrides the corresponding file value **silently** (no warning).
+Every command-line parameter **except the config-file path itself**
+(`--config`) may also be set as a default in that file. Load the
+file first; any flag **present on argv** overrides the corresponding
+file value **silently** (no warning). For the server, `--setup` is a
+normal overridable key (scenario path inside the server config);
+`--config` is the only path without an in-file default.
 `cplanets-tick` has no value flags yet (help only).
 
 ### `cplanets-server`
 
 ```text
-bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
-  [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
+bin/cplanets-server --config config/server-default.cfg [flags…]
+# or bare flags without a config file:
+bin/cplanets-server --serve [--host ADDR] [--port N] [--players N] \
+  [--seed N] [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
 ```
 
-| Flag | Default | Setup key | Meaning |
+| Flag | Default | Config key | Meaning |
 | --- | --- | --- | --- |
 | `-h`, `--help` | — | — | Print stdlib `cli` usage and exit 0 |
+| `--config PATH` | *(none)* | *(path only)* | Server runtime config (not the scenario) |
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
+| `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
 | `--port N` | `0` (ephemeral) | `port` | Listen port; `0` picks a free port |
 | `--players N` | `2` | `players` | Seat count for the closed start galaxy |
 | `--seed N` | `7` | `seed` | PRNG seed for the start galaxy |
-| `--setup PATH` | (builtin closed defaults) | *(path only — not in file)* | Load §14 knobs + process defaults |
-| `--verbosity N` | setup key or `0` | `verbosity` | Stdout log level 0–10 (clamped) |
+| `--setup PATH` | (empty → builtin) | `setup` | Scenario file (§14 knobs only) |
+| `--verbosity N` | `0` | `verbosity` | Stdout log level 0–10 (clamped) |
 | `--injectable` | off | `injectable` | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
+
+**Bind address:** default `127.0.0.1` (loopback), matching the
+prior hard-coded TCP listen. Set `host = 0.0.0.0` (or CLI
+`--host 0.0.0.0`) to listen on all interfaces. Empty `host` in a
+config file clamps back to `127.0.0.1`.
 
 **Verbosity** (headless stdout, not a GUI): scale **0–10**
 (default `0`). Out-of-range values **clamp** into `0..10` (they
@@ -125,14 +136,15 @@ will firm up over time:
 | `7–9` | Reserved (richer combat / partial dumps) |
 | `10` | Full dumps / statistics (gate only; no extra spam yet) |
 
-Same keys in the scenario file (plus process defaults `serve`,
-`port`, `players`, `seed`, `cycles`, `injectable`). CLI flags
-present on argv overlay the setup values silently.
+Process/network keys live in `config/server-*.cfg`. Scenario files
+under `scenarios/` hold §14 galaxy knobs only. CLI flags present on
+argv overlay the server-config values silently; `--setup` overlays
+the config `setup` key.
 
-On start it prints `PORT=<n>`, `SETUP=<path|builtin>`, `SEED=<n>`,
-`PLAYERS=<n>`, `CYCLES=<n>`, `VERBOSITY=<n>`, and `INJECTABLE=0|1`.
-Use that port for clients. Pass `scenarios/closed-default.setup`
-(or a copy you edited) via `--setup` so combat / economy / travel /
+On start it prints `HOST=<addr>`, `PORT=<n>`, `SETUP=<path|builtin>`,
+`SEED=<n>`, `PLAYERS=<n>`, `CYCLES=<n>`, `VERBOSITY=<n>`, and
+`INJECTABLE=0|1`. Use that port for clients. Pass a scenario via
+config `setup=…` or CLI `--setup` so combat / economy / travel /
 identify magnitudes come from the file. Unknown keys fail loud and
 the process exits before listen. **Knob edits take effect on process
 restart** — there is no mid-game retune in v1 (RULES §14
@@ -225,8 +237,8 @@ usage. No advance-N CLI yet; lib tick coverage lives in
 
 Three terminals (or background jobs): server, human, AI.
 
-**`--serve` (or setup `serve = true`)** is required for play.
-Without serve from argv or the setup file, `cplanets-server`
+**`--serve` (or server-config `serve = true`)** is required for play.
+Without serve from argv or the server config, `cplanets-server`
 prints smoke identity and exits — no TCP, no ticks.
 
 The server uses **one request per TCP connection** (closes after each
@@ -239,8 +251,10 @@ ticks until `PUT /admin/advance` (CI only).
 ./scripts/setup
 build
 
-# 1) Server — note PORT=; knobs from the setup file
-bin/cplanets-server --serve --port 7700 --players 2 --seed 7 \
+# 1) Server — note HOST=/PORT=; process knobs from server config,
+#    galaxy knobs from --setup (or config setup=…)
+bin/cplanets-server --config config/server-default.cfg --serve \
+  --host 127.0.0.1 --port 7700 --players 2 --seed 7 \
   --setup scenarios/closed-default.setup
 
 # 2) Human list debugger (seat 0)
@@ -361,6 +375,7 @@ textfile; selective human GUI setters come later.
 
 | Path | What |
 | --- | --- |
+| `config/server-default.cfg` | Server process/network (`host`, `port`, `serve`, `setup`, …) |
 | `config/human-default.cfg` | Human dial defaults (`player_id`, `host`, `port`) |
 | `config/ai-default.cfg` | AI axes (aggression, lag, surprise, …) plus dial |
 | `config/ai-{soft,mid,hard}.cfg` | Aggression-band presets (seat 1) |
@@ -368,9 +383,10 @@ textfile; selective human GUI setters come later.
 | `scenarios/tuning-{small,combat,trade}.setup` | Harness / A/B fixture packs |
 
 Config and scenario files use simple `key = value` application text.
-Unknown keys fail loud on scenario setup and AI config load. Pass
-client configs with `--config`; pass the scenario with server
-`--setup`. Group comments in those files name the tuning surface.
+Unknown keys fail loud on server/AI/human config and scenario setup
+load. Pass server/AI/human configs with `--config`; pass the
+scenario with server `--setup` (or the server-config `setup` key).
+Group comments in those files name the tuning surface.
 
 Tests that exercise binaries live under `tests/unit/`, `tests/fn/`,
 and `tests/functional/` (Python spawns `cplanets-server` and talks

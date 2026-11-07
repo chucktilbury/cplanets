@@ -59,8 +59,8 @@ written — include it when merged; not required for this docs PR.
 | `afk_timeout_seconds` / `afk_shrink_factor` | **named in setup**, not applied by server presence | needs textfile (wire) · server-textfile-only |
 | Handshake miss window | **hardcoded** `5000u` ms in `cplanets-server` → `GameDriver` | needs textfile · server-textfile-only |
 | Accept/poll timeout | **hardcoded** `50` ms listen loop | needs textfile (optional) · server-textfile-only |
-| `verbosity` (0–10 clamped; provisional: 0 errors / 3 settings / 6 combat / 10 full) | setup + CLI `--verbosity` overlay | textfile already · server-textfile-only |
-| `serve` / `port` / `players` / `seed` / `cycles` / `injectable` | setup + CLI overlay (path `--setup` excluded) | textfile already · server-textfile-only |
+| `verbosity` (0–10 clamped; provisional: 0 errors / 3 settings / 6 combat / 10 full) | `config/server-*.cfg` + CLI `--verbosity` overlay | textfile already · server-textfile-only |
+| `setup` / `host` (`address` alias) / `serve` / `port` / `players` / `seed` / `cycles` / `injectable` | `config/server-*.cfg` + CLI overlay (path `--config` excluded) | textfile already · server-textfile-only |
 
 ---
 
@@ -153,4 +153,5 @@ Human difficulty GUI is **not** required; AI stays file-driven.
 | [RULES.md](RULES.md) §14 | Knobs outside code |
 | [DIALOGS.md](DIALOGS.md) | Missing playable chrome |
 | `scenarios/closed-default.setup` | §14 key surface |
+| `config/server-default.cfg` | Server process/network surface |
 | `config/ai-default.cfg` | AI axes surface |

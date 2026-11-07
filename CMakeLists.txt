@@ -260,6 +260,7 @@ if(BUILD_TESTING)
         unit_serverPresence
         unit_serverPolicy
         unit_serverVerbose
+        unit_serverConfig
         unit_aiConfig
         unit_aiVerbose
         unit_aiTickSuggest

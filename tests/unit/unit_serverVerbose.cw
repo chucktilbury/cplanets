@@ -1,9 +1,9 @@
 /*
  * tests/unit/unit_serverVerbose.cw — verbosity logger + driver hooks.
  *
- * Checks setup verbosity parse, 0–10 clamp, quiet default, settings
- * PUT emit at provisional settingsAt (3), and combat path emit at
- * combatAt (6). Capture list is asserted; stdout also prints.
+ * Checks server-config verbosity parse, 0–10 clamp, quiet default,
+ * settings PUT emit at provisional settingsAt (3), and combat path
+ * emit at combatAt (6). Capture list is asserted; stdout also prints.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -11,29 +11,30 @@
  * Changelog:
  *   2026-11-07  Initial server verbosity unit program.
  *   2026-11-07  Remap asserts to 0–10 provisional thresholds + clamp.
+ *   2026-11-07  Verbosity from ServerConfigParse (not setup).
  */
 
-include "lib/setupParse.cw"
 include "lib/wireBytes.cw"
+include "server/configParse.cw"
 include "server/driver.cw"
 include "server/verboseLog.cw"
 
 start {
     bool ok = true
 
-    # --- setup key ---
-    SetupParse parser = SetupParse()
-    Scenario loaded = parser.parseText("verbosity = 3\n")
+    # --- server config key ---
+    ServerConfigParse parser = ServerConfigParse()
+    ServerConfig loaded = parser.parseText("verbosity = 3\n")
     if (not parser.ok or loaded.verbosity != 3) {
         ok = false
     }
 
-    # --- clamp out of range (setup) ---
-    Scenario high = parser.parseText("verbosity = 99\n")
+    # --- clamp out of range (server config) ---
+    ServerConfig high = parser.parseText("verbosity = 99\n")
     if (not parser.ok or high.verbosity != 10) {
         ok = false
     }
-    Scenario low = parser.parseText("verbosity = -4\n")
+    ServerConfig low = parser.parseText("verbosity = -4\n")
     if (not parser.ok or low.verbosity != 0) {
         ok = false
     }

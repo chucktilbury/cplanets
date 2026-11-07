@@ -3,7 +3,8 @@
  *
  * Loads application text onto closed defaults; checks named knobs,
  * tick-period clamp, and loud failure on unknown keys. No file I/O
- * required (embedded text).
+ * required (embedded text). Process/network keys belong to the
+ * server config surface (unit_serverConfig), not setup.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -14,6 +15,7 @@
  *   2026-11-06  Unknown keys fail loud (TUNING A2).
  *   2026-11-07  Assert verbosity setup key.
  *   2026-11-07  Assert process CLI mirror keys.
+ *   2026-11-07  Drop process-key asserts; reject them as unknown.
  */
 
 include "lib/setupParse.cw"
@@ -28,39 +30,11 @@ start {
     text.append("tech_teleport_threshold = 9.5\n")
     text.append("productive_inherent_defense = 1.5\n")
     text.append("livability_display_max = 10\n")
-    text.append("verbosity = 2\n")
-    text.append("port = 7700\n")
-    text.append("players = 4\n")
-    text.append("seed = 99\n")
-    text.append("cycles = 12\n")
-    text.append("injectable = true\n")
-    text.append("serve = true\n")
     text.append("tick_period_seconds = 40\n")
     SetupParse parser = SetupParse()
     Scenario s = parser.parseText(text)
     bool ok = true
     if (not parser.ok) {
-        ok = false
-    }
-    if (s.verbosity != 2) {
-        ok = false
-    }
-    if (parser.port != 7700) {
-        ok = false
-    }
-    if (parser.players != 4) {
-        ok = false
-    }
-    if (parser.seed != 99) {
-        ok = false
-    }
-    if (parser.cycles != 12) {
-        ok = false
-    }
-    if (not parser.injectable) {
-        ok = false
-    }
-    if (not parser.serve) {
         ok = false
     }
     if (not s.isClosed()) {
@@ -103,6 +77,16 @@ start {
         ok = false
     }
     if (partial.worldCount != 10) {
+        ok = false
+    }
+
+    # Former process keys must fail loud on the scenario surface.
+    SetupParse processParser = SetupParse()
+    processParser.parseText("port = 7700\n")
+    if (processParser.ok) {
+        ok = false
+    }
+    if (not processParser.lastError.startsWith("unknown setup key:")) {
         ok = false
     }
 

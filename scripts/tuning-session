@@ -114,8 +114,11 @@ if [[ "$start_ai" == true ]]; then
     fi
 fi
 
+server_config="config/server-default.cfg"
 server_args=(
+    --config "$server_config"
     --serve
+    --host 127.0.0.1
     --port "$port"
     --players "$players"
     --seed "$seed"
@@ -139,8 +142,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-printf 'Starting server: setup=%s seed=%s port=%s\n' \
-    "$setup" "$seed" "$port"
+printf 'Starting server: config=%s setup=%s seed=%s port=%s\n' \
+    "$server_config" "$setup" "$seed" "$port"
 "$server_bin" "${server_args[@]}" &
 server_pid=$!
 

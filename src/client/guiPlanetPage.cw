@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-07  Initial planets + budget chrome page.
  *   2026-11-07  Default Scale 100 matches full production.
+ *   2026-11-07  Map ContextMenu: setPlanetId for budget Entry.
  */
 
 include "appCore.cw"
@@ -165,6 +166,26 @@ class GuiPlanetPage {
      */
     int64 planetIdValue() {
         return(planetIdEntry.text().toInt64())
+    }
+
+    /*
+     * Write the budget planet Entry from a map pick.
+     *
+     * Purpose: GuiMapPage ContextMenu "Budget this planet" fills
+     * the Planets-tab allocation chrome without a second budget
+     * surface.
+     *
+     * Parameters:
+     *   planetId — rock id to load into the Entry / Scale.
+     *
+     * Returns: nothing.
+     */
+    void setPlanetId(int64 planetId) {
+        if (planetIdEntry == null) {
+            return()
+        }
+        planetIdEntry.setText(format("{}", planetId))
+        syncBudgetFromSelection()
     }
 
     /*

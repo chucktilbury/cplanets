@@ -25,6 +25,7 @@
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
  *   2026-11-07  Phase I: map canvas panel in --gui / --test.
  *   2026-11-07  Wire budget + compose Send actions.
+ *   2026-11-07  Map pick-to-dispatch + ContextMenu budget.
  */
 
 import cli as Cli
@@ -348,6 +349,9 @@ class HumanMain {
         gui.sendAction = gui.onSendMessage
         gui.pauseAction = gui.onPauseToggled
         gui.testAction = gui.onTest
+        gui.mapPickAction = gui.onMapPlanetPicked
+        gui.mapDispatchAction = gui.onMapDispatchHere
+        gui.mapBudgetAction = gui.onMapBudgetHere
         app.onActivate(gui.activateAction)
         app.run()
         app.shutdown()

@@ -210,4 +210,24 @@ class GuiFleetPage {
     int64 destValue() {
         return(destEntry.text().toInt64())
     }
+
+    /*
+     * Write the destination planet Entry from a map pick.
+     *
+     * Purpose: GuiMapPage primary-click / ContextMenu dispatch
+     * feeds the existing Fleets-tab PUT /order chrome (fewest
+     * hoops — no second dest control).
+     *
+     * Parameters:
+     *   planetId — rock id to send toward.
+     *
+     * Returns: nothing.
+     */
+    void setDestPlanet(int64 planetId) {
+        if (destEntry == null) {
+            return()
+        }
+        destEntry.setText(format("{}", planetId))
+        syncLockChrome()
+    }
 }

@@ -62,9 +62,9 @@ A session is ready for **balance passes** when:
 4. Human can still **start** via `scripts/setup` / run recipe, **pause**
    (one human), **re-run** same seed after knob edits.
 
-**Explicitly later:** inventing open magnitudes; map pick-to-dispatch
-polish; full server setup GUI hierarchy; durable save/rejoin;
-specializing Cwhip GTK for Cplanets-only widgets.
+**Explicitly later:** inventing open magnitudes; richer map dispatch
+polish (hull-mix picker, etc.); full server setup GUI hierarchy;
+durable save/rejoin; specializing Cwhip GTK for Cplanets-only widgets.
 
 ---
 

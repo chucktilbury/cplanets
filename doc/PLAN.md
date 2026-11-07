@@ -281,8 +281,10 @@ forever). `GuiMapPage` DrawingArea in a main-window `Paned` beside the
 Phase G list notebook; published planet `x`/`y` + fleet `outboundEta`;
 status colors; dotted in-flight ETA paths (segmented strokes until
 dash API); mouse pick / pan / zoom; Scrollbars; ContextMenu status +
-zoom-to-known. Remaining GTK gaps (dash/text paint, Scale adoption in
-policy UI, config-driven setup): [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
+zoom-to-known; pick fills Fleets dest and ContextMenu dispatch/budget
+reuse list chrome. Remaining GTK gaps (dash/text paint, Scale adoption
+in policy UI, config-driven setup):
+[GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |

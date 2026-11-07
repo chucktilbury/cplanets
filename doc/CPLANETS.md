@@ -37,11 +37,12 @@ exits **0**. Unknown flags fail loud (exit 2).
 auto-load a default config from the user's home directory. Until that
 lands, always pass an explicit `--config PATH`.
 
-**Map canvas (Phase I) is not available yet.** The human UI is a list /
-notebook debugger only — no planet grid DrawingArea, pan/zoom, or
-hot-spot map. Cwhip GTK widgets still needed for that UI (and for
-intended playable controls) are listed in
-[GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
+**Map canvas (Phase I) ships** as a DrawingArea panel beside the list
+notebook: hot spots, status colors, dotted in-flight ETA paths when
+published, mouse pick/pan/zoom, Scrollbars, and a right-click
+ContextMenu (planet status + zoom-to-known). Remaining GTK polish
+(dash/text paint, Scale on policy knobs, config-driven setup UI) is
+listed in [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
 
 ---
 

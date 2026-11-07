@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial PlanetRow view model.
  *   2026-11-07  List label notes shipyard rocks.
+ *   2026-11-07  Phase I: published x/y for map canvas.
  */
 
 /*
@@ -30,6 +31,8 @@ class PlanetRow {
     int64 ownerId
     int64 livabilityDisplay
     int64 resourcesDisplay
+    fp64 x
+    fp64 y
 
     /*
      * Construct an empty invisible planet row.
@@ -51,6 +54,47 @@ class PlanetRow {
         ownerId = -1
         livabilityDisplay = 0
         resourcesDisplay = 0
+        x = 0.0
+        y = 0.0
+    }
+
+    /*
+     * One-line status summary for the map context menu.
+     *
+     * Purpose: right-click status items (DIALOGS §3.1) without a
+     * second fog engine — only published flags.
+     *
+     * Parameters:
+     *   viewerId — seat id for ownership wording.
+     *
+     * Returns: short status string.
+     */
+    String mapStatusLabel(int64 viewerId) {
+        String own = "unowned"
+        if (ownerId == viewerId) {
+            own = "owned by you"
+        } else {
+            if (ownerId >= 0) {
+                own = format("owner={}", ownerId)
+            }
+        }
+        if (not qualityKnown) {
+            return(format(
+                "Planet {} — {}; quality unknown", id, own))
+        }
+        String flags = ""
+        if (populated) {
+            flags.append(" populated")
+        }
+        if (productive) {
+            flags.append(" productive")
+        }
+        if (shipyard) {
+            flags.append(" yard")
+        }
+        return(format(
+            "Planet {} — {}; liv={}/10 res={}/10{}",
+            id, own, livabilityDisplay, resourcesDisplay, flags))
     }
 
     /*

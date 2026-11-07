@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial LE writer/reader and UTF-8 path helpers.
+ *   2026-11-07  Phase I: signed i32 for map milli-coords.
  */
 
 /*
@@ -133,6 +134,32 @@ class WireBytes {
     }
 
     /*
+     * Append a little-endian signed 32-bit two's-complement value.
+     *
+     * Purpose: map milli-coords and other signed wire fields that
+     * do not fit the u32+1 sentinel pattern.
+     *
+     * Parameters:
+     *   value — -2147483648..2147483647.
+     *
+     * Returns: true on success; false and BAD_VALUE on overflow.
+     */
+    bool writeI32(int64 value) {
+        if (error != OK) {
+            return(false)
+        }
+        if (value < -2147483648 or value > 2147483647) {
+            error = BAD_VALUE
+            return(false)
+        }
+        int64 raw = value
+        if (raw < 0) {
+            raw = raw + 4294967296
+        }
+        return(writeU32(raw))
+    }
+
+    /*
      * Append raw bytes without a length prefix.
      *
      * Purpose: write path UTF-8 and body blobs after their lengths.
@@ -253,6 +280,26 @@ class WireBytes {
         int64 value = b0 + b1 + b2 + b3
         offset = offset + 4
         return(value)
+    }
+
+    /*
+     * Read a little-endian signed 32-bit two's-complement value.
+     *
+     * Purpose: decode map milli-coords written by writeI32.
+     *
+     * Parameters: none.
+     *
+     * Returns: signed value, or 0 with error TRUNCATED.
+     */
+    int64 readI32() {
+        int64 raw = readU32()
+        if (error != OK) {
+            return(0)
+        }
+        if (raw > 2147483647) {
+            return(raw - 4294967296)
+        }
+        return(raw)
     }
 
     /*

@@ -1,13 +1,13 @@
 /*
- * src/cplanets.cw — human GTK list debugger (Phase G).
+ * src/cplanets.cw — human GTK client (Phase G + I map).
  *
  * --config PATH is mandatory (human settings; not AI config).
  * Missing or empty path prints help and exits 2.
  * --once: fill a closed galaxy in-process and print lists (no TCP,
  * no GTK). --pull: TCP GET state+digest summary. --gui / --test:
- * GTK notebook (planets, fleets, ships, digest, policy) + explored
- * dialog. Never ticks; never opens the universe DB (RULES §2 /
- * PLAN §4.G). No map canvas / DrawingArea (PLAN §4.I).
+ * GTK map canvas + list notebook (planets, fleets, ships, digest,
+ * policy) + explored dialog. Never ticks; never opens the universe
+ * DB (RULES §2 / PLAN §4.G / §4.I).
  * User-facing argv uses stdlib `cli` (including --help / -h).
  * With all modes false from file/argv, prints smoke identity.
  *
@@ -23,6 +23,7 @@
  *   2026-11-07  Wire Ships tab design / build / reclaim actions.
  *   2026-11-07  Config defaults for every CLI flag but --config.
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
+ *   2026-11-07  Phase I: map canvas panel in --gui / --test.
  */
 
 import cli as Cli
@@ -336,6 +337,7 @@ class HumanMain {
         gui.closeAction = gui.onClose
         gui.dialogCloseAction = gui.onDialogClose
         gui.showExploredAction = gui.showFirstExplored
+        gui.showMapExploredAction = gui.showMapExplored
         gui.dispatchAction = gui.onDispatch
         gui.recallAction = gui.onRecall
         gui.developAction = gui.onDevelop

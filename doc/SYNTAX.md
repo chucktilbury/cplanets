@@ -76,13 +76,15 @@ AI lag when the setup flag is on. Unit: `unit_aiConfig`,
 
 Phase G adds `src/client/` (config, policy shape, publish decode,
 session, appCore, GTK guiMain / planet dialog) and turns `cplanets`
-into the human list debugger: `--once` / `--pull` / `--gui` /
+into the human client: `--once` / `--pull` / `--gui` /
 `--test`, settings in `config/human-default.cfg`. Server
 `PublishCodec.encodeStateView` appends planet/fleet rows with
-driver-set visibility flags; GET `/state` is seat-scoped. No
-DrawingArea. Unit: `unit_clientConfig`, `unit_clientLivability`,
-`unit_clientPolicy`, `unit_clientPublishDecode`. Function:
-`fn_client`. Python: `functional_client_once`.
+driver-set visibility flags (plus Phase I `x`/`y` milli and fleet
+`outboundEta`); GET `/state` is seat-scoped. Phase I adds
+`GuiMapPage` DrawingArea beside the list notebook. Unit:
+`unit_clientConfig`, `unit_clientLivability`, `unit_clientPolicy`,
+`unit_clientPublishDecode`, `unit_mapMath`. Function: `fn_client`.
+Python: `functional_client_once`.
 
 Callable types spell the result first, followed by parameter types:
 `R<P1,P2>`, or `R<>` for no parameters. Capturing `machine.identity` does not

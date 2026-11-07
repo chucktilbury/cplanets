@@ -1,11 +1,10 @@
 /*
- * src/client/guiMain.cw — GTK list debugger main window (G / B).
+ * src/client/guiMain.cw — GTK human client main window (G / B / I).
  *
- * Notebook panes: Planets, Fleets, Ships, Digest, Policy. Pause
- * gated to one human; fleet dispatch/recall via GuiFleetPage;
- * design/yard via GuiYardPage; explored dialog auto-presents on
- * quality / productive changes. No DrawingArea / map canvas
- * (PLAN §4.I).
+ * Paned: map canvas (Phase I) beside the list notebook (Planets,
+ * Fleets, Ships, Digest, Policy). Pause gated to one human; fleet
+ * dispatch/recall via GuiFleetPage; design/yard via GuiYardPage;
+ * explored dialog auto-presents on quality / productive changes.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -14,11 +13,13 @@
  *   2026-11-05  Initial GuiMain window.
  *   2026-11-06  TUNING B: pause, fleet chrome, explored auto-pop.
  *   2026-11-07  Ships tab: design develop / yard build / reclaim.
+ *   2026-11-07  Phase I: map canvas panel beside list notebook.
  */
 
 include "appCore.cw"
 include "exploredTrack.cw"
 include "guiFleetPage.cw"
+include "guiMapPage.cw"
 include "guiPlanetDialog.cw"
 include "guiYardPage.cw"
 include "planetRow.cw"
@@ -44,6 +45,7 @@ class GuiMain {
     GuiPlanetDialog planetDialog
     GuiFleetPage fleetPage
     GuiYardPage yardPage
+    GuiMapPage mapPage
     ExploredTrack explored
     bool suppressPauseToggle
     void<> activateAction
@@ -52,6 +54,7 @@ class GuiMain {
     void<> closeAction
     void<> dialogCloseAction
     void<> showExploredAction
+    void<> showMapExploredAction
     void<> dispatchAction
     void<> recallAction
     void<> developAction
@@ -86,6 +89,7 @@ class GuiMain {
         planetDialog = GuiPlanetDialog()
         fleetPage = GuiFleetPage(appCore)
         yardPage = GuiYardPage(appCore)
+        mapPage = GuiMapPage(appCore)
         explored = ExploredTrack()
         suppressPauseToggle = false
         activateAction = null
@@ -94,6 +98,7 @@ class GuiMain {
         closeAction = null
         dialogCloseAction = null
         showExploredAction = null
+        showMapExploredAction = null
         dispatchAction = null
         recallAction = null
         developAction = null
@@ -119,7 +124,7 @@ class GuiMain {
             return()
         }
         window = Gtk.Window("CPlanets")
-        window.setDefaultSize(720, 560)
+        window.setDefaultSize(960, 640)
         Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 0)
         window.setChild(root)
         Gtk.MenuBar menu = Gtk.MenuBar()
@@ -137,6 +142,20 @@ class GuiMain {
         }
         top.append(pauseBtn)
         root.append(top)
+        Gtk.Paned split = Gtk.Paned(Gtk.Paned.HORIZONTAL)
+        split.setHExpand(true)
+        split.setVExpand(true)
+        mapPage.showExploredAction = showMapExploredAction
+        mapPage.paintAction = mapPage.onPaint
+        mapPage.clickAction = mapPage.onClick
+        mapPage.dragAction = mapPage.onDrag
+        mapPage.scrollAction = mapPage.onScroll
+        mapPage.popupAction = mapPage.onPopup
+        mapPage.hScrollAction = mapPage.onHScroll
+        mapPage.vScrollAction = mapPage.onVScroll
+        mapPage.showSelectedAction = mapPage.onShowSelected
+        mapPage.zoomPlanetAction = mapPage.zoomToPlanet
+        split.append(mapPage.buildPage())
         Gtk.Notebook notebook = Gtk.Notebook()
         notebook.setHExpand(true)
         notebook.setVExpand(true)
@@ -150,7 +169,9 @@ class GuiMain {
         notebook.appendPage(yardPage.buildPage(), "Ships")
         notebook.appendPage(buildDigestPage(), "Digest")
         notebook.appendPage(buildPolicyPage(), "Policy")
-        root.append(notebook)
+        split.append(notebook)
+        split.setPosition(520)
+        root.append(split)
         planetDialog.closeAction = dialogCloseAction
         window.present()
         refreshLists()
@@ -270,6 +291,7 @@ class GuiMain {
         }
         fleetPage.refresh()
         yardPage.refresh()
+        mapPage.refresh()
         if (digestList != null) {
             digestList.setText(core.view.digestText())
         }
@@ -373,6 +395,22 @@ class GuiMain {
                 return()
             }
             index = index + 1
+        }
+    }
+
+    /*
+     * Open explored dialog for the map-selected planet.
+     *
+     * Purpose: map ContextMenu "Open explored dialog" (Phase I).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void showMapExplored() {
+        PlanetRow row = mapPage.selectedPlanet()
+        if (row.id >= 0 and row.qualityKnown) {
+            planetDialog.presentRow(window, row)
         }
     }
 

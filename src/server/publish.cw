@@ -16,6 +16,7 @@
  *   2026-11-06  TUNING B: pendingDeparture flag; chrome trailer
  *               (pause + design/yard progress).
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
+ *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  */
 
 include "../lib/event.cw"
@@ -156,9 +157,10 @@ class PublishCodec {
     /*
      * Append planet list rows for a seat view.
      *
-     * Purpose: list debugger planet pane (PLAN §4.G). Each row
-     * carries driver-set visible / qualityKnown / productive /
-     * populated flags and 1–10 livability when quality is known.
+     * Purpose: list debugger + map canvas (PLAN §4.G / §4.I).
+     * Each row carries driver-set visible / qualityKnown /
+     * productive / populated flags, 1–10 livability when quality
+     * is known, and continuous x/y as milli-units.
      *
      * Parameters:
      *   w — WireBytes writer already past the list marker.
@@ -205,6 +207,10 @@ class PublishCodec {
             }
             w.writeU8(liv)
             w.writeU8(res)
+            int64 xMilli = int64(rock.x * 1000.0)
+            int64 yMilli = int64(rock.y * 1000.0)
+            w.writeI32(xMilli)
+            w.writeI32(yMilli)
             index = index + 1
         }
     }
@@ -212,8 +218,8 @@ class PublishCodec {
     /*
      * Append fleet list rows for a seat view.
      *
-     * Purpose: list debugger fleet pane. Visible when owned by
-     * the viewer or sitting/operating at a visible planet.
+     * Purpose: list debugger + map hop paths. Visible when owned
+     * by the viewer or sitting/operating at a visible planet.
      *
      * Parameters:
      *   w — WireBytes writer.
@@ -250,6 +256,7 @@ class PublishCodec {
             w.writeU32(ship.destPlanetId + 1)
             w.writeU32(ship.locationPlanetId + 1)
             w.writeU32(ship.eta)
+            w.writeU32(ship.outboundEta)
             w.writeU32(ship.hullCount)
             w.writeString(ship.order)
             index = index + 1

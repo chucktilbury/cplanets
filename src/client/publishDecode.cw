@@ -12,6 +12,7 @@
  *   2026-11-06  TUNING B: humanCount; fleet lock flags; chrome
  *               trailer (pause + design/build progress).
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
+ *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  */
 
 include "../lib/wireBytes.cw"
@@ -131,6 +132,10 @@ class PublishDecode {
             row.ownerId = r.readU32() - 1
             row.livabilityDisplay = r.readU8()
             row.resourcesDisplay = r.readU8()
+            int64 xMilli = r.readI32()
+            int64 yMilli = r.readI32()
+            row.x = fp64(xMilli) / 1000.0
+            row.y = fp64(yMilli) / 1000.0
             view.planets.append(row)
             index = index + 1
         }
@@ -163,6 +168,7 @@ class PublishDecode {
             row.destPlanetId = r.readU32() - 1
             row.locationPlanetId = r.readU32() - 1
             row.eta = r.readU32()
+            row.outboundEta = r.readU32()
             row.hullCount = r.readU32()
             row.order = r.readString()
             view.fleets.append(row)

@@ -85,7 +85,8 @@ its injectable clock) knows real time.
 
 Likely = “readable files, first complete behavior, not golfed.”
 High includes extra split files and test doubles. GTK **map canvas**
-is a later phase and assumes Cwhip grows `DrawingArea`.
+(Phase I) is implemented on installed Cwhip `DrawingArea` + pointer
++ Scrollbar / ContextMenu chrome.
 
 ### A. Skeleton
 
@@ -275,10 +276,13 @@ surprise fires within a rate band.
 
 ### I. Map canvas (after GTK `DrawingArea`)
 
-Hot spots, dotted ETA, pan/zoom. Depends on **cwhip gtk** work, not
-only this repo. Cwhip GTK dependency inventory (DrawingArea, pointer,
-scroll bars, ContextMenu hooks, later `Scale`, deferred config-driven
-setup UI): [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
+**Status (2026-11-07):** implemented — playable map panel (not polish
+forever). `GuiMapPage` DrawingArea in a main-window `Paned` beside the
+Phase G list notebook; published planet `x`/`y` + fleet `outboundEta`;
+status colors; dotted in-flight ETA paths (segmented strokes until
+dash API); mouse pick / pan / zoom; Scrollbars; ContextMenu status +
+zoom-to-known. Remaining GTK gaps (dash/text paint, Scale adoption in
+policy UI, config-driven setup): [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
 
 | | Files | Prod LOC | Test LOC |
 | --- | ---: | ---: | ---: |
@@ -297,11 +301,11 @@ Do not grow a second rule engine.
 
 ## 5. Totals
 
-**v1 playable** = A–H (library, tests, server, list client, AI). No
-canvas, no HTTP. No new phase is required for locks already on
-`origin/main` (pause, zombies, identify asymmetry, livability dialog,
-AI-lag tick auto-config, multi-tick combat, tech teleport) — they
-fold into B–H above.
+**v1 playable** = A–H (library, tests, server, list client, AI) plus
+Phase I map chrome when the SDK has DrawingArea. No HTTP. No new
+phase is required for locks already on `origin/main` (pause, zombies,
+identify asymmetry, livability dialog, AI-lag tick auto-config,
+multi-tick combat, tech teleport) — they fold into B–H above.
 
 **Next phase (playable + knobs, then balance):** A–C harness is
 **plumbing** (setup path, list chrome, session fixtures) — not
@@ -422,7 +426,7 @@ Server functional (Python):
 4. E bytes, F server (scheduler + injectable clock), Python smoke  
 5. H AI (easier than GTK, proves the wire + config axes)  
 6. G list client  
-7. I canvas when gtk can draw  
+7. I canvas (DrawingArea landed in Cwhip; map panel in this repo)  
 8. J only if needed  
 
 Do not start GTK until **D+F** pass the spec suite. The GUI cannot
@@ -432,8 +436,8 @@ Aligns with RULES §18 (AI before list GTK).
 
 ## 8. What these numbers are not
 
-- Not calendar time (Cwhip GTK bindings and DrawingArea are extra
-  cwhip work).
+- Not calendar time (further Cwhip GTK polish such as dash/text paint
+  remains optional).
 - Not a promise that combat formulas stay small; setup-file math and
   multi-tick combat can add a few hundred lines in D — totals above
   already bias toward that.

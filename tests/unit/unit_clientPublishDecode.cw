@@ -8,6 +8,7 @@
  *   2026-11-05  Initial unit.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-07  Assert design catalog on chrome trailer.
+ *   2026-11-07  Phase I: assert published home x/y milli round-trip.
  */
 
 include "client/publishDecode.cw"
@@ -43,6 +44,26 @@ start {
     }
     if (ok and home.livabilityDisplay > 10) {
         ok = false
+    }
+    if (ok and home.x != 0.0) {
+        ok = false
+    }
+    if (ok and home.y != 0.0) {
+        ok = false
+    }
+    PlanetRow remote = view.findPlanet(1)
+    if (ok and remote.id == 1) {
+        fp64 ax = remote.x
+        if (ax < 0.0) {
+            ax = -ax
+        }
+        fp64 ay = remote.y
+        if (ay < 0.0) {
+            ay = -ay
+        }
+        if (ax + ay < 0.001) {
+            ok = false
+        }
     }
     if (ok and view.designs.length < 1) {
         ok = false

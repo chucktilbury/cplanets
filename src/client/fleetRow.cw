@@ -1,8 +1,8 @@
 /*
  * src/client/fleetRow.cw — one fleet list row (G).
  *
- * Visibility is a server flag. No ETA map canvas — list text only
- * (PLAN §4.G / §4.I deferred).
+ * Visibility is a server flag. Phase I publishes outboundEta so
+ * the map can draw dotted hop progress (PLAN §4.I).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -11,6 +11,7 @@
  *   2026-11-05  Initial FleetRow view model.
  *   2026-11-06  TUNING B: pendingDeparture / recallRequested /
  *               orderLocked for dispatch chrome.
+ *   2026-11-07  Phase I: outboundEta for map hop progress.
  */
 
 /*
@@ -27,6 +28,7 @@ class FleetRow {
     int64 destPlanetId
     int64 locationPlanetId
     int64 eta
+    int64 outboundEta
     int64 hullCount
     String order
 
@@ -50,8 +52,58 @@ class FleetRow {
         destPlanetId = -1
         locationPlanetId = -1
         eta = 0
+        outboundEta = 0
         hullCount = 0
         order = "sit"
+    }
+
+    /*
+     * True when the map should stroke an in-flight hop path.
+     *
+     * Purpose: gate dotted ETA lines (README / RULES §16).
+     *
+     * Parameters: none.
+     *
+     * Returns: true when departed or pending with a real dest.
+     */
+    bool mapPathActive() {
+        if (destPlanetId < 0) {
+            return(false)
+        }
+        if (destPlanetId == locationPlanetId) {
+            return(false)
+        }
+        if (departed) {
+            return(true)
+        }
+        return(pendingDeparture)
+    }
+
+    /*
+     * Hop progress fraction along location→dest for the map.
+     *
+     * Purpose: place the in-transit marker; 0 at origin, 1 at dest.
+     * Uses remaining eta vs outboundEta when both are published.
+     *
+     * Parameters: none.
+     *
+     * Returns: 0..1 progress; 0 when outbound unknown.
+     */
+    fp64 mapHopProgress() {
+        if (not mapPathActive()) {
+            return(0.0)
+        }
+        if (outboundEta <= 0) {
+            return(0.0)
+        }
+        int64 traveled = outboundEta - eta
+        if (traveled < 0) {
+            traveled = 0
+        }
+        if (traveled > outboundEta) {
+            traveled = outboundEta
+        }
+        return(fp64(traveled) / fp64(outboundEta))
     }
 
     /*

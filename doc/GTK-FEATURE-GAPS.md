@@ -68,10 +68,10 @@ widgets. It already runs on what ships today: `Application`, `Window`,
   plain `TextView` for compose/newspaper, `Frame` / `Expander` /
   `Separator` for dense setup trees, `ProgressBar` for ETA chrome.
 
-**PLAN note:** v1 playable = phases A–H **without** map canvas. Map
-work is explicitly gated on Cwhip growing `DrawingArea`
-(`PLAN.md` §4.I). Pause, explored dialog, and digest already have
-client/server hooks that do not need new GTK widgets.
+**PLAN note:** Phase I map canvas is implemented in Cplanets on the
+installed DrawingArea + pointer + Scrollbar/ContextMenu APIs
+(`PLAN.md` §4.I). Remaining map polish: dash/text paint helpers.
+Pause, explored dialog, and digest already have client/server hooks.
 
 ---
 

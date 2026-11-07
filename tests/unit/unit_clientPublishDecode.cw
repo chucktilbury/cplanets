@@ -9,6 +9,7 @@
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-07  Assert design catalog on chrome trailer.
  *   2026-11-07  Phase I: assert published home x/y milli round-trip.
+ *   2026-11-07  allocationPct + knownCompetitors trailer.
  */
 
 include "client/publishDecode.cw"
@@ -76,6 +77,17 @@ start {
         ok = false
     }
     if (ok and view.designDevelopTicks < 1) {
+        ok = false
+    }
+    if (ok and home.allocationPct != 50) {
+        ok = false
+    }
+    Player seat = game.players[0]
+    seat.addCompetitor(1)
+    game.players[0] = seat
+    blob = codec.encodeStateView(game, policies, 0, false)
+    view = decoder.decodeState(blob, 0)
+    if (ok and view.knownCompetitors.length != 1) {
         ok = false
     }
     buffer digest = codec.encodeDigest(0, [])

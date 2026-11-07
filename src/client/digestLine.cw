@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial DigestLine view model.
+ *   2026-11-07  Optional compose text on private/broadcast lines.
  */
 
 /*
@@ -20,6 +21,7 @@ class DigestLine {
     int64 planetId
     int64 playerId
     int64 value
+    String text
 
     /*
      * Construct an empty digest line.
@@ -36,6 +38,7 @@ class DigestLine {
         planetId = -1
         playerId = -1
         value = 0
+        text = ""
     }
 
     /*
@@ -48,6 +51,11 @@ class DigestLine {
      * Returns: short event summary.
      */
     String listLabel() {
+        if (text.length > 0) {
+            return(format(
+                "{} fleet={} planet={} player={} value={} text={}",
+                kind, fleetId, planetId, playerId, value, text))
+        }
         return(format(
             "{} fleet={} planet={} player={} value={}",
             kind, fleetId, planetId, playerId, value))

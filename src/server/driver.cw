@@ -18,10 +18,12 @@
  *   2026-11-07  Server verbosity: policy PUT + combat tick logs.
  *   2026-11-07  Verbosity overlay clamps via ServerVerboseLog 0–10.
  *   2026-11-07  Ship create: owned design develop + yard build.
+ *   2026-11-07  Planet budget + private/broadcast compose inbox.
  *   2026-11-07  Wire afk_timeout_seconds / afk_shrink_factor.
  */
 
 include "clock.cw"
+include "../lib/playerMessage.cw"
 include "../lib/state.cw"
 include "policyTable.cw"
 include "presence.cw"
@@ -47,6 +49,7 @@ class GameDriver {
     buffer publishedDigest
     list lastEvents
     list lastSnapshot
+    list inbox
     bool paused
     bool storeEnabled
     int64 fireCount
@@ -96,6 +99,7 @@ class GameDriver {
         publishedDigest = buffer[]
         lastEvents = []
         lastSnapshot = []
+        inbox = []
         paused = false
         fireCount = 0
         verbose = ServerVerboseLog()
@@ -104,6 +108,134 @@ class GameDriver {
             game, policies, paused)
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
+    }
+
+    /*
+     * Set per-owned-planet allocation % (budget chrome stand-in).
+     *
+     * Purpose: PUT /budget for Planets-tab Scale (DIALOGS §4.2).
+     * Stores intent only — tick spend under empire-pool remains
+     * open; does not invent logistics taxes.
+     *
+     * Parameters:
+     *   playerId — owner seat (must own the rock).
+     *   planetId — owned planet id.
+     *   allocationPct — 0..100 spend bias stand-in.
+     *
+     * Returns: true when stored and republished.
+     */
+    bool setOwnedBudget(
+        int64 playerId, int64 planetId, int64 allocationPct) {
+        if (game.ended) {
+            return(false)
+        }
+        if (planetId < 0
+            or planetId >= game.galaxy.planets.length) {
+            return(false)
+        }
+        Planet rock = game.galaxy.planets[planetId]
+        if (rock.ownerId != playerId) {
+            return(false)
+        }
+        int64 pct = allocationPct
+        if (pct < 0) {
+            pct = 0
+        }
+        if (pct > 100) {
+            pct = 100
+        }
+        rock.allocationPct = pct
+        game.galaxy.planets[planetId] = rock
+        republishWithoutTick()
+        return(true)
+    }
+
+    /*
+     * Post a private or broadcast message from a seat.
+     *
+     * Purpose: PUT /message compose-to-pick (RULES §13). Private
+     * requires a known competitor; broadcast goes to all known.
+     *
+     * Parameters:
+     *   playerId — sending seat.
+     *   toPlayerId — private recipient (ignored when broadcast).
+     *   text — message body (must be non-empty).
+     *   broadcast — true for send-to-all-known.
+     *
+     * Returns: true when queued in the inbox.
+     */
+    bool postOwnedMessage(
+        int64 playerId,
+        int64 toPlayerId,
+        String text,
+        bool broadcast) {
+        if (game.ended) {
+            return(false)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(false)
+        }
+        if (text.length < 1) {
+            return(false)
+        }
+        Player seat = game.players[playerId]
+        if (broadcast) {
+            PlayerMessage note = PlayerMessage(
+                playerId, -1, text, true)
+            inbox.append(note)
+            return(true)
+        }
+        if (not seat.knowsCompetitor(toPlayerId)) {
+            return(false)
+        }
+        PlayerMessage priv = PlayerMessage(
+            playerId, toPlayerId, text, false)
+        inbox.append(priv)
+        return(true)
+    }
+
+    /*
+     * Build a seat-scoped digest blob (tick + visible messages).
+     *
+     * Purpose: GET /digest audience filter — private lines must
+     * not leak to other seats (playerId on GetDigestRequest).
+     *
+     * Parameters:
+     *   playerId — requesting seat.
+     *
+     * Returns: opaque digest bytes (tick events + visible inbox).
+     */
+    buffer digestForSeat(int64 playerId) {
+        list events = []
+        int64 index = 0
+        while (index < lastEvents.length) {
+            events.append(lastEvents[index])
+            index = index + 1
+        }
+        index = 0
+        while (index < inbox.length) {
+            PlayerMessage note = inbox[index]
+            list knownOfSender = []
+            if (note.fromId >= 0
+                and note.fromId < game.players.length) {
+                Player sender = game.players[note.fromId]
+                knownOfSender = sender.knownCompetitors
+            }
+            if (note.visibleTo(playerId, knownOfSender)) {
+                String kind = "private"
+                int64 toVal = note.toId
+                if (note.broadcast) {
+                    kind = "broadcast"
+                    toVal = 0
+                }
+                TickEvent ev = TickEvent(
+                    kind, -1, -1, note.fromId, toVal)
+                ev.text = note.text
+                events.append(ev)
+            }
+            index = index + 1
+        }
+        return(publisher.encodeDigest(game.tickCount, events))
     }
 
     /*

@@ -3,9 +3,9 @@
  *
  * Same protocol as the AI client: handshake, GET /state,
  * PUT /policy, GET /digest, plus TUNING-B PUT /pause, /order,
- * /recall, and ship-create PUT /design, /build, /reclaim-hulls.
- * Never calls tick; never opens the universe DB
- * (RULES §2 / PLAN §4.G).
+ * /recall, ship-create PUT /design, /build, /reclaim-hulls, and
+ * list-chrome PUT /budget, /message. Never calls tick; never
+ * opens the universe DB (RULES §2 / PLAN §4.G).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -15,6 +15,7 @@
  *   2026-11-06  TUNING B: putPause / putOrder / putRecall.
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
  *   2026-11-07  Ship create: putDesign / putBuild / putReclaimHulls.
+ *   2026-11-07  putBudget / putMessage for list chrome.
  */
 
 import networking as Networking
@@ -370,6 +371,64 @@ class HumanSession {
             Envelope.VERB_PUT, "/reclaim-hulls", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
         return(flagAccepted(resp, "/reclaim-hulls"))
+    }
+
+    /*
+     * PUT /budget for an owned planet allocation %.
+     *
+     * Purpose: Planets-tab budget Scale (DIALOGS §4.2).
+     *
+     * Parameters:
+     *   planetId — owned rock.
+     *   allocationPct — 0..100 stand-in.
+     *
+     * Returns: true when the server stored the value.
+     */
+    bool putBudget(int64 planetId, int64 allocationPct) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(planetId)
+        int64 pct = allocationPct
+        if (pct < 0) {
+            pct = 0
+        }
+        if (pct > 100) {
+            pct = 100
+        }
+        w.writeU8(pct)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/budget", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/budget"))
+    }
+
+    /*
+     * PUT /message private or broadcast compose.
+     *
+     * Purpose: Digest-tab compose-to-pick (RULES §13).
+     *
+     * Parameters:
+     *   toPlayerId — known competitor (ignored when broadcast).
+     *   text — non-empty body.
+     *   broadcast — true for send-to-all-known.
+     *
+     * Returns: true when the server queued the message.
+     */
+    bool putMessage(
+        int64 toPlayerId, String text, bool broadcast) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(toPlayerId)
+        if (broadcast) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        w.writeString(text)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/message", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/message"))
     }
 
     /*

@@ -13,6 +13,7 @@
  *               trailer (pause + design/build progress).
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
+ *   2026-11-07  Planet allocationPct; known competitors; digest text.
  */
 
 include "../lib/wireBytes.cw"
@@ -136,6 +137,7 @@ class PublishDecode {
             int64 yMilli = r.readI32()
             row.x = fp64(xMilli) / 1000.0
             row.y = fp64(yMilli) / 1000.0
+            row.allocationPct = r.readU8()
             view.planets.append(row)
             index = index + 1
         }
@@ -194,6 +196,7 @@ class PublishDecode {
         WireBytes r, buffer blob, ClientStateView view) {
         view.progressLines = []
         view.designs = []
+        view.knownCompetitors = []
         if (r.offset + 4 > blob.length) {
             return()
         }
@@ -270,6 +273,16 @@ class PublishDecode {
             view.designs.append(row)
             index = index + 1
         }
+        if (r.offset + 4 > blob.length) {
+            return()
+        }
+        int64 knownCount = r.readU32()
+        index = 0
+        while (index < knownCount) {
+            int64 other = r.readU32()
+            view.knownCompetitors.append(other)
+            index = index + 1
+        }
     }
 
     /*
@@ -301,6 +314,7 @@ class PublishDecode {
             line.planetId = r.readU32() - 1
             line.playerId = r.readU32() - 1
             line.value = r.readU32()
+            line.text = r.readString()
             view.digest.append(line)
             index = index + 1
         }

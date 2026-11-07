@@ -3,8 +3,9 @@
  *
  * Paned: map canvas (Phase I) beside the list notebook (Planets,
  * Fleets, Ships, Digest, Policy). Pause gated to one human; fleet
- * dispatch/recall via GuiFleetPage; design/yard via GuiYardPage;
- * explored dialog auto-presents on quality / productive changes.
+ * dispatch/recall; design/yard; planet budget Scales; known-
+ * competitor compose; explored dialog auto-presents on quality /
+ * productive changes. Policy % uses Gtk.Scale.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -14,14 +15,19 @@
  *   2026-11-06  TUNING B: pause, fleet chrome, explored auto-pop.
  *   2026-11-07  Ships tab: design develop / yard build / reclaim.
  *   2026-11-07  Phase I: map canvas panel beside list notebook.
+ *   2026-11-07  Budget Scales + known-competitor compose pages.
  */
 
 include "appCore.cw"
 include "exploredTrack.cw"
+include "guiDigestPage.cw"
 include "guiFleetPage.cw"
 include "guiMapPage.cw"
 include "guiPlanetDialog.cw"
+include "guiPlanetPage.cw"
+include "guiPolicyPage.cw"
 include "guiYardPage.cw"
+include "fleetRow.cw"
 include "planetRow.cw"
 
 /*
@@ -35,16 +41,12 @@ class GuiMain {
     Gtk.Window window
     Gtk.Label status
     Gtk.CheckButton pauseBtn
-    Gtk.Label planetList
-    Gtk.Label digestList
-    Gtk.Entry roleEntry
-    Gtk.Entry expansionEntry
-    Gtk.Entry escortEntry
-    Gtk.Entry agreementEntry
-    Gtk.Entry techEntry
     GuiPlanetDialog planetDialog
+    GuiPlanetPage planetPage
     GuiFleetPage fleetPage
     GuiYardPage yardPage
+    GuiDigestPage digestPage
+    GuiPolicyPage policyPage
     GuiMapPage mapPage
     ExploredTrack explored
     bool suppressPauseToggle
@@ -60,6 +62,8 @@ class GuiMain {
     void<> developAction
     void<> buildAction
     void<> reclaimAction
+    void<> budgetAction
+    void<> sendAction
     void<bool> pauseAction
     void<> testAction
     bool testMode
@@ -79,16 +83,12 @@ class GuiMain {
         window = null
         status = null
         pauseBtn = null
-        planetList = null
-        digestList = null
-        roleEntry = null
-        expansionEntry = null
-        escortEntry = null
-        agreementEntry = null
-        techEntry = null
         planetDialog = GuiPlanetDialog()
+        planetPage = GuiPlanetPage(appCore)
         fleetPage = GuiFleetPage(appCore)
         yardPage = GuiYardPage(appCore)
+        digestPage = GuiDigestPage(appCore)
+        policyPage = GuiPolicyPage(appCore)
         mapPage = GuiMapPage(appCore)
         explored = ExploredTrack()
         suppressPauseToggle = false
@@ -104,6 +104,8 @@ class GuiMain {
         developAction = null
         buildAction = null
         reclaimAction = null
+        budgetAction = null
+        sendAction = null
         pauseAction = null
         testAction = null
         testMode = false
@@ -159,7 +161,10 @@ class GuiMain {
         Gtk.Notebook notebook = Gtk.Notebook()
         notebook.setHExpand(true)
         notebook.setVExpand(true)
-        notebook.appendPage(buildPlanetPage(), "Planets")
+        planetPage.showExploredAction = showExploredAction
+        planetPage.budgetAction = budgetAction
+        planetPage.budgetChangedAction = planetPage.onBudgetChanged
+        notebook.appendPage(planetPage.buildPage(), "Planets")
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         notebook.appendPage(fleetPage.buildPage(), "Fleets")
@@ -167,8 +172,14 @@ class GuiMain {
         yardPage.buildAction = buildAction
         yardPage.reclaimAction = reclaimAction
         notebook.appendPage(yardPage.buildPage(), "Ships")
-        notebook.appendPage(buildDigestPage(), "Digest")
-        notebook.appendPage(buildPolicyPage(), "Policy")
+        digestPage.sendAction = sendAction
+        notebook.appendPage(digestPage.buildPage(), "Digest")
+        policyPage.applyAction = applyAction
+        policyPage.expansionChangedAction = policyPage.onExpansionChanged
+        policyPage.escortChangedAction = policyPage.onEscortChanged
+        policyPage.agreementChangedAction = policyPage.onAgreementChanged
+        policyPage.techChangedAction = policyPage.onTechChanged
+        notebook.appendPage(policyPage.buildPage(), "Policy")
         split.append(notebook)
         split.setPosition(520)
         root.append(split)
@@ -181,89 +192,6 @@ class GuiMain {
     }
 
     /*
-     * Build the Planets notebook page.
-     *
-     * Purpose: scrolled label list (no DrawingArea).
-     *
-     * Parameters: none.
-     *
-     * Returns: page widget.
-     */
-    Gtk.Widget buildPlanetPage() {
-        Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        planetList = Gtk.Label("(no planets)")
-        planetList.setHExpand(true)
-        planetList.setVExpand(true)
-        Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
-        scroll.setChild(planetList)
-        scroll.setHExpand(true)
-        scroll.setVExpand(true)
-        page.append(scroll)
-        Gtk.Button exploreBtn = Gtk.Button("Show first explored")
-        if (showExploredAction != null) {
-            exploreBtn.onClicked(showExploredAction)
-        }
-        page.append(exploreBtn)
-        return(page)
-    }
-
-    /*
-     * Build the Digest notebook page.
-     *
-     * Purpose: newspaper / GET digest text.
-     *
-     * Parameters: none.
-     *
-     * Returns: page widget.
-     */
-    Gtk.Widget buildDigestPage() {
-        Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        digestList = Gtk.Label("(empty)")
-        digestList.setHExpand(true)
-        digestList.setVExpand(true)
-        Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
-        scroll.setChild(digestList)
-        scroll.setHExpand(true)
-        scroll.setVExpand(true)
-        page.append(scroll)
-        return(page)
-    }
-
-    /*
-     * Build the Policy editor notebook page.
-     *
-     * Purpose: standing policy knobs; Apply PUTs without warnings.
-     *
-     * Parameters: none.
-     *
-     * Returns: page widget.
-     */
-    Gtk.Widget buildPolicyPage() {
-        Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
-        roleEntry = Gtk.Entry(core.draft.roleName)
-        expansionEntry = Gtk.Entry(
-            format("{}", core.draft.expansionPct))
-        escortEntry = Gtk.Entry(format("{}", core.draft.escortPct))
-        agreementEntry = Gtk.Entry(
-            format("{}", core.draft.agreementS))
-        techEntry = Gtk.Entry(format("{}", core.draft.techBiasPct))
-        page.append(Gtk.Label("Role"))
-        page.append(roleEntry)
-        page.append(Gtk.Label("Expansion %"))
-        page.append(expansionEntry)
-        page.append(Gtk.Label("Escort %"))
-        page.append(escortEntry)
-        page.append(Gtk.Label("Agreement S"))
-        page.append(agreementEntry)
-        page.append(Gtk.Label("Tech bias %"))
-        page.append(techEntry)
-        Gtk.Button apply = Gtk.Button("Apply policy")
-        apply.onClicked(applyAction)
-        page.append(apply)
-        return(page)
-    }
-
-    /*
      * Rebuild list labels from core.view.
      *
      * Purpose: Refresh menu / post-pull.
@@ -273,28 +201,12 @@ class GuiMain {
      * Returns: nothing.
      */
     void refreshLists() {
-        String planets = ""
-        int64 index = 0
-        while (index < core.view.planets.length) {
-            PlanetRow row = core.view.planets[index]
-            if (row.visible) {
-                planets.append(row.listLabel())
-                planets.append("\n")
-            }
-            index = index + 1
-        }
-        if (planets.length < 1) {
-            planets = "(no visible planets)\n"
-        }
-        if (planetList != null) {
-            planetList.setText(planets)
-        }
+        planetPage.refresh()
         fleetPage.refresh()
         yardPage.refresh()
         mapPage.refresh()
-        if (digestList != null) {
-            digestList.setText(core.view.digestText())
-        }
+        digestPage.refresh()
+        policyPage.syncFromDraft()
         if (status != null) {
             String pauseBit = ""
             if (core.view.paused) {
@@ -309,17 +221,6 @@ class GuiMain {
                 pauseBit))
         }
         syncPauseChrome()
-        if (roleEntry != null) {
-            roleEntry.setText(core.draft.roleName)
-            expansionEntry.setText(
-                format("{}", core.draft.expansionPct))
-            escortEntry.setText(
-                format("{}", core.draft.escortPct))
-            agreementEntry.setText(
-                format("{}", core.draft.agreementS))
-            techEntry.setText(
-                format("{}", core.draft.techBiasPct))
-        }
         autoPresentExplored()
     }
 
@@ -415,7 +316,7 @@ class GuiMain {
     }
 
     /*
-     * Apply policy from entry widgets.
+     * Apply policy from Scale / Entry widgets.
      *
      * Purpose: Policy tab Apply — no order warnings.
      *
@@ -424,11 +325,7 @@ class GuiMain {
      * Returns: nothing.
      */
     void onApply() {
-        core.draft.roleName = roleEntry.text()
-        core.draft.expansionPct = expansionEntry.text().toInt64()
-        core.draft.escortPct = escortEntry.text().toInt64()
-        core.draft.agreementS = agreementEntry.text().toInt64()
-        core.draft.techBiasPct = techEntry.text().toInt64()
+        policyPage.writeDraft()
         if (core.config.port > 0) {
             if (core.applyDraftRemote()) {
                 status.setText("policy applied")
@@ -437,6 +334,75 @@ class GuiMain {
             }
         } else {
             status.setText("policy draft updated (offline)")
+        }
+    }
+
+    /*
+     * Apply planet budget Scale via PUT /budget.
+     *
+     * Purpose: Planets-tab allocation stand-in (DIALOGS §4.2).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onBudget() {
+        int64 planetId = planetPage.planetIdValue()
+        int64 pct = planetPage.allocationValue()
+        if (core.config.port < 1) {
+            PlanetRow row = core.view.findPlanet(planetId)
+            if (row.id >= 0 and row.ownerId == core.view.viewerId) {
+                row.allocationPct = pct
+                status.setText("budget draft (offline)")
+            } else {
+                status.setText("budget needs owned planet")
+            }
+            refreshLists()
+            return()
+        }
+        if (core.putBudgetRemote(planetId, pct)) {
+            status.setText(format(
+                "budget planet={} alloc={}%", planetId, pct))
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("budget apply failed")
+        }
+    }
+
+    /*
+     * Send private / broadcast compose via PUT /message.
+     *
+     * Purpose: Digest-tab compose-to-pick (RULES §13).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onSendMessage() {
+        String body = digestPage.bodyValue()
+        if (body.length < 1) {
+            status.setText("message body empty")
+            return()
+        }
+        bool broadcast = digestPage.broadcastValue()
+        int64 toId = digestPage.toValue()
+        if (core.config.port < 1) {
+            status.setText("compose needs live server")
+            return()
+        }
+        if (core.putMessageRemote(toId, body, broadcast)) {
+            if (broadcast) {
+                status.setText("broadcast queued")
+            } else {
+                status.setText(format(
+                    "message to {} queued", toId))
+            }
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText(
+                "message failed (need known competitor?)")
         }
     }
 

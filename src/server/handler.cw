@@ -5,8 +5,8 @@
  * against a GameDriver. Paths: GET /state, PUT /policy, GET
  * /digest|/events, PUT /handshake, PUT /quit, PUT /pause,
  * PUT /order, PUT /recall, PUT /design, PUT /build,
- * PUT /reclaim-hulls, PUT /admin/advance. No ready-barrier
- * verb (PLAN §4.F).
+ * PUT /reclaim-hulls, PUT /budget, PUT /message,
+ * PUT /admin/advance. No ready-barrier verb (PLAN §4.F).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -16,6 +16,7 @@
  *   2026-11-05  Phase G: GET /state uses seat-scoped list view.
  *   2026-11-06  TUNING B: PUT /order, PUT /recall; pause in state.
  *   2026-11-07  Ship create: PUT /design, /build, /reclaim-hulls.
+ *   2026-11-07  Planet budget + private/broadcast compose.
  */
 
 include "driver.cw"
@@ -118,6 +119,14 @@ class ServerHandler {
             return(handleReclaimHulls(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/budget")) {
+            return(handleBudget(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/message")) {
+            return(handleMessage(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/admin/advance")) {
             return(handleAdvance(env.body))
         }
@@ -186,9 +195,9 @@ class ServerHandler {
         if (req.playerId < 0) {
             return(errorFrame("bad_get_digest"))
         }
+        buffer blob = driver.digestForSeat(req.playerId)
         GetDigestResponse resp = GetDigestResponse(
-            driver.game.tickCount,
-            driver.publishedDigest)
+            driver.game.tickCount, blob)
         Envelope env = codec.decode(request)
         return(getDigest.encodeResponse(env.path, resp))
     }
@@ -389,6 +398,57 @@ class ServerHandler {
         }
         bool ok = driver.queueOwnedReclaim(player, fleet, hulls)
         return(flagAck("/reclaim-hulls", ok))
+    }
+
+    /*
+     * Serve PUT /budget body (player, planet, allocationPct).
+     *
+     * Purpose: per-owned-planet allocation Scale stand-in
+     * (DIALOGS §4.2). Ownership checked in the driver.
+     *
+     * Parameters:
+     *   body — playerId u32, planetId u32, allocationPct u8.
+     *
+     * Returns: ack envelope on /budget.
+     */
+    buffer handleBudget(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 planet = r.readU32()
+        int64 pct = r.readU8()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_budget"))
+        }
+        bool ok = driver.setOwnedBudget(player, planet, pct)
+        return(flagAck("/budget", ok))
+    }
+
+    /*
+     * Serve PUT /message body (player, to, flags, text).
+     *
+     * Purpose: known-competitor private compose + broadcast
+     * (RULES §13). flags bit0 = broadcast.
+     *
+     * Parameters:
+     *   body — playerId u32, toPlayerId u32, flags u8, text.
+     *
+     * Returns: ack envelope on /message.
+     */
+    buffer handleMessage(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 toPlayer = r.readU32()
+        int64 flags = r.readU8()
+        String text = r.readString()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_message"))
+        }
+        bool broadcast = ((flags % 2) == 1)
+        bool ok = driver.postOwnedMessage(
+            player, toPlayer, text, broadcast)
+        return(flagAck("/message", ok))
     }
 
     /*

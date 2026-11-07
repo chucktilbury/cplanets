@@ -12,6 +12,7 @@
  *   2026-11-06  TUNING B: pause / order / recall remote helpers.
  *   2026-11-06  pullRemote fails when GET /state returns tick -1.
  *   2026-11-07  Ship create: design / build / reclaim remote.
+ *   2026-11-07  Budget + message remote helpers.
  */
 
 include "config.cw"
@@ -261,6 +262,52 @@ class AppCore {
         }
         session.handshake()
         bool ok = session.putReclaimHulls(fleetId, hulls)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT planet budget over TCP.
+     *
+     * Purpose: Planets-tab Apply budget Scale.
+     *
+     * Parameters:
+     *   planetId — owned rock.
+     *   allocationPct — 0..100 stand-in.
+     *
+     * Returns: true when accepted.
+     */
+    bool putBudgetRemote(int64 planetId, int64 allocationPct) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putBudget(planetId, allocationPct)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT private / broadcast message over TCP.
+     *
+     * Purpose: Digest-tab compose Send.
+     *
+     * Parameters:
+     *   toPlayerId — known competitor (ignored when broadcast).
+     *   text — message body.
+     *   broadcast — true for send-to-all-known.
+     *
+     * Returns: true when accepted.
+     */
+    bool putMessageRemote(
+        int64 toPlayerId, String text, bool broadcast) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putMessage(toPlayerId, text, broadcast)
         session.close()
         return(ok)
     }

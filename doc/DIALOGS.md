@@ -34,11 +34,11 @@ Context: `design-decisions.md`, `project-context.md`,
 | --- | --- | --- | --- |
 | **Main window** | Always-on client shell; never ticks | Title; File menu; status line (tick / counts) | **Exists (Phase G)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
-| **Planets notebook page** | Visibility-limited planet list | Scrolled labels: id, owner, livability/resources 1–10 or `quality=unknown`; button “Show first explored” | **Exists (Phase G)** — list stand-in for map |
+| **Planets notebook page** | Visibility-limited planet list + budget | Scrolled labels; “Show first explored”; owned-planet allocation **Scale** → PUT `/budget` | **Exists** — list + budget stand-in |
 | **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; design/build progress label | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B)** |
 | **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; progress + owned yards | **Exists** (ship create chrome) |
-| **Digest notebook page** | Newspaper / published events | Scrolled digest text (broadcasts + tick events) | **Exists (Phase G)** — read-only list |
-| **Policy notebook page** | Standing policy editor | Role, expansion %, escort %, agreement `S`, tech bias %; Apply (PUT `/policy`); no dumb-order warnings | **Exists (Phase G)** — Entries today; **Intended playable** prefers sliders |
+| **Digest notebook page** | Newspaper + compose | Digest text; known-competitors list; private/broadcast compose → PUT `/message` | **Exists** — list + compose |
+| **Policy notebook page** | Standing policy editor | Role Entry; expansion / escort / agreement `S` / tech bias **Scales**; Apply (PUT `/policy`); no dumb-order warnings | **Exists** — Scales for policy % |
 | **Map canvas panel** | Galaxy graphic in the client layout (Paned beside notebook) | Hot spots; status colors; dotted ETA paths; pan/zoom; pick; ContextMenu status + zoom-to-known | **Exists (Phase I)** — dispatch still via Fleets tab |
 
 **Principle:** standing policy and lists live as **panels**. True dialogs
@@ -50,12 +50,12 @@ dominate the main surface. The map is a **panel**, not a dialog.
 | Dialog | When shown | Status |
 | --- | --- | --- |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
-| Planet status / budget menus | Click planet → menu options (README) | **Intended playable** |
+| Planet status / budget menus | Click planet → menu options (README) | Budget **Exists** on Planets tab; map-menu budget still **Intended** |
 | Map right-click context menu | Right-click / selected planet | **Exists (Phase I)** — status + explored + zoom-to-known; budget/dispatch menu actions still **Intended** |
 | Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists (TUNING B)** as Fleets-tab Entries/buttons (list stand-in; map pick still **Intended playable**) |
 | Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships tab list stand-ins) |
-| Compose private message | Player chooses send-to known competitor | **Intended playable** |
-| Known-competitors picker | Contact adds names; compose-to-pick | **Intended playable** |
+| Compose private message | Player chooses send-to known competitor | **Exists** (Digest tab Entries; DropDown polish later) |
+| Known-competitors picker | Contact adds names; compose-to-pick | **Exists** (list + To Entry) |
 | Pause control | Exactly one human | Server gate **Exists**; client CheckButton **Exists (TUNING B)** (sensitive only when offered) |
 | Connection / drop / AFK notices | Human-visible presence feedback | **Intended playable** where human-visible; details **open** |
 | Server setup GUI hierarchy | Admin edits §14 knobs before lock | **Deferred** (not v1) |
@@ -140,13 +140,13 @@ Dispatch still uses the Fleets tab (map pick-to-dispatch remains
 
 ### 4.1 Empire standing policy (panel)
 
-| Field | Control (intended) | Phase G today | Status |
+| Field | Control (intended) | Today | Status |
 | --- | --- | --- | --- |
-| Role (empire-wide) | Entry or dropdown; not dual roles per partner | `Entry` | **Exists**; polish **Intended** |
-| Expansion % | Slider | `Entry` | **Exists** as text; slider **Intended playable** |
-| Escort % | Slider | `Entry` | same |
-| Agreement size `S` | Slider / spin | `Entry` | same — **player–player** `S`, not planet–planet |
-| Tech bias % | Slider | `Entry` | same |
+| Role (empire-wide) | Entry or dropdown; not dual roles per partner | `Entry` | **Exists**; DropDown polish **Intended** |
+| Expansion % | Slider | `Scale` | **Exists** |
+| Escort % | Slider | `Scale` | **Exists** |
+| Agreement size `S` | Slider / spin | `Scale` | **Exists** — **player–player** `S` |
+| Tech bias % | Slider | `Scale` | **Exists** |
 | Apply | Button → PUT `/policy` anytime | Present | **Exists** |
 
 **Flow:** edit anytime; no peer wait; mid-dispatch other policy OK
@@ -155,14 +155,14 @@ policy.
 
 ### 4.2 Planet budget / allocation
 
-**Intended playable** (README: change a planet’s budget via click →
-menu). Concrete product surface:
+**Exists** as Planets-tab list stand-in (allocation % Scale →
+`PUT /budget`). Map-menu entry still **Intended**. Concrete surface:
 
 | Content | Notes |
 | --- | --- |
-| Per-owned-planet spend / allocation knobs | Prefer **sliders**; empire pools remain sacred (no yard logistics tax) |
-| Entry point | Planet click / status menu — not a separate maze of windows |
-| Exact knob list | **Open** if not already named in RULES beyond “allocations” in standing policy — do not invent per-planet logistics beyond locked empire-pool model |
+| Per-owned-planet `allocationPct` (0–100) | **Scale**; empire pools remain sacred (no yard logistics tax) |
+| Entry point | Planets tab today; map click / status menu later |
+| Exact knob list | Still **open** under empire-pool model — `allocationPct` is a stored stand-in; tick spend does not invent logistics |
 
 ### 4.3 Agreements UI
 
@@ -209,10 +209,10 @@ List stand-ins only (no Scale / map). Timed develop/build use existing
 
 | Surface | Contents | Status |
 | --- | --- | --- |
-| **Newspaper / digest panel** | Published tick events + **broadcasts**; read after each tick | **Exists (Phase G)** read-only Digest tab |
-| **Known competitors list** | Names appear after **contact** (explore and/or conquest of another partition); no contact → no name | **Intended playable** (AI view counts exist; human UI list not shipped) |
-| **Compose private message** | Pick recipient from known competitors; compose body; send | **Intended playable** (RULES §13/§16 compose-to-pick) |
-| **Broadcast compose** | Optional send-to-all-known / broadcast path if protocol exposes it | **Intended playable** if wire already supports; else follow Phase E verbs — do not invent |
+| **Newspaper / digest panel** | Published tick events + **broadcasts**; read after each tick | **Exists** Digest tab |
+| **Known competitors list** | Names appear after **contact**; no contact → no name | **Exists** (published chrome + Digest list) |
+| **Compose private message** | Pick recipient from known competitors; compose body; send | **Exists** (`PUT /message`; seat-scoped digest) |
+| **Broadcast compose** | Send-to-all-known via same verb + broadcast flag | **Exists** |
 
 No contact, no private send target. Digest is the primary “what
 happened” surface; compose is a focused dialog or side panel — avoid
@@ -295,7 +295,10 @@ v1. File/scenario edit remains the v1 path.
 - Explored-planet TransientWindow (1–10 + populated/productive note);
   manual “Show first explored” + auto-present on quality /
   productive / populated flips (**TUNING B**); map menu open explored
-- Policy Entries + Apply PUT; no dumb-order warnings
+- Policy role Entry + % **Scales** + Apply PUT; no dumb-order warnings
+- Planets-tab budget Scale → `PUT /budget` (allocationPct stand-in)
+- Digest known-competitors + private/broadcast compose →
+  `PUT /message` (seat-scoped digest)
 - TCP pull of seat-scoped publish flags (no second fog)
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
 - Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
@@ -306,12 +309,13 @@ v1. File/scenario edit remains the v1 path.
 
 ### Remaining for intended playable human UI
 
-- Map pick-to-dispatch / richer planet budget menus from ContextMenu
-- Sliders for policy / budget; richer planet budget menus
-- Richer design editor (weapons/shields fields; Scale) beyond Entries
-- Known-competitors list + private compose (+ broadcast if applicable)
+- Map pick-to-dispatch / budget + dispatch from ContextMenu
+- Richer planet budget knobs once RULES names them (beyond
+  allocationPct stand-in)
+- Richer design editor (weapons/shields fields) beyond Entries
 - Human-visible AFK / drop notices (peer notify still open)
 - Full multi-partner agreements UI beyond single `agreementS` stub
+- DropDown polish for role / compose recipient
 
 ### Deferred
 

@@ -13,6 +13,7 @@
  *   2026-11-05  Initial planet fields for setup galaxy.
  *   2026-11-05  Phase D1: satelliteDefense for Ho-shaped leave-behind.
  *   2026-11-05  Phase D5: partitionId for sandbox contact.
+ *   2026-11-07  allocationPct stand-in for planet budget chrome.
  */
 
 /*
@@ -36,6 +37,7 @@ class Planet {
     fp64 population
     fp64 satelliteDefense
     int64 partitionId
+    int64 allocationPct
 
     /*
      * Construct an unowned, unexplored rock at the origin.
@@ -62,6 +64,9 @@ class Planet {
         population = 0.0
         satelliteDefense = 0.0
         partitionId = 0
+        # Mid-band stand-in until RULES names per-planet spend
+        # knobs under the empire-pool model (DIALOGS §4.2 open).
+        allocationPct = 50
     }
 
     /*

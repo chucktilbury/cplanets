@@ -319,6 +319,10 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_list_chrome.cmake")
+    add_test(NAME functional_design_yard COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_design_yard.cmake")
     add_test(NAME functional_session_harness COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DAI=${cplanets-ai_executable}"

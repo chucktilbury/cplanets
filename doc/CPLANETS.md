@@ -138,16 +138,21 @@ bin/cplanets --config config/human-default.cfg [flags…]
 With `--gui` / `--test` and `port > 0`, the client pulls from the
 server; otherwise it prefills an offline closed galaxy.
 
-**Tuning-loop chrome (workstream B, no map):** Pause CheckButton
-(sensitive only with exactly one human; `PUT /pause`). Fleets tab
-Entries + Dispatch / Recall (`PUT /order`, `PUT /recall`) for
-explore / take / trade / move / ambush / recall — in-flight fleets
-show `LOCKED` and Dispatch is disabled until Recall. Policy tab
-Entries + Apply unchanged. Explored-planet dialog auto-presents when
-quality becomes known or productive/populated flips; Planets tab
-still has “Show first explored”. Design/build progress is a
-non-modal label fed from the published chrome trailer (setup
-durations + active jobs).
+**Tuning-loop chrome (workstream B + ship create, no map):** Pause
+CheckButton (sensitive only with exactly one human; `PUT /pause`).
+Fleets tab Entries + Dispatch / Recall (`PUT /order`, `PUT /recall`)
+for explore / take / trade / move / ambush / recall — in-flight
+fleets show `LOCKED` and Dispatch is disabled until Recall. **Ships
+tab** (design / yard): inspect the published design catalog and
+owned yards; **Start develop** (`PUT /design`) queues timed design
+development (wealth; `design_develop_ticks`); **Queue build**
+(`PUT /build`) queues a hull at a productive owned shipyard
+(resources; `yard_build_ticks`); **Reclaim hulls**
+(`PUT /reclaim-hulls`) starts yard reclaim for a sitting fleet.
+Progress label shows active develop / build / reclaim jobs. Policy
+tab Entries + Apply unchanged. Explored-planet dialog auto-presents
+when quality becomes known or productive/populated flips; Planets
+tab still has “Show first explored”.
 
 ### `cplanets-ai`
 
@@ -217,10 +222,23 @@ Without a display, use `--pull` / `--once` on the human binary and
 `--injectable` on the server so tests can advance ticks without
 waiting on wall time.
 
-**Ship create / design / yard build:** not in the list client yet —
-Fleets has dispatch/recall of **existing** fleets plus a design/build
-**progress** label. First moves are policy Apply and fleet Dispatch
-(explore / take / …), not a “create ship” dialog.
+**Ship create / design / yard (Ships tab):**
+
+1. Open **Ships**. Confirm home yard (planet 0) and ready designs
+   (seeded scout/colony are ready immediately).
+2. **Start develop** — set name / speed / hop / size / cargo / kind
+   (`scout` / `colony` / `defense` / `war`). Cost ≈ `size * 50 *
+   design_speed_cost_coeff * design_range_cost_coeff` wealth. The
+   design appears in the list as developing until
+   `design_develop_ticks` elapse (wall ticks or `--injectable`
+   advance).
+3. **Queue build** — enter a productive owned yard planet id and a
+   **ready** design id. Cost ≈ `size * 10` resources. When
+   `yard_build_ticks` complete, a sitting hull appears at the yard
+   (then use Fleets → Dispatch).
+4. **Reclaim hulls** — sitting fleet at a yard; reclaim returns a
+   setup percent of production resources after the same yard
+   duration (development wealth is never refunded).
 
 ### Tuning session harness (workstream C)
 

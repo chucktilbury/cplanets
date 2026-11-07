@@ -11,6 +11,7 @@
  *   2026-11-05  Initial AppCore.
  *   2026-11-06  TUNING B: pause / order / recall remote helpers.
  *   2026-11-06  pullRemote fails when GET /state returns tick -1.
+ *   2026-11-07  Ship create: design / build / reclaim remote.
  */
 
 include "config.cw"
@@ -188,6 +189,78 @@ class AppCore {
         }
         session.handshake()
         bool ok = session.putRecall(fleetId)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT design develop over TCP.
+     *
+     * Purpose: Ships tab Start develop.
+     *
+     * Parameters:
+     *   name / speed / hop / size / cargo / kind — Entry texts.
+     *
+     * Returns: true when accepted.
+     */
+    bool putDesignRemote(
+        String name,
+        String speed,
+        String hop,
+        String size,
+        String cargo,
+        String kind) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putDesign(
+            name, speed, hop, size, cargo, kind)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT yard build over TCP.
+     *
+     * Purpose: Ships tab Queue build.
+     *
+     * Parameters:
+     *   planetId — owned productive shipyard.
+     *   designId — ready design.
+     *
+     * Returns: true when accepted.
+     */
+    bool putBuildRemote(int64 planetId, int64 designId) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putBuild(planetId, designId)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT reclaim-hulls over TCP.
+     *
+     * Purpose: Ships tab Reclaim hulls.
+     *
+     * Parameters:
+     *   fleetId — sitting fleet at a yard.
+     *   hulls — count to reclaim.
+     *
+     * Returns: true when accepted.
+     */
+    bool putReclaimHullsRemote(int64 fleetId, int64 hulls) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putReclaimHulls(fleetId, hulls)
         session.close()
         return(ok)
     }

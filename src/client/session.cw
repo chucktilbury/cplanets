@@ -3,7 +3,8 @@
  *
  * Same protocol as the AI client: handshake, GET /state,
  * PUT /policy, GET /digest, plus TUNING-B PUT /pause, /order,
- * /recall. Never calls tick; never opens the universe DB
+ * /recall, and ship-create PUT /design, /build, /reclaim-hulls.
+ * Never calls tick; never opens the universe DB
  * (RULES §2 / PLAN §4.G).
  *
  * Created: 2026-11-05
@@ -13,6 +14,7 @@
  *   2026-11-05  Initial HumanSession request helpers.
  *   2026-11-06  TUNING B: putPause / putOrder / putRecall.
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
+ *   2026-11-07  Ship create: putDesign / putBuild / putReclaimHulls.
  */
 
 import networking as Networking
@@ -288,6 +290,86 @@ class HumanSession {
             Envelope.VERB_PUT, "/recall", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
         return(flagAccepted(resp, "/recall"))
+    }
+
+    /*
+     * PUT /design to start non-instant development.
+     *
+     * Purpose: Ships tab Start develop (RULES §5.3).
+     *
+     * Parameters:
+     *   name — design name.
+     *   speed — speed Entry text (fp64 parse on server).
+     *   hop — hop reach Entry text.
+     *   size — size Entry text (also cost basis).
+     *   cargo — cargo hold Entry text.
+     *   kind — scout / colony / defense / war.
+     *
+     * Returns: true when the server queued development.
+     */
+    bool putDesign(
+        String name,
+        String speed,
+        String hop,
+        String size,
+        String cargo,
+        String kind) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeString(name)
+        w.writeString(speed)
+        w.writeString(hop)
+        w.writeString(size)
+        w.writeString(cargo)
+        w.writeString(kind)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/design", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/design"))
+    }
+
+    /*
+     * PUT /build to queue a yard hull.
+     *
+     * Purpose: Ships tab Queue build.
+     *
+     * Parameters:
+     *   planetId — owned productive shipyard.
+     *   designId — ready design id.
+     *
+     * Returns: true when the BuildJob was queued.
+     */
+    bool putBuild(int64 planetId, int64 designId) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(planetId)
+        w.writeU32(designId)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/build", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/build"))
+    }
+
+    /*
+     * PUT /reclaim-hulls for sitting hulls at a yard.
+     *
+     * Purpose: Ships tab Reclaim hulls (RULES §5.2).
+     *
+     * Parameters:
+     *   fleetId — sitting fleet at a shipyard.
+     *   hulls — hull count to reclaim.
+     *
+     * Returns: true when a ReclaimJob was queued.
+     */
+    bool putReclaimHulls(int64 fleetId, int64 hulls) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        w.writeU32(hulls)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/reclaim-hulls", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/reclaim-hulls"))
     }
 
     /*

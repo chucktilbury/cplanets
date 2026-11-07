@@ -5,9 +5,9 @@
  * --config PATH: load human settings (not AI config).
  * --once: fill a closed galaxy in-process and print lists (no TCP,
  * no GTK). --pull: TCP GET state+digest summary. --gui / --test:
- * GTK notebook (planets, fleets, digest, policy) + explored dialog.
- * Never ticks; never opens the universe DB (RULES §2 / PLAN §4.G).
- * No map canvas / DrawingArea (PLAN §4.I).
+ * GTK notebook (planets, fleets, ships, digest, policy) + explored
+ * dialog. Never ticks; never opens the universe DB (RULES §2 /
+ * PLAN §4.G). No map canvas / DrawingArea (PLAN §4.I).
  * User-facing argv uses stdlib `cli` (including --help / -h).
  *
  * Created: 2026-11-05
@@ -19,6 +19,7 @@
  *   2026-11-05  Phase G: list debugger, TCP, GTK panes.
  *   2026-11-06  TUNING B: wire pause / dispatch / recall actions.
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
+ *   2026-11-07  Wire Ships tab design / build / reclaim actions.
  */
 
 import cli as Cli
@@ -293,6 +294,9 @@ class HumanMain {
         gui.showExploredAction = gui.showFirstExplored
         gui.dispatchAction = gui.onDispatch
         gui.recallAction = gui.onRecall
+        gui.developAction = gui.onDevelop
+        gui.buildAction = gui.onBuild
+        gui.reclaimAction = gui.onReclaimHulls
         gui.pauseAction = gui.onPauseToggled
         gui.testAction = gui.onTest
         app.onActivate(gui.activateAction)

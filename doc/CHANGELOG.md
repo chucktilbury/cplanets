@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Ship create / design / yard list chrome: human **Ships** notebook
+  tab starts timed design development (`PUT /design`), yard builds
+  (`PUT /build`), and yard reclaim (`PUT /reclaim-hulls`); chrome
+  trailer publishes design catalog + seat wealth/resources milli.
+  Wired to existing `queueDesignDevelop` / `queueYardBuild` /
+  `queueReclaim`. Docs: [CPLANETS.md](CPLANETS.md),
+  [DIALOGS.md](DIALOGS.md). CTest: `fn_listChrome` extended,
+  `functional_design_yard`.
+
 - Server verbosity logging (headless stdout): setup key `verbosity`
   and CLI `--verbosity N` (0 quiet, 1 settings / policy PUT, 2+
   combat with fleet strength). Hooks `PUT /policy` and combat tick

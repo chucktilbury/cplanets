@@ -4,7 +4,8 @@
  * Decodes one envelope request and returns one envelope response
  * against a GameDriver. Paths: GET /state, PUT /policy, GET
  * /digest|/events, PUT /handshake, PUT /quit, PUT /pause,
- * PUT /order, PUT /recall, PUT /admin/advance. No ready-barrier
+ * PUT /order, PUT /recall, PUT /design, PUT /build,
+ * PUT /reclaim-hulls, PUT /admin/advance. No ready-barrier
  * verb (PLAN §4.F).
  *
  * Created: 2026-11-05
@@ -14,6 +15,7 @@
  *   2026-11-05  Initial server message handler.
  *   2026-11-05  Phase G: GET /state uses seat-scoped list view.
  *   2026-11-06  TUNING B: PUT /order, PUT /recall; pause in state.
+ *   2026-11-07  Ship create: PUT /design, /build, /reclaim-hulls.
  */
 
 include "driver.cw"
@@ -102,6 +104,18 @@ class ServerHandler {
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/recall")) {
             return(handleRecall(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/design")) {
+            return(handleDesign(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/build")) {
+            return(handleBuild(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/reclaim-hulls")) {
+            return(handleReclaimHulls(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/admin/advance")) {
@@ -290,6 +304,91 @@ class ServerHandler {
         }
         bool ok = driver.recallOwnedFleet(player, fleet)
         return(flagAck("/recall", ok))
+    }
+
+    /*
+     * Serve PUT /design body (player + draft fields as strings).
+     *
+     * Purpose: start non-instant design development from list
+     * Entries (DIALOGS §6). Kind selects scout/colony/defense/
+     * war flags; weapons/shields wait on Design fields.
+     *
+     * Parameters:
+     *   body — playerId u32, name/speed/hop/size/cargo/kind
+     *          strings.
+     *
+     * Returns: ack on /design with accepted when id >= 0.
+     */
+    buffer handleDesign(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        String name = r.readString()
+        String speedText = r.readString()
+        String hopText = r.readString()
+        String sizeText = r.readString()
+        String cargoText = r.readString()
+        String kind = r.readString()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_design"))
+        }
+        Design draft = Design(-1)
+        draft.name = name
+        draft.speed = speedText.toFp64()
+        draft.hopReach = hopText.toFp64()
+        draft.size = sizeText.toFp64()
+        draft.cargoHold = cargoText.toFp64()
+        draft.scout = kind.equals("scout")
+        draft.colony = kind.equals("colony")
+        draft.defense = kind.equals("defense")
+        int64 id = driver.queueOwnedDesign(player, draft)
+        return(flagAck("/design", id >= 0))
+    }
+
+    /*
+     * Serve PUT /build body (player, planet, design).
+     *
+     * Purpose: queue a yard hull at a productive shipyard.
+     *
+     * Parameters:
+     *   body — playerId u32, planetId u32, designId u32.
+     *
+     * Returns: ack envelope on /build.
+     */
+    buffer handleBuild(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 planet = r.readU32()
+        int64 design = r.readU32()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_build"))
+        }
+        bool ok = driver.queueOwnedBuild(player, planet, design)
+        return(flagAck("/build", ok))
+    }
+
+    /*
+     * Serve PUT /reclaim-hulls body (player, fleet, hulls).
+     *
+     * Purpose: yard reclaim path for sitting hulls (RULES §5.2).
+     *
+     * Parameters:
+     *   body — playerId u32, fleetId u32, hulls u32.
+     *
+     * Returns: ack envelope on /reclaim-hulls.
+     */
+    buffer handleReclaimHulls(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 fleet = r.readU32()
+        int64 hulls = r.readU32()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_reclaim_hulls"))
+        }
+        bool ok = driver.queueOwnedReclaim(player, fleet, hulls)
+        return(flagAck("/reclaim-hulls", ok))
     }
 
     /*

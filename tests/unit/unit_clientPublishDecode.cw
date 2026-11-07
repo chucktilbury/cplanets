@@ -7,6 +7,7 @@
  * Changelog:
  *   2026-11-05  Initial unit.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-07  Assert design catalog on chrome trailer.
  */
 
 include "client/publishDecode.cw"
@@ -41,6 +42,19 @@ start {
         ok = false
     }
     if (ok and home.livabilityDisplay > 10) {
+        ok = false
+    }
+    if (ok and view.designs.length < 1) {
+        ok = false
+    }
+    DesignRow design = view.findDesign(0)
+    if (ok and design.id != 0) {
+        ok = false
+    }
+    if (ok and not design.ready) {
+        ok = false
+    }
+    if (ok and view.designDevelopTicks < 1) {
         ok = false
     }
     buffer digest = codec.encodeDigest(0, [])

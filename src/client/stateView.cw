@@ -10,8 +10,10 @@
  * Changelog:
  *   2026-11-05  Initial ClientStateView.
  *   2026-11-06  TUNING B: pause / humanCount / progress chrome.
+ *   2026-11-07  Design catalog + seat wealth/resources milli.
  */
 
+include "designRow.cw"
 include "digestLine.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
@@ -32,8 +34,11 @@ class ClientStateView {
     bool paused
     int64 designDevelopTicks
     int64 yardBuildTicks
+    int64 wealthMilli
+    int64 resourcesMilli
     list planets
     list fleets
+    list designs
     list digest
     list progressLines
     HumanPolicyShape policy
@@ -57,8 +62,11 @@ class ClientStateView {
         paused = false
         designDevelopTicks = 0
         yardBuildTicks = 0
+        wealthMilli = 0
+        resourcesMilli = 0
         planets = []
         fleets = []
+        designs = []
         digest = []
         progressLines = []
         policy = HumanPolicyShape()
@@ -163,6 +171,88 @@ class ClientStateView {
             index = index + 1
         }
         return(FleetRow())
+    }
+
+    /*
+     * Find a design row by id.
+     *
+     * Purpose: yard build Entry validation / inspect.
+     *
+     * Parameters:
+     *   designId — design id.
+     *
+     * Returns: DesignRow, or empty row with id -1 when missing.
+     */
+    DesignRow findDesign(int64 designId) {
+        int64 index = 0
+        while (index < designs.length) {
+            DesignRow row = designs[index]
+            if (row.id == designId) {
+                return(row)
+            }
+            index = index + 1
+        }
+        return(DesignRow())
+    }
+
+    /*
+     * Join published design rows for the Ships tab list.
+     *
+     * Purpose: inspect ready + developing templates (DIALOGS §6).
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line catalog text, or a stub.
+     */
+    String designsText() {
+        if (designs.length < 1) {
+            return("(no designs)\n")
+        }
+        String text = ""
+        int64 index = 0
+        while (index < designs.length) {
+            DesignRow row = designs[index]
+            text.append(row.listLabel())
+            text.append("\n")
+            index = index + 1
+        }
+        return(text)
+    }
+
+    /*
+     * Join owned shipyard planet ids for the yard Entries hint.
+     *
+     * Purpose: show which rocks accept Queue build / reclaim.
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line yard hint text.
+     */
+    String yardPlanetsText() {
+        String text = format(
+            "pools wealthMilli={} resourcesMilli={}\n",
+            wealthMilli, resourcesMilli)
+        int64 index = 0
+        int64 found = 0
+        while (index < planets.length) {
+            PlanetRow row = planets[index]
+            if (row.visible
+                and row.shipyard
+                and row.ownerId == viewerId) {
+                String prod = "idle"
+                if (row.productive) {
+                    prod = "productive"
+                }
+                text.append(format(
+                    "yard planet {} ({})\n", row.id, prod))
+                found = found + 1
+            }
+            index = index + 1
+        }
+        if (found < 1) {
+            text.append("(no owned shipyard planets)\n")
+        }
+        return(text)
     }
 
     /*

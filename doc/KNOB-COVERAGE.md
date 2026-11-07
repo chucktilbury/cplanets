@@ -30,10 +30,10 @@ written — include it when merged; not required for this docs PR.
 
 ## Next-phase order (no magnitudes)
 
-1. **Finish missing first-move playable chrome** — especially ship
-   create / design / yard queue (list chrome still dispatch-only on
-   seeded fleets; progress labels exist, editors do not). See
-   [DIALOGS.md](DIALOGS.md) §6 / [CPLANETS.md](CPLANETS.md).
+1. **First-move ship create / design / yard chrome** — **done**
+   (Ships tab list stand-ins; see [DIALOGS.md](DIALOGS.md) §6 /
+   [CPLANETS.md](CPLANETS.md)). Remaining chrome gaps are map /
+   Scale / richer design fields.
 2. **Externalize remaining knobs to text** — every planet / ship /
    player / combat / travel / production / identify / clock
    coefficient that still lives as a magic number → scenario (or AI)
@@ -99,7 +99,7 @@ written — include it when merged; not required for this docs PR.
 | Default scout/colony/freighter/… template speeds, sizes, holds | `design.cw` `make*` | needs textfile (fixture templates) · GUI candidate (design editor) |
 | Colony hop = `scoutRange * 0.5` | `state.cw` | needs textfile · server-textfile-only |
 | `dispatch_weight_scout` / `_colony`, `voyage_cost`, `reclaim_percent` | setup | textfile already · server-textfile-only |
-| Ship create / design editor / yard queue chrome | **missing** list UI (PR #34 notes) | GUI candidate (playable first) |
+| Ship create / design editor / yard queue chrome | **Exists** Ships tab Entries → `/design` `/build` `/reclaim-hulls` | GUI candidate (Scale / weapons later) |
 
 ---
 
@@ -134,7 +134,7 @@ Human difficulty GUI is **not** required; AI stays file-driven.
 
 ## 7. Top gaps (summary)
 
-1. **Playable chrome:** ship create / design editor / yard queue (first-move).
+1. **Playable chrome:** ship create / design / yard — **shipped** (Ships tab); Scale / weapons later.
 2. **Named but unwired:** `attack_bump`, `afk_timeout_seconds`, `afk_shrink_factor`.
 3. **Hardcoded sim rates/costs:** production `0.01`, build `*10`, design `*50`, galaxy spawn fractions, design `make*` templates, colony hop fraction.
 4. **Server constants:** handshake miss `5000` ms (and optional accept poll) → scenario/server text.

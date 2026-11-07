@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-07  Initial ServerConfigParse.
+ *   2026-11-07  handshake_miss_ms + accept_poll_ms keys.
  */
 
 include "config.cw"
@@ -136,6 +137,10 @@ class ServerConfigParse {
             cfg.injectable = parseBool(val)
         } else (key.equals("verbosity")) {
             cfg.verbosity = val.toInt64()
+        } else (key.equals("handshake_miss_ms")) {
+            cfg.handshakeMissMs = val.toInt64()
+        } else (key.equals("accept_poll_ms")) {
+            cfg.acceptPollMs = val.toInt64()
         } else {
             if (ok) {
                 ok = false

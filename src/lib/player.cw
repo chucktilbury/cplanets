@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial player / empire pool fields.
  *   2026-11-05  Phase D5: partition, competitors, quit/drop flags.
+ *   2026-11-07  afkProductionScale for AFK timeout shrink wire-up.
  */
 
 include "scenario.cw"
@@ -38,6 +39,9 @@ class Player {
     bool eliminated
     int64 partitionId
     list knownCompetitors
+    # Multiplier on productive gains; GameDriver sets this from
+    # afk_timeout_seconds / afk_shrink_factor (default 1.0 = no-op).
+    fp64 afkProductionScale
 
     /*
      * Construct a player with neutral role and empty pools.
@@ -66,6 +70,7 @@ class Player {
         eliminated = false
         partitionId = playerId
         knownCompetitors = []
+        afkProductionScale = 1.0
     }
 
     /*

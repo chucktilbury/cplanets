@@ -21,11 +21,11 @@ start {
     bool ok = true
 
     Design frig = Design(0)
-    frig.makeFrigate(3.0)
+    frig.makeFrigate(3.0, 1.5, 2.0)
     Design dest = Design(1)
-    dest.makeDestroyer(3.0)
+    dest.makeDestroyer(3.0, 1.0, 8.0)
     Design colony = Design(2)
-    colony.makeColony(1.0)
+    colony.makeColony(1.0, 1.0, 5.0, 10.0)
 
     if (not screen.canScreen(frig)) {
         ok = false

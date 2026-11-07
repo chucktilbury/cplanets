@@ -14,6 +14,8 @@
  *   2026-11-05  Phase H: applyAiLagAutoConfig helper.
  *   2026-11-07  Server verbosity (0 quiet / 1 settings / 2+ combat).
  *   2026-11-07  Verbosity 0–10 scale; clampVerbosity (clamp, not reject).
+ *   2026-11-07  Externalize production/build/galaxy/design template
+ *               knobs (same placeholder magnitudes as prior literals).
  */
 
 /*
@@ -67,6 +69,39 @@ class Scenario {
     fp64 battleStrengthDurationCoeff
     fp64 battleShortCircuitGap
     fp64 productiveInherentDefense
+
+    # Production / yard / design cost bases (former literals).
+    fp64 productionTickRate
+    fp64 yardBuildCostPerSize
+    fp64 designDevelopCostPerSize
+    fp64 colonyHopFraction
+
+    # Galaxy spawn fractions / fallbacks (former galaxy.cw literals).
+    fp64 homeSpawnMinRadiusFraction
+    fp64 homeSpawnMaxRadiusFraction
+    fp64 homeSpawnMinRadiusFloor
+    fp64 usefulLivabilityFraction
+    fp64 poorLivabilityFraction
+    fp64 poorResourcesFraction
+    fp64 homeFallbackLivability
+    fp64 homeFallbackResources
+    fp64 contactReach
+
+    # Default hull template magnitudes (former design.cw make* literals).
+    fp64 designScoutSpeed
+    fp64 designScoutSize
+    fp64 designColonySpeed
+    fp64 designColonySize
+    fp64 designColonyHold
+    fp64 designFreighterSpeed
+    fp64 designFreighterSize
+    fp64 designFreighterHold
+    fp64 designEscortSpeed
+    fp64 designEscortSize
+    fp64 designFrigateSpeed
+    fp64 designFrigateSize
+    fp64 designDestroyerSpeed
+    fp64 designDestroyerSize
 
     fp64 livabilityInternalMin
     fp64 livabilityInternalMax
@@ -142,6 +177,36 @@ class Scenario {
         battleStrengthDurationCoeff = 1.0
         battleShortCircuitGap = 3.0
         productiveInherentDefense = 1.0
+
+        productionTickRate = 0.01
+        yardBuildCostPerSize = 10.0
+        designDevelopCostPerSize = 50.0
+        colonyHopFraction = 0.5
+
+        homeSpawnMinRadiusFraction = 0.25
+        homeSpawnMaxRadiusFraction = 0.95
+        homeSpawnMinRadiusFloor = 0.5
+        usefulLivabilityFraction = 0.6
+        poorLivabilityFraction = 0.2
+        poorResourcesFraction = 0.5
+        homeFallbackLivability = 50.0
+        homeFallbackResources = 50.0
+        contactReach = 4.0
+
+        designScoutSpeed = 2.0
+        designScoutSize = 0.5
+        designColonySpeed = 1.0
+        designColonySize = 5.0
+        designColonyHold = 10.0
+        designFreighterSpeed = 1.0
+        designFreighterSize = 2.0
+        designFreighterHold = 10.0
+        designEscortSpeed = 1.5
+        designEscortSize = 3.0
+        designFrigateSpeed = 1.5
+        designFrigateSize = 2.0
+        designDestroyerSpeed = 1.0
+        designDestroyerSize = 8.0
 
         livabilityInternalMin = 0.0
         livabilityInternalMax = 100.0

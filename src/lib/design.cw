@@ -15,6 +15,7 @@
  *   2026-11-05  Phase D2: freighter/escort + hold capacity.
  *   2026-11-05  Phase D4: combatStrength; frigate/destroyer;
  *               ReclaimJob; develop countdown helper.
+ *   2026-11-07  make* take speed/size/hold from callers (Scenario).
  */
 
 /*
@@ -83,18 +84,21 @@ class Design {
      * Fill this slot as the default scout template.
      *
      * Purpose: give Phase C tests a light, long-reach hull without
-     * inventing a full design UI.
+     * inventing a full design UI. Magnitudes come from Scenario /
+     * callers (RULES §14).
      *
      * Parameters:
      *   hop — hop reach in galaxy units.
+     *   spd — design speed.
+     *   sz — design size / dispatch weight basis.
      *
      * Returns: nothing; mutates this Design.
      */
-    void makeScout(fp64 hop) {
+    void makeScout(fp64 hop, fp64 spd, fp64 sz) {
         name = "scout"
-        speed = 2.0
+        speed = spd
         hopReach = hop
-        size = 0.5
+        size = sz
         cargoHold = 0.0
         scout = true
         colony = false
@@ -107,19 +111,22 @@ class Design {
      * Fill this slot as the default colony template.
      *
      * Purpose: heavier dispatch weight and shorter reach for sit /
-     * move and stranded tests.
+     * move and stranded tests. Magnitudes from Scenario / callers.
      *
      * Parameters:
      *   hop — hop reach in galaxy units.
+     *   spd — design speed.
+     *   sz — design size / dispatch weight basis.
+     *   hold — cargo hold per hull.
      *
      * Returns: nothing; mutates this Design.
      */
-    void makeColony(fp64 hop) {
+    void makeColony(fp64 hop, fp64 spd, fp64 sz, fp64 hold) {
         name = "colony"
-        speed = 1.0
+        speed = spd
         hopReach = hop
-        size = 5.0
-        cargoHold = 10.0
+        size = sz
+        cargoHold = hold
         scout = false
         colony = true
         defense = false
@@ -160,14 +167,16 @@ class Design {
      * Parameters:
      *   hop — hop reach in galaxy units.
      *   hold — cargo hold per hull.
+     *   spd — design speed.
+     *   sz — design size.
      *
      * Returns: nothing; mutates this Design.
      */
-    void makeFreighter(fp64 hop, fp64 hold) {
+    void makeFreighter(fp64 hop, fp64 hold, fp64 spd, fp64 sz) {
         name = "freighter"
-        speed = 1.0
+        speed = spd
         hopReach = hop
-        size = 2.0
+        size = sz
         cargoHold = hold
         scout = false
         colony = false
@@ -184,14 +193,16 @@ class Design {
      *
      * Parameters:
      *   hop — hop reach in galaxy units.
+     *   spd — design speed.
+     *   sz — design size.
      *
      * Returns: nothing; mutates this Design.
      */
-    void makeEscort(fp64 hop) {
+    void makeEscort(fp64 hop, fp64 spd, fp64 sz) {
         name = "escort"
-        speed = 1.5
+        speed = spd
         hopReach = hop
-        size = 3.0
+        size = sz
         cargoHold = 0.0
         scout = false
         colony = false
@@ -258,14 +269,16 @@ class Design {
      *
      * Parameters:
      *   hop — hop reach in galaxy units.
+     *   spd — design speed.
+     *   sz — design size.
      *
      * Returns: nothing; mutates this Design.
      */
-    void makeFrigate(fp64 hop) {
+    void makeFrigate(fp64 hop, fp64 spd, fp64 sz) {
         name = "frigate"
-        speed = 1.5
+        speed = spd
         hopReach = hop
-        size = 2.0
+        size = sz
         cargoHold = 0.0
         scout = false
         colony = false
@@ -282,14 +295,16 @@ class Design {
      *
      * Parameters:
      *   hop — hop reach in galaxy units.
+     *   spd — design speed.
+     *   sz — design size.
      *
      * Returns: nothing; mutates this Design.
      */
-    void makeDestroyer(fp64 hop) {
+    void makeDestroyer(fp64 hop, fp64 spd, fp64 sz) {
         name = "destroyer"
-        speed = 1.0
+        speed = spd
         hopReach = hop
-        size = 8.0
+        size = sz
         cargoHold = 0.0
         scout = false
         colony = false

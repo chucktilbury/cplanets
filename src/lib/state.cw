@@ -21,6 +21,7 @@
  *   2026-11-05  Phase D4: reclaim, design develop, confiscation.
  *   2026-11-05  Phase D5: contact/end + sandbox partition homes.
  *   2026-11-06  startFromScenario for path-loaded setup (TUNING A).
+ *   2026-11-07  Build/design costs + default templates from Scenario.
  */
 
 include "agreement.cw"
@@ -232,7 +233,8 @@ class State {
     void seedSandboxHomes() {
         int64 index = 1
         while (index < players.length) {
-            int64 homeId = galaxy.claimSandboxHome(index, index)
+            int64 homeId = galaxy.claimSandboxHome(
+                scenario, index, index)
             if (homeId < 0) {
                 # No free rock: keep the seat but it will eliminate
                 # on the first end-game pass unless tests assign one.
@@ -257,11 +259,18 @@ class State {
     void seedDefaultDesigns() {
         Design scout = Design(nextDesignId)
         nextDesignId = nextDesignId + 1
-        scout.makeScout(scenario.scoutRange)
+        scout.makeScout(
+            scenario.scoutRange,
+            scenario.designScoutSpeed,
+            scenario.designScoutSize)
         designs.append(scout)
         Design colony = Design(nextDesignId)
         nextDesignId = nextDesignId + 1
-        colony.makeColony(scenario.scoutRange * 0.5)
+        colony.makeColony(
+            scenario.scoutRange * scenario.colonyHopFraction,
+            scenario.designColonySpeed,
+            scenario.designColonySize,
+            scenario.designColonyHold)
         designs.append(colony)
     }
 
@@ -818,7 +827,7 @@ class State {
             return(false)
         }
         Player seat = players[ownerId]
-        fp64 cost = design.size * 10.0
+        fp64 cost = design.size * scenario.yardBuildCostPerSize
         if (seat.resources < cost) {
             return(false)
         }
@@ -853,7 +862,10 @@ class State {
             return(-1)
         }
         Player seat = players[ownerId]
-        fp64 cost = draft.size * 50.0 * scenario.designSpeedCostCoeff
+        fp64 cost = (
+            draft.size
+            * scenario.designDevelopCostPerSize
+            * scenario.designSpeedCostCoeff)
         cost = cost * scenario.designRangeCostCoeff
         if (seat.wealth < cost) {
             return(-1)
@@ -905,7 +917,10 @@ class State {
             hulls = fleet.hullCount
         }
         Design design = designs[fleet.designId]
-        fp64 basis = design.size * 10.0 * fp64(hulls)
+        fp64 basis = (
+            design.size
+            * scenario.yardBuildCostPerSize
+            * fp64(hulls))
         ReclaimJob job = ReclaimJob(
             nextReclaimId,
             fleet.ownerId,

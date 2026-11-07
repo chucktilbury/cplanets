@@ -58,14 +58,14 @@ start {
     }
 
     Design scout = Design(0)
-    scout.makeScout(3.0)
+    scout.makeScout(3.0, 2.0, 0.5)
     Fleet fleet = Fleet(1, 0, 0, 0, 4)
     fp64 atk = combat.fleetStrength(fleet, scout)
     if (atk != 2.0) {
         ok = false
     }
     Design colony = Design(1)
-    colony.makeColony(1.0)
+    colony.makeColony(1.0, 1.0, 5.0, 10.0)
     Fleet col = Fleet(2, 0, 0, 1, 2)
     fp64 weak = combat.fleetStrength(col, colony)
     if (weak != 2.5) {

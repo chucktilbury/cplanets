@@ -131,7 +131,7 @@ start {
     State desGame = State()
     desGame.startClosed(61u, 1)
     Design draft = Design(0)
-    draft.makeFrigate(desGame.scenario.scoutRange)
+    draft.makeFrigate(desGame.scenario.scoutRange, 1.5, 2.0)
     desGame.scenario.designDevelopTicks = 3
     int64 did = desGame.queueDesignDevelop(0, draft)
     if (did < 0) {
@@ -276,7 +276,7 @@ start {
     attrGame.players[1] = a1
     Design freighter = Design(attrGame.nextDesignId)
     attrGame.nextDesignId = attrGame.nextDesignId + 1
-    freighter.makeFreighter(20.0, 10.0)
+    freighter.makeFreighter(20.0, 10.0, 1.0, 2.0)
     attrGame.designs.append(freighter)
     int64 fid = attrGame.designs.length - 1
     attrGame.fleets.clear()
@@ -325,9 +325,9 @@ start {
     # --- screening via Screen helper (fn-level sanity) ---
     Screen screen = Screen()
     Design frig = Design(0)
-    frig.makeFrigate(3.0)
+    frig.makeFrigate(3.0, 1.5, 2.0)
     Design dest = Design(1)
-    dest.makeDestroyer(3.0)
+    dest.makeDestroyer(3.0, 1.0, 8.0)
     list designs = []
     designs.append(frig)
     designs.append(dest)

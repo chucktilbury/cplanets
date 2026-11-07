@@ -13,6 +13,8 @@ Changelog:
   one-liner private-helper softening. Rationale: agent-written code
   is denser than typical human code — comments carry readability.
 - 2026-11-06  User-facing binaries must use stdlib `cli` for argv.
+- 2026-11-07  Knobs/tuning preference: textfile coverage + playable
+  before balance; point at KNOB-COVERAGE / TUNING-PLAYABLE.
 
 ## File size
 
@@ -112,6 +114,16 @@ parse argv with the Cwhip stdlib `cli` package (`import cli as Cli`),
 including generated help via `-h` / `--help` (`Action.HELP` +
 `helpText()`). Do not hand-roll flag loops for those bins. Unit/fn
 test programs are exempt unless migration is trivial.
+
+## Knobs and “tuning”
+
+Virtually every variable that touches planets, ships, players, combat,
+travel, production, identify, or clock must be settable **at minimum
+in a text file**; some via the human GUI; most **server** settings stay
+textfile. **Balance / interest tuning** comes after playable
+completeness + that coverage — do not treat magnitude balancing as the
+current north star. Inventory: [KNOB-COVERAGE.md](KNOB-COVERAGE.md);
+phase order: [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md).
 
 ## Out of scope / later
 

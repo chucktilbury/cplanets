@@ -267,6 +267,10 @@ advances ticks, and asserts digest growth. Manual injectable:
 
 Reload-on-restart is the v1 contract. Mid-game admin retune and the
 server setup GUI are deferred (RULES §14 / [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md)).
+**Balance tuning comes after playable completeness + full textfile
+knobs** — A–C harness is plumbing, not balance-done; inventory in
+[KNOB-COVERAGE.md](KNOB-COVERAGE.md). Most **server** settings stay
+textfile; selective human GUI setters come later.
 
 ---
 
@@ -300,7 +304,8 @@ This file is for **users and operators**.
 | --- | --- |
 | Game rules / machine spec | [RULES.md](RULES.md) |
 | Implementation order & phases | [PLAN.md](PLAN.md) |
-| Next: tuning-ready playable | [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) |
+| Next: playable + knobs (then balance) | [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) |
+| Knob inventory (textfile / GUI tags) | [KNOB-COVERAGE.md](KNOB-COVERAGE.md) |
 | Cwhip coding conventions | [CODING.md](CODING.md) |
 | SDK / CMake / project shell | [BUILDING.md](BUILDING.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |

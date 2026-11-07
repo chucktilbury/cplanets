@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Docs: reframe [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) — A–C harness
+  is plumbing, not balance-complete; next priority is playable chrome
+  + full textfile knobs, then balance. New inventory
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md); pointers in
+  [CPLANETS.md](CPLANETS.md), [PLAN.md](PLAN.md), [CODING.md](CODING.md).
+  Note: PR #34 (solo one-shot TCP) still open at write time.
+
 - User-facing binaries (`cplanets-server`, `cplanets`, `cplanets-ai`,
   `cplanets-tick`) parse argv with stdlib `cli` (`--help` / `-h`
   via `helpText()`). Flag semantics unchanged. Docs:

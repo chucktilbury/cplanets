@@ -303,11 +303,13 @@ canvas, no HTTP. No new phase is required for locks already on
 AI-lag tick auto-config, multi-tick combat, tech teleport) — they
 fold into B–H above.
 
-**Next phase (tuning-ready playable):** human+AI session good enough
-for balance/tuning loops — knobs reload/restart, list chrome without
-DrawingArea, session harness; map stays optional/gated. See
-[TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) (does not rewrite A–H
-history).
+**Next phase (playable + knobs, then balance):** A–C harness is
+**plumbing** (setup path, list chrome, session fixtures) — not
+balance-complete. Priority is first-move playable chrome + full
+externalized knobs (textfile at minimum; selective GUI; most server
+settings stay files), **then** balance passes. See
+[TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) and
+[KNOB-COVERAGE.md](KNOB-COVERAGE.md) (does not rewrite A–H history).
 
 | Scope | Prod LOC | Test LOC | Total |
 | --- | ---: | ---: | ---: |

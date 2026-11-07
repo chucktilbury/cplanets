@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Docs: reframe [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) — A–C harness
+  is plumbing, not balance-complete; next priority is playable chrome
+  + full textfile knobs, then balance. New inventory
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md); pointers in
+  [CPLANETS.md](CPLANETS.md), [PLAN.md](PLAN.md), [CODING.md](CODING.md).
+  Note: PR #34 (solo one-shot TCP) still open at write time.
 - Fix human/AI clients for the server’s one-shot TCP contract:
   `ServerListen` closes after each reply, so `HumanSession` /
   `AiClient` now open a fresh `Networking.Socket` per verb. Before

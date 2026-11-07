@@ -35,7 +35,7 @@ merged.
 | **A** knob surface | Done (PR #30) | `--setup` / unknown-key fail / restart-only contract |
 | **B** list chrome | Done (PR #31) | Pause, dispatch/recall, explored auto-pop, design/build **labels** |
 | **C** session harness | Done (PR #32) | `scripts/tuning-session`, fixture packs, AI soft/mid/hard, CTest |
-| **D** map | Not started | Optional; gated on DrawingArea — not critical path |
+| **D** map | Done (Phase I) | Map panel chrome; not required for balance passes |
 
 A–C make it possible to **edit named keys, restart, and observe**.
 They do **not** mean combat/economy magnitudes are “tuned,” and they
@@ -62,9 +62,9 @@ A session is ready for **balance passes** when:
 4. Human can still **start** via `scripts/setup` / run recipe, **pause**
    (one human), **re-run** same seed after knob edits.
 
-**Explicitly later:** inventing open magnitudes; Phase I map; full
-server setup GUI hierarchy; durable save/rejoin; specializing Cwhip
-GTK for Cplanets-only widgets.
+**Explicitly later:** inventing open magnitudes; map pick-to-dispatch
+polish; full server setup GUI hierarchy; durable save/rejoin;
+specializing Cwhip GTK for Cplanets-only widgets.
 
 ---
 

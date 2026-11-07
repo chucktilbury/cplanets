@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Phase I map canvas: `GuiMapPage` DrawingArea in a main-window
+  `Paned` beside the list notebook; publish planet `x`/`y` milli and
+  fleet `outboundEta`; status colors; dotted in-flight ETA paths;
+  mouse pick/pan/zoom; Scrollbars; ContextMenu status + zoom-to-known.
+  Docs: [PLAN.md](PLAN.md) §4.I, [CPLANETS.md](CPLANETS.md),
+  [DIALOGS.md](DIALOGS.md). CTest: `unit_mapMath` (+ publish decode
+  coord asserts).
+
 - Mandatory `--config PATH` on all user-facing bins
   (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`):
   missing or empty path prints the same help as `-h` and exits **2**;

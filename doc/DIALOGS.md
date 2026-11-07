@@ -39,7 +39,7 @@ Context: `design-decisions.md`, `project-context.md`,
 | **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; progress + owned yards | **Exists** (ship create chrome) |
 | **Digest notebook page** | Newspaper / published events | Scrolled digest text (broadcasts + tick events) | **Exists (Phase G)** — read-only list |
 | **Policy notebook page** | Standing policy editor | Role, expansion %, escort %, agreement `S`, tech bias %; Apply (PUT `/policy`); no dumb-order warnings | **Exists (Phase G)** — Entries today; **Intended playable** prefers sliders |
-| **Map canvas panel** (future main surface) | Galaxy graphic in the client layout | Hot spots; status colors; dotted ETA/order lines; pan/zoom; pick-to-dispatch | **Intended playable** (Phase I; gated on DrawingArea) — not a dialog |
+| **Map canvas panel** | Galaxy graphic in the client layout (Paned beside notebook) | Hot spots; status colors; dotted ETA paths; pan/zoom; pick; ContextMenu status + zoom-to-known | **Exists (Phase I)** — dispatch still via Fleets tab |
 
 **Principle:** standing policy and lists live as **panels**. True dialogs
 are for focused inspect / compose / confirm-ish flows that should not
@@ -51,7 +51,7 @@ dominate the main surface. The map is a **panel**, not a dialog.
 | --- | --- | --- |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
 | Planet status / budget menus | Click planet → menu options (README) | **Intended playable** |
-| Map right-click context menu | Right-click / selected planet | **Intended playable** (Phase I chrome) |
+| Map right-click context menu | Right-click / selected planet | **Exists (Phase I)** — status + explored + zoom-to-known; budget/dispatch menu actions still **Intended** |
 | Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists (TUNING B)** as Fleets-tab Entries/buttons (list stand-in; map pick still **Intended playable**) |
 | Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships tab list stand-ins) |
 | Compose private message | Player chooses send-to known competitor | **Intended playable** |
@@ -100,12 +100,13 @@ beyond livability + resources already surfaced.
 
 ## 3. Map right-click and planet status chrome
 
-Depends on Phase I map panel (DrawingArea + pointer + ContextMenu
-hooks — infra in GTK-FEATURE-GAPS). Product content:
+Phase I map panel ships (DrawingArea + pointer + ContextMenu). Product
+content:
 
 ### 3.1 Right-click / context menu — current planet
 
-**Intended playable.** For the clicked or selected planet:
+**Exists (Phase I)** for status + open explored; budget/dispatch menu
+actions still **Intended**. For the clicked or selected planet:
 
 | Item group | Contents |
 | --- | --- |
@@ -115,10 +116,10 @@ hooks — infra in GTK-FEATURE-GAPS). Product content:
 
 ### 3.2 Known-planets zoom list
 
-**Intended playable.** Same context menu (or submenu): list of
-**known** planets the seat can jump/zoom the view to (focus camera on
-that rock). “Known” = visibility/driver flags already set — not a
-second fog engine.
+**Exists (Phase I).** Same context menu submenu: list of **known**
+planets the seat can jump/zoom the view to (focus camera on that
+rock). “Known” = visibility/driver flags already set — not a second
+fog engine.
 
 ### 3.3 Map click (non-menu)
 
@@ -128,7 +129,10 @@ graphic. Planet color = status (green settled OK → red taken by other;
 in-between = intermediate). Pan/zoom overview ↔ detail. Scroll bars
 for pan in addition to mouse pan/zoom.
 
-**Exists (Phase G):** none of the map chrome — list labels only.
+**Exists (Phase I):** map panel pick/pan/zoom/scrollbars; ContextMenu
+status + zoom-to-known; dotted hop paths when `outboundEta` published.
+Dispatch still uses the Fleets tab (map pick-to-dispatch remains
+**Intended**).
 
 ---
 
@@ -281,13 +285,16 @@ v1. File/scenario edit remains the v1 path.
 
 ## 11. Phase G vs remaining (summary)
 
-### Already in Phase G / TUNING B human client
+### Already in Phase G / TUNING B / Phase I human client
 
 - Main window + File Refresh/Quit
-- Notebook: Planets, Fleets, Digest, Policy
+- **Map canvas** Paned panel: DrawingArea hot spots, status colors,
+  dotted hop paths, pick/pan/zoom, Scrollbars, ContextMenu status +
+  zoom-to-known (**Phase I**)
+- Notebook: Planets, Fleets, Ships, Digest, Policy
 - Explored-planet TransientWindow (1–10 + populated/productive note);
   manual “Show first explored” + auto-present on quality /
-  productive / populated flips (**TUNING B**)
+  productive / populated flips (**TUNING B**); map menu open explored
 - Policy Entries + Apply PUT; no dumb-order warnings
 - TCP pull of seat-scoped publish flags (no second fog)
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
@@ -299,7 +306,7 @@ v1. File/scenario edit remains the v1 path.
 
 ### Remaining for intended playable human UI
 
-- Map canvas panel + right-click status / zoom-to-known
+- Map pick-to-dispatch / richer planet budget menus from ContextMenu
 - Sliders for policy / budget; richer planet budget menus
 - Richer design editor (weapons/shields fields; Scale) beyond Entries
 - Known-competitors list + private compose (+ broadcast if applicable)
@@ -343,5 +350,5 @@ Leave open; do not invent product rules here:
 | Context `docs/cplanets-dialogs.md` | Same inventory (Project store) |
 | [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md) | Cwhip GTK infra gaps (lands with PR #27 if not yet on main) |
 | [RULES.md](RULES.md) §13–§16 | Visibility, messages, client UI rules |
-| [PLAN.md](PLAN.md) §4.G / §4.I | Phase G done; map Phase I |
+| [PLAN.md](PLAN.md) §4.G / §4.I | Phase G list debugger; Phase I map panel |
 | [CPLANETS.md](CPLANETS.md) | User / operator guide |

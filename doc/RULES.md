@@ -582,8 +582,10 @@ exploration and/or conquest. Not the first playable fixture’s default.
 
 Map, hot spots, pan/zoom, colors, dotted lines = ETA + order. Sliders.
 Known-competitor list, newspaper, compose-to-pick. No warning dialogs
-for dumb legal orders. GTK growth: `DrawingArea`, pointer,
-`queueDraw`, later `Scale`. No Cwhip GTK subclass framework.
+for dumb legal orders. Human client uses Cwhip `DrawingArea`, pointer,
+`queueDraw`, Scrollbars, and ContextMenu for the map panel; `Scale`
+adoption for policy knobs is still open. No Cwhip GTK subclass
+framework.
 
 **Explored planet dialog (human client):** when a planet has been
 **explored** for that human, **pop up a dialog** showing quality /
@@ -681,4 +683,4 @@ Aligns with [PLAN.md](PLAN.md) §7 (AI before list GTK):
 4. AI client (own config; same protocol).
 5. Human client (GTK list debugger, no dumb-order warnings).
 6. Optional HTTP REST façade.
-7. `DrawingArea` (when GTK can draw).
+7. Map canvas (`DrawingArea` panel — Phase I).

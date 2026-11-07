@@ -33,21 +33,31 @@ def exchange(host: str, port: int, frame: bytes, timeout: float = 2.0) -> bytes:
 
 def spawn(
     server: Path,
+    server_config: Path,
     extra: list[str],
 ) -> tuple[subprocess.Popen[str], int, list[str]]:
     env = os.environ.copy()
-    cmd = [
-        str(server),
-        "--serve",
-        "--port",
-        "0",
-        "--players",
-        "2",
-        "--injectable",
-        "--cycles",
-        "200",
-        *extra,
-    ]
+    # Callers that supply their own --config in extra skip the default.
+    has_config = any(
+        item == "--config" or item.startswith("--config=")
+        for item in extra
+    )
+    cmd = [str(server)]
+    if not has_config:
+        cmd.extend(["--config", str(server_config)])
+    cmd.extend(
+        [
+            "--serve",
+            "--port",
+            "0",
+            "--players",
+            "2",
+            "--injectable",
+            "--cycles",
+            "200",
+            *extra,
+        ]
+    )
     if Path("/usr/bin/stdbuf").is_file():
         cmd = ["/usr/bin/stdbuf", "-oL", "-eL", *cmd]
     proc = subprocess.Popen(
@@ -86,8 +96,10 @@ def v1_policy_blob() -> bytes:
     return bytes([1, 3, 40, 50, 10, 60, 0, 0])
 
 
-def test_cli_verbosity(server: Path) -> int:
-    proc, port, preamble = spawn(server, ["--verbosity", "3"])
+def test_cli_verbosity(server: Path, server_config: Path) -> int:
+    proc, port, preamble = spawn(
+        server, server_config, ["--verbosity", "3"]
+    )
     try:
         if "VERBOSITY=3" not in preamble:
             print(f"missing VERBOSITY=3 in {preamble!r}")
@@ -121,7 +133,7 @@ def test_cli_verbosity(server: Path) -> int:
     return 0
 
 
-def test_config_verbosity(server: Path) -> int:
+def test_config_verbosity(server: Path, server_config: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         cfg = Path(tmp) / "verbose.cfg"
         cfg.write_text(
@@ -176,7 +188,9 @@ def test_config_verbosity(server: Path) -> int:
                 proc.kill()
 
         proc, _port, preamble = spawn(
-            server, ["--config", str(cfg), "--verbosity", "0"]
+            server,
+            server_config,
+            ["--config", str(cfg), "--verbosity", "0"],
         )
         try:
             if "VERBOSITY=0" not in preamble:
@@ -191,7 +205,7 @@ def test_config_verbosity(server: Path) -> int:
 
         # Out-of-range CLI clamps into 0..10.
         proc, _port, preamble = spawn(
-            server, ["--verbosity", "99"]
+            server, server_config, ["--verbosity", "99"]
         )
         try:
             if "VERBOSITY=10" not in preamble:
@@ -209,16 +223,25 @@ def test_config_verbosity(server: Path) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", required=True)
+    parser.add_argument(
+        "--server-config",
+        required=True,
+        help="server --config path (mandatory on the binary)",
+    )
     args = parser.parse_args()
     server_path = Path(args.server)
+    server_config = Path(args.server_config)
     if not server_path.is_file():
         print(f"missing server: {server_path}", file=sys.stderr)
         return 2
+    if not server_config.is_file():
+        print(f"missing server config: {server_config}", file=sys.stderr)
+        return 2
 
-    rc = test_cli_verbosity(server_path)
+    rc = test_cli_verbosity(server_path, server_config)
     if rc != 0:
         return rc
-    rc = test_config_verbosity(server_path)
+    rc = test_config_verbosity(server_path, server_config)
     if rc != 0:
         return rc
 

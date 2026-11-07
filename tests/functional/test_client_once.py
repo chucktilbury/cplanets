@@ -12,13 +12,22 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--client", required=True, help="cplanets path")
+    parser.add_argument(
+        "--client-config",
+        required=True,
+        help="human --config path (mandatory on the binary)",
+    )
     args = parser.parse_args()
     client = Path(args.client)
+    client_config = Path(args.client_config)
     if not client.is_file():
         print(f"missing client: {client}", file=sys.stderr)
         return 2
+    if not client_config.is_file():
+        print(f"missing client config: {client_config}", file=sys.stderr)
+        return 2
     proc = subprocess.run(
-        [str(client), "--once"],
+        [str(client), "--config", str(client_config), "--once"],
         capture_output=True,
         text=True,
         timeout=30,

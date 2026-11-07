@@ -287,20 +287,31 @@ if(BUILD_TESTING)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_cw_test(${fn} fn)
     endforeach()
-    foreach(program IN ITEMS cplanets-server cplanets cplanets-ai cplanets-tick)
+    set(_smoke_configs
+        cplanets-server|server-default.cfg
+        cplanets|human-default.cfg
+        cplanets-ai|ai-default.cfg
+        cplanets-tick|tick-default.cfg)
+    foreach(entry IN LISTS _smoke_configs)
+        string(REPLACE "|" ";" _parts "${entry}")
+        list(GET _parts 0 program)
+        list(GET _parts 1 _cfg_name)
         add_test(NAME smoke_${program} COMMAND "${CMAKE_COMMAND}"
             "-DEXECUTABLE=${${program}_executable}"
             "-DPROGRAM=${program}"
+            "-DCONFIG=${PROJECT_SOURCE_DIR}/config/${_cfg_name}"
             -P "${PROJECT_SOURCE_DIR}/tests/check-program.cmake")
     endforeach()
     find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
     add_test(NAME functional_server_smoke COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_smoke.cmake")
     add_test(NAME functional_server_verbose COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_server_verbose.cmake")
     add_test(NAME functional_ai_verbose COMMAND "${CMAKE_COMMAND}"
         "-DAI=${cplanets-ai_executable}"
@@ -310,31 +321,37 @@ if(BUILD_TESTING)
     add_test(NAME functional_setup_path COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/closed-default.setup"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_setup_path.cmake")
     add_test(NAME functional_client_once COMMAND "${CMAKE_COMMAND}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DCLIENT_CONFIG=${PROJECT_SOURCE_DIR}/config/human-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_once.cmake")
     add_test(NAME functional_client_pull COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_pull.cmake")
     add_test(NAME functional_list_chrome COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_list_chrome.cmake")
     add_test(NAME functional_design_yard COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_design_yard.cmake")
     add_test(NAME functional_session_harness COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DAI=${cplanets-ai_executable}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
         "-DWORLDS=12"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_session_harness.cmake")
@@ -342,6 +359,9 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DAI=${cplanets-ai_executable}"
         "-DCLIENT=${cplanets_executable}"
+        "-DTICK=${cplanets-tick_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
+        "-DHUMAN_CONFIG=${PROJECT_SOURCE_DIR}/config/human-default.cfg"
+        "-DTICK_CONFIG=${PROJECT_SOURCE_DIR}/config/tick-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_cli_config_defaults.cmake")
 endif()

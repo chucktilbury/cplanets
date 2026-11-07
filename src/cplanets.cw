@@ -1,14 +1,15 @@
 /*
  * src/cplanets.cw — human GTK list debugger (Phase G).
  *
- * Default (no args): print program name + lib identity (smoke).
- * --config PATH: load human settings (not AI config).
+ * --config PATH is mandatory (human settings; not AI config).
+ * Missing or empty path prints help and exits 2.
  * --once: fill a closed galaxy in-process and print lists (no TCP,
  * no GTK). --pull: TCP GET state+digest summary. --gui / --test:
  * GTK notebook (planets, fleets, ships, digest, policy) + explored
  * dialog. Never ticks; never opens the universe DB (RULES §2 /
  * PLAN §4.G). No map canvas / DrawingArea (PLAN §4.I).
  * User-facing argv uses stdlib `cli` (including --help / -h).
+ * With all modes false from file/argv, prints smoke identity.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -21,6 +22,7 @@
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  *   2026-11-07  Wire Ships tab design / build / reclaim actions.
  *   2026-11-07  Config defaults for every CLI flag but --config.
+ *   2026-11-07  --config mandatory; missing prints help, exit 2.
  */
 
 import cli as Cli
@@ -92,7 +94,8 @@ class HumanMain {
         Cli.Option config = Cli.Option()
         config.longName = "config"
         config.name = "config"
-        config.description = "human settings file (not AI config)"
+        config.description = (
+            "required: human settings file (not AI config)")
         config.valueType = Cli.ValueType().STRING
         commandLine.addOption(config)
         Cli.Option host = Cli.Option()
@@ -144,12 +147,14 @@ class HumanMain {
      * Parse argv; print help or an error and exit when needed.
      *
      * Purpose: single parse path; unknown flags fail loud.
+     * --config PATH is mandatory (non-empty); missing path prints
+     * the same help as -h and exits 2.
      *
      * Parameters:
      *   commandLine — registered CommandLine from buildCli().
      *
      * Returns: true when the caller should continue; false when this
-     * method already exited the process (help / parse error).
+     * method already exited the process (help / parse / missing config).
      */
     bool parseOrExit(Cli.CommandLine commandLine) {
         String problem = ""
@@ -166,6 +171,12 @@ class HumanMain {
         if (problem.length > 0) {
             print(format("cplanets: {}\n", problem))
             print("Try 'cplanets --help' for usage.\n")
+            Sys.Process().exit(2)
+            return(false)
+        }
+        if (not commandLine.wasProvided("config")
+            or commandLine.value("config").length == 0) {
+            print(commandLine.helpText())
             Sys.Process().exit(2)
             return(false)
         }
@@ -195,28 +206,26 @@ class HumanMain {
     }
 
     /*
-     * Load HumanConfig from --config with host/port/player overlays.
+     * Load HumanConfig from required --config with host/port/player
+     * overlays.
      *
      * Purpose: own settings file; argv may override dial / seat /
      * mode flags. Overlays apply only when the option was provided.
+     * Caller already required a non-empty --config path.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
      *
-     * Returns: clamped HumanConfig (defaults when no --config).
+     * Returns: clamped HumanConfig from the file + argv overlays.
      */
     HumanConfig loadConfig(Cli.CommandLine commandLine) {
         HumanConfig cfg = HumanConfig()
-        if (commandLine.wasProvided("config")) {
-            String path = commandLine.value("config")
-            if (path.length > 0) {
-                Sys.File input = Sys.File(path, "r")
-                String text = input.readAll()
-                input.close()
-                HumanConfigParse parser = HumanConfigParse()
-                cfg = parser.parseText(text)
-            }
-        }
+        String path = commandLine.value("config")
+        Sys.File input = Sys.File(path, "r")
+        String text = input.readAll()
+        input.close()
+        HumanConfigParse parser = HumanConfigParse()
+        cfg = parser.parseText(text)
         if (commandLine.wasProvided("host")) {
             String host = commandLine.value("host")
             if (host.length > 0) {
@@ -342,10 +351,11 @@ class HumanMain {
     /*
      * Dispatch smoke / once / pull / gui from a parsed CommandLine.
      *
-     * Purpose: single entry used by start {}. Smoke when no config
-     * path and no mode flags on argv. Mode defaults come from the
-     * settings file; argv overrides silently. gui/test beat pull;
-     * pull needs port > 0; otherwise once / config prints lists.
+     * Purpose: single entry used by start {}. --config is required
+     * upstream. Mode defaults come from the settings file; argv
+     * overrides silently. gui/test beat pull; pull needs port > 0;
+     * once (or pull with port 0) prints lists; all modes false →
+     * smoke identity.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -353,15 +363,6 @@ class HumanMain {
      * Returns: nothing.
      */
     void run(Cli.CommandLine commandLine) {
-        bool wantConfig = commandLine.wasProvided("config")
-        if (not wantConfig
-            and not commandLine.wasProvided("once")
-            and not commandLine.wasProvided("pull")
-            and not commandLine.wasProvided("gui")
-            and not commandLine.wasProvided("test")) {
-            printSmoke()
-            return()
-        }
         HumanConfig cfg = loadConfig(commandLine)
         bool wantOnce = resolveFlag(commandLine, "once", cfg.once)
         bool wantPull = resolveFlag(commandLine, "pull", cfg.pull)
@@ -375,7 +376,7 @@ class HumanMain {
             runPull(cfg)
             return()
         }
-        if (wantOnce or wantConfig or wantPull) {
+        if (wantOnce or wantPull) {
             runOnce(cfg)
             return()
         }

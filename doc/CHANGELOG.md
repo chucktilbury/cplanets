@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Mandatory `--config PATH` on all user-facing bins
+  (`cplanets-server`, `cplanets`, `cplanets-ai`, `cplanets-tick`):
+  missing or empty path prints the same help as `-h` and exits **2**;
+  `-h` still exits **0**. Tick gains `--config` plus sample
+  `config/tick-default.cfg` (placeholder; no keys yet). Mode-off
+  configs still smoke (name + lib identity). Docs:
+  [CPLANETS.md](CPLANETS.md), [CODING.md](CODING.md). CTest smoke +
+  functional harnesses pass `--config`;
+  `functional_cli_config_defaults` asserts missing-config → help/2.
+  **Planned (not implemented):** auto-load a default config from the
+  user's home directory when `--config` is omitted.
+
 - Server runtime config file (preference): process/network knobs
   move out of scenario setup into `config/server-default.cfg`
   (`setup`, `host`/`address`, `port`, `players`, `seed`, `serve`,

@@ -4,6 +4,10 @@ if(NOT DEFINED SERVER OR NOT DEFINED AI OR NOT DEFINED CLIENT
         "test_session_harness.cmake requires SERVER, AI, CLIENT, "
         "PYTHON, and FIXTURE")
 endif()
+if(NOT DEFINED SERVER_CONFIG)
+    message(FATAL_ERROR
+        "test_session_harness.cmake requires SERVER_CONFIG")
+endif()
 if(NOT DEFINED WORLDS)
     set(WORLDS 12)
 endif()
@@ -13,6 +17,7 @@ execute_process(
         "--server" "${SERVER}"
         "--ai" "${AI}"
         "--client" "${CLIENT}"
+        "--server-config" "${SERVER_CONFIG}"
         "--fixture" "${FIXTURE}"
         "--worlds" "${WORLDS}"
     RESULT_VARIABLE status

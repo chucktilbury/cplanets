@@ -40,15 +40,26 @@ def exchange(host: str, port: int, frame: bytes, timeout: float = 2.0) -> bytes:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", required=True)
+    parser.add_argument(
+        "--server-config",
+        required=True,
+        help="server --config path (mandatory on the binary)",
+    )
     args = parser.parse_args()
     server_path = Path(args.server)
+    server_config = Path(args.server_config)
     if not server_path.is_file():
         print(f"missing server: {server_path}", file=sys.stderr)
+        return 2
+    if not server_config.is_file():
+        print(f"missing server config: {server_config}", file=sys.stderr)
         return 2
 
     env = os.environ.copy()
     cmd = [
         str(server_path),
+        "--config",
+        str(server_config),
         "--serve",
         "--port",
         "0",

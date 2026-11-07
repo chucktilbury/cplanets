@@ -2,10 +2,15 @@ if(NOT DEFINED SERVER OR NOT DEFINED PYTHON)
     message(FATAL_ERROR
         "test_design_yard.cmake requires SERVER and PYTHON")
 endif()
+if(NOT DEFINED SERVER_CONFIG)
+    message(FATAL_ERROR
+        "test_design_yard.cmake requires SERVER_CONFIG")
+endif()
 execute_process(
     COMMAND "${PYTHON}"
         "${CMAKE_CURRENT_LIST_DIR}/test_design_yard.py"
         "--server" "${SERVER}"
+        "--server-config" "${SERVER_CONFIG}"
     RESULT_VARIABLE status
     OUTPUT_VARIABLE output
     ERROR_VARIABLE error

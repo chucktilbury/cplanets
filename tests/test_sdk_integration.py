@@ -57,7 +57,7 @@ class SdkIntegrationTests(unittest.TestCase):
         project.mkdir()
         for name in ("CMakeLists.txt", ".project_env"):
             shutil.copy2(ROOT / name, project)
-        for name in ("src", "scripts", "tests"):
+        for name in ("src", "scripts", "tests", "config"):
             shutil.copytree(ROOT / name, project / name)
         for name in ("bin", "build", "lib", "doc/out", "share"):
             directory = project / name
@@ -71,7 +71,8 @@ class SdkIntegrationTests(unittest.TestCase):
                 'declare -F build rebuild\n'
                 'cd "$HOME"\n'
                 'build cplanets-tick\n'
-                '"$_PROJECT_LOC/bin/cplanets-tick"\n'
+                '"$_PROJECT_LOC/bin/cplanets-tick" '
+                '--config "$_PROJECT_LOC/config/tick-default.cfg"\n'
                 'rebuild cplanets-tick\n'
                 'build\n'
                 'rebuild\n'
@@ -89,7 +90,7 @@ class SdkIntegrationTests(unittest.TestCase):
         project = self.root / "project"
         project.mkdir()
         shutil.copy2(ROOT / "CMakeLists.txt", project)
-        for name in ("src", "scripts", "tests"):
+        for name in ("src", "scripts", "tests", "config"):
             shutil.copytree(ROOT / name, project / name)
         build = self.root / "build"
         install = self.root / "install"
@@ -105,9 +106,17 @@ class SdkIntegrationTests(unittest.TestCase):
             "--no-tests=error",
         )
         self.run_command("cmake", "--install", str(build))
+        smoke_cfg = {
+            "cplanets-server": project / "config" / "server-default.cfg",
+            "cplanets": project / "config" / "human-default.cfg",
+            "cplanets-ai": project / "config" / "ai-default.cfg",
+            "cplanets-tick": project / "config" / "tick-default.cfg",
+        }
         for name in ("cplanets-server", "cplanets", "cplanets-ai", "cplanets-tick"):
             for executable in (output / "bin" / name, install / "bin" / name):
-                result = self.run_command(str(executable))
+                result = self.run_command(
+                    str(executable), "--config", str(smoke_cfg[name])
+                )
                 self.assertEqual(result.stdout, f"{name}\ncplanets-lib\n")
                 self.assertEqual(result.stderr, "")
         self.assertFalse((project / "bin").exists())

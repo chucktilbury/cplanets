@@ -1,13 +1,14 @@
 /*
  * src/cplanets-ai.cw — stand-alone AI client (Phase H).
  *
- * Default (no args): print program name + lib identity (smoke).
- * --config PATH: load own AI config (not human settings).
+ * --config PATH is mandatory (own AI config; not human settings).
+ * Missing or empty path prints help and exits 2.
  * Optional --host / --port / --verbosity override; --once prints
  * one policy shape without TCP. --serve-loop dials and runs
  * maybePutPolicy for --cycles N. Never ticks; never opens the
  * universe DB (RULES §2 / PLAN §4.H).
  * User-facing argv uses stdlib `cli` (including --help / -h).
+ * With all modes false from file/argv, prints smoke identity.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -21,6 +22,7 @@
  *   2026-11-07  --verbosity N (overlay AI config verbosity key).
  *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
  *   2026-11-07  Config defaults for every CLI flag but --config.
+ *   2026-11-07  --config mandatory; missing prints help, exit 2.
  */
 
 import cli as Cli
@@ -95,7 +97,8 @@ class AiMain {
         Cli.Option config = Cli.Option()
         config.longName = "config"
         config.name = "config"
-        config.description = "AI config file (not human settings)"
+        config.description = (
+            "required: AI config file (not human settings)")
         config.valueType = Cli.ValueType().STRING
         commandLine.addOption(config)
         Cli.Option host = Cli.Option()
@@ -168,12 +171,14 @@ class AiMain {
      * Parse argv; print help or an error and exit when needed.
      *
      * Purpose: single parse path; unknown flags fail loud.
+     * --config PATH is mandatory (non-empty); missing path prints
+     * the same help as -h and exits 2.
      *
      * Parameters:
      *   commandLine — registered CommandLine from buildCli().
      *
      * Returns: true when the caller should continue; false when this
-     * method already exited the process (help / parse error).
+     * method already exited the process (help / parse / missing config).
      */
     bool parseOrExit(Cli.CommandLine commandLine) {
         String problem = ""
@@ -193,38 +198,42 @@ class AiMain {
             Sys.Process().exit(2)
             return(false)
         }
+        if (not commandLine.wasProvided("config")
+            or commandLine.value("config").length == 0) {
+            print(commandLine.helpText())
+            Sys.Process().exit(2)
+            return(false)
+        }
         return(true)
     }
 
     /*
-     * Load AiConfig from --config with host/port/verbosity overlays.
+     * Load AiConfig from required --config with host/port/verbosity
+     * overlays.
      *
      * Purpose: own config file path; argv may override dial and
      * verbosity. Overlays apply only when the option was provided.
-     * Unknown config keys fail loud and exit(1).
+     * Unknown config keys fail loud and exit(1). Caller already
+     * required a non-empty --config path.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
      *
-     * Returns: clamped AiConfig (defaults when no --config).
+     * Returns: clamped AiConfig from the file + argv overlays.
      */
     AiConfig loadConfig(Cli.CommandLine commandLine) {
         AiConfig cfg = AiConfig()
-        if (commandLine.wasProvided("config")) {
-            String path = commandLine.value("config")
-            if (path.length > 0) {
-                Sys.File input = Sys.File(path, "r")
-                String text = input.readAll()
-                input.close()
-                AiConfigParse parser = AiConfigParse()
-                cfg = parser.parseText(text)
-                if (not parser.ok) {
-                    print("cplanets-ai: config error: ")
-                    print(parser.lastError)
-                    print("\n")
-                    Sys.Process().exit(1)
-                }
-            }
+        String path = commandLine.value("config")
+        Sys.File input = Sys.File(path, "r")
+        String text = input.readAll()
+        input.close()
+        AiConfigParse parser = AiConfigParse()
+        cfg = parser.parseText(text)
+        if (not parser.ok) {
+            print("cplanets-ai: config error: ")
+            print(parser.lastError)
+            print("\n")
+            Sys.Process().exit(1)
         }
         if (commandLine.wasProvided("host")) {
             String host = commandLine.value("host")
@@ -332,11 +341,11 @@ class AiMain {
     /*
      * Dispatch smoke / once / loop from a parsed CommandLine.
      *
-     * Purpose: single entry used by start {}. Smoke when no
-     * AI flags and no config path; serve-loop needs a positive
-     * port; otherwise once / config prints one local policy.
-     * Mode and cycles defaults come from the config file;
-     * argv overrides silently when provided.
+     * Purpose: single entry used by start {}. --config is required
+     * upstream. Mode and cycles defaults come from the config file;
+     * argv overrides silently when provided. serve-loop needs a
+     * positive port; once (or loop with port 0) prints one local
+     * policy; all modes false → smoke identity.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -344,13 +353,6 @@ class AiMain {
      * Returns: nothing.
      */
     void run(Cli.CommandLine commandLine) {
-        bool wantConfig = commandLine.wasProvided("config")
-        if (not wantConfig
-            and not commandLine.wasProvided("once")
-            and not commandLine.wasProvided("serve-loop")) {
-            printSmoke()
-            return()
-        }
         AiConfig cfg = loadConfig(commandLine)
         bool wantOnce = resolveFlag(commandLine, "once", cfg.once)
         bool wantLoop = resolveFlag(
@@ -359,7 +361,7 @@ class AiMain {
             runLoop(cfg, cfg.cycles)
             return()
         }
-        if (wantOnce or wantConfig or wantLoop) {
+        if (wantOnce or wantLoop) {
             runOnce(cfg)
             return()
         }

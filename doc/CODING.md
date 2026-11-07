@@ -19,6 +19,8 @@ Changelog:
   range, provisional category thresholds.
 - 2026-11-07  CLI vs config: every flag except the file path is
   settable in the config/setup; argv overrides silently.
+- 2026-11-07  --config PATH is mandatory on all user-facing bins;
+  missing/empty prints help (same as -h) and exits 2.
 
 ## File size
 
@@ -119,15 +121,23 @@ including generated help via `-h` / `--help` (`Action.HELP` +
 `helpText()`). Do not hand-roll flag loops for those bins. Unit/fn
 test programs are exempt unless migration is trivial.
 
-**CLI vs config:** every parameter except the config-file **path**
-(`--config`) must be settable as a default in that file. Load the
-file first; any flag **present on argv** (`wasProvided`) overrides
-the file value **silently** (no warning). Mode FLAGs follow the same
-rule (file `true`/`false`; argv presence forces the switch on).
-Server: process/network keys live in `config/server-*.cfg`;
-`--setup` is an ordinary overridable key (scenario path). Scenario
-files hold §14 galaxy knobs only. AI/human keep their own
-`--config` surfaces.
+**CLI vs config:** `--config PATH` is **mandatory** on every
+user-facing binary (`cplanets-server`, `cplanets`, `cplanets-ai`,
+`cplanets-tick`). If the flag is absent or the path is empty,
+print the same help text as `-h` / `--help` and exit **2** (usage).
+Explicit `-h` / `--help` still exits **0**. Every other parameter
+must be settable as a default in that file. Load the file first;
+any flag **present on argv** (`wasProvided`) overrides the file
+value **silently** (no warning). Mode FLAGs follow the same rule
+(file `true`/`false`; argv presence forces the switch on).
+`--config` itself has **no** in-file key. Server: process/network
+keys live in `config/server-*.cfg`; `--setup` is an ordinary
+overridable key (scenario path). Scenario files hold §14 galaxy
+knobs only. AI/human/tick keep their own `--config` surfaces
+(`config/tick-default.cfg` is a placeholder until advance-N).
+**Planned (not implemented):** auto-load a default config from the
+user's home directory when `--config` is omitted — keep requiring
+an explicit path until that lands.
 
 Headless operator bins that emit decision / settings logs use a
 shared pattern: textfile key `verbosity = N` (default `0`) plus

@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-06  Initial fleet dispatch/recall / progress page.
+ *   2026-11-07  Hulls Entry for split-dispatch of sitting stacks.
  */
 
 include "appCore.cw"
@@ -18,7 +19,9 @@ include "fleetRow.cw"
  * GuiFleetPage owns the Fleets notebook page widgets.
  *
  * Dispatch Entries feed PUT /order; Recall uses PUT /recall.
- * Progress label shows setup durations + active jobs (B4).
+ * Hulls Entry peels a subset from a multi-hull sitting stack
+ * (0 = whole fleet). Progress label shows setup durations +
+ * active jobs (B4).
  */
 class GuiFleetPage {
     AppCore core
@@ -27,6 +30,7 @@ class GuiFleetPage {
     Gtk.Entry fleetIdEntry
     Gtk.Entry orderEntry
     Gtk.Entry destEntry
+    Gtk.Entry hullsEntry
     Gtk.Button dispatchBtn
     Gtk.Button recallBtn
     Gtk.Label lockHint
@@ -50,6 +54,7 @@ class GuiFleetPage {
         fleetIdEntry = null
         orderEntry = null
         destEntry = null
+        hullsEntry = null
         dispatchBtn = null
         recallBtn = null
         lockHint = null
@@ -81,12 +86,16 @@ class GuiFleetPage {
         fleetIdEntry = Gtk.Entry("0")
         orderEntry = Gtk.Entry("explore")
         destEntry = Gtk.Entry("1")
+        hullsEntry = Gtk.Entry("0")
         page.append(Gtk.Label("Fleet id"))
         page.append(fleetIdEntry)
         page.append(Gtk.Label("Order"))
         page.append(orderEntry)
         page.append(Gtk.Label("Dest planet id"))
         page.append(destEntry)
+        page.append(Gtk.Label(
+            "Hulls to send (0 = whole sitting stack)"))
+        page.append(hullsEntry)
         lockHint = Gtk.Label(
             "In-flight lock: rewrite disabled; use Recall.")
         page.append(lockHint)
@@ -209,6 +218,23 @@ class GuiFleetPage {
      */
     int64 destValue() {
         return(destEntry.text().toInt64())
+    }
+
+    /*
+     * Read the hulls-to-send Entry.
+     *
+     * Purpose: peel a subset from a multi-hull sitting stack
+     * before PUT /order (0 = dispatch the whole fleet).
+     *
+     * Parameters: none.
+     *
+     * Returns: hull count from the Entry text.
+     */
+    int64 hullsValue() {
+        if (hullsEntry == null) {
+            return(0)
+        }
+        return(hullsEntry.text().toInt64())
     }
 
     /*

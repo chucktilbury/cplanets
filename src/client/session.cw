@@ -16,6 +16,7 @@
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
  *   2026-11-07  Ship create: putDesign / putBuild / putReclaimHulls.
  *   2026-11-07  putBudget / putMessage for list chrome.
+ *   2026-11-07  putOrder trailing hulls peel count.
  */
 
 import networking as Networking
@@ -252,21 +253,28 @@ class HumanSession {
      * PUT /order for explore / take / trade / move / ambush.
      *
      * Purpose: list-client fleet dispatch (TUNING-PLAYABLE B2).
+     * Trailing hulls peels a subset from a multi-hull sit stack
+     * (0 = whole fleet).
      *
      * Parameters:
      *   fleetId — owned fleet id.
      *   order — order string.
      *   destPlanetId — destination rock.
+     *   hulls — subset size; 0 means the whole stack.
      *
      * Returns: true when the server queued the order.
      */
     bool putOrder(
-        int64 fleetId, String order, int64 destPlanetId) {
+        int64 fleetId,
+        String order,
+        int64 destPlanetId,
+        int64 hulls) {
         WireBytes w = WireBytes()
         w.writeU32(config.playerId)
         w.writeU32(fleetId)
         w.writeU32(destPlanetId)
         w.writeString(order)
+        w.writeU32(hulls)
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/order", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))

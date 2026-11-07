@@ -22,6 +22,7 @@
  *   2026-11-07  Wire afk_timeout_seconds / afk_shrink_factor.
  *   2026-11-07  Budget allocationPct applied in production tick.
  *   2026-11-07  Verbosity lines for design / build / reclaim.
+ *   2026-11-07  issueOwnedOrder accepts optional hull peel count.
  */
 
 include "clock.cw"
@@ -285,13 +286,16 @@ class GameDriver {
      *
      * Purpose: wire PUT /order for list-client dispatch chrome
      * (TUNING-PLAYABLE B). Ownership-checked; mid-dispatch lock
-     * still enforced inside State helpers (RULES §5).
+     * still enforced inside State helpers (RULES §5). Optional
+     * hulls peels a subset from a multi-hull sitting stack so the
+     * remainder can go to other destinations.
      *
      * Parameters:
      *   playerId — requesting seat (must own the fleet).
-     *   fleetId — sitting fleet to order.
+     *   fleetId — sitting fleet to order (or peel-from).
      *   order — explore / take / trade / move / ambush.
      *   destPlanetId — destination rock.
+     *   hulls — subset size; 0 means the whole stack.
      *
      * Returns: true when the order was queued.
      */
@@ -299,7 +303,8 @@ class GameDriver {
         int64 playerId,
         int64 fleetId,
         String order,
-        int64 destPlanetId) {
+        int64 destPlanetId,
+        int64 hulls) {
         if (game.ended) {
             return(false)
         }
@@ -307,13 +312,17 @@ class GameDriver {
         if (fleet.id < 0 or fleet.ownerId != playerId) {
             return(false)
         }
+        int64 orderId = game.peelSittingHulls(fleetId, hulls)
+        if (orderId < 0) {
+            return(false)
+        }
         bool ok = false
         if (order.equals("trade")) {
             # Self-trade stand-in (agreementId -1) for balance loops;
             # multi-partner pact chrome stays Phase E / later B5.
-            ok = game.issueTrade(fleetId, destPlanetId, -1, -1, 0)
+            ok = game.issueTrade(orderId, destPlanetId, -1, -1, 0)
         } else {
-            ok = game.issueOrder(fleetId, order, destPlanetId)
+            ok = game.issueOrder(orderId, order, destPlanetId)
         }
         if (ok) {
             republishWithoutTick()

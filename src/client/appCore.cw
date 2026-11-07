@@ -15,6 +15,7 @@
  *   2026-11-07  Budget + message remote helpers.
  *   2026-11-07  lastError with host:port on dial / pull failure.
  *   2026-11-07  lastError on design / build / reclaim reject.
+ *   2026-11-07  putOrderRemote hulls peel + lastError on reject.
  */
 
 include "config.cw"
@@ -176,24 +177,38 @@ class AppCore {
     /*
      * PUT a fleet order over TCP.
      *
-     * Purpose: Fleets tab Dispatch button.
+     * Purpose: Fleets tab Dispatch button. Optional hulls peels a
+     * subset from a sitting multi-hull stack (0 = whole fleet).
      *
      * Parameters:
      *   fleetId — owned fleet.
      *   order — explore / take / trade / move / ambush.
      *   destPlanetId — destination.
+     *   hulls — subset size; 0 means the whole stack.
      *
-     * Returns: true when queued.
+     * Returns: true when queued. Sets lastError on dial/reject.
      */
     bool putOrderRemote(
-        int64 fleetId, String order, int64 destPlanetId) {
+        int64 fleetId,
+        String order,
+        int64 destPlanetId,
+        int64 hulls) {
+        lastError = ""
         HumanSession session = HumanSession(config)
         if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
             return(false)
         }
         session.handshake()
-        bool ok = session.putOrder(fleetId, order, destPlanetId)
+        bool ok = session.putOrder(
+            fleetId, order, destPlanetId, hulls)
         session.close()
+        if (not ok) {
+            lastError = format(
+                "PUT /order rejected by {} (fleet={} order={} dest={} hulls={})",
+                endpointLabel(), fleetId, order, destPlanetId, hulls)
+        }
         return(ok)
     }
 

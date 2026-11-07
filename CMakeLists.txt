@@ -243,6 +243,7 @@ if(BUILD_TESTING)
         unit_travel
         unit_production
         unit_dispatch
+        unit_splitDispatch
         unit_recallCancel
         unit_stranded
         unit_combat

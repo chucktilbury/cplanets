@@ -19,6 +19,7 @@
  *   2026-11-07  AlertDialog + status on connect / refresh failure.
  *   2026-11-07  Explored dialog hide-on-close; develop/build/reclaim
  *               keep status ack after refresh; fail via AlertDialog.
+ *   2026-11-07  Split-dispatch: hulls Entry + clear reject status.
  */
 
 include "appCore.cw"
@@ -582,6 +583,8 @@ class GuiMain {
      * Dispatch button: PUT /order from fleet Entries.
      *
      * Purpose: exercise explore/take/trade paths in tuning loops.
+     * Hulls Entry peels a subset from a sitting multi-hull stack
+     * so remaining hulls can be sent to other destinations.
      *
      * Parameters: none.
      *
@@ -591,23 +594,45 @@ class GuiMain {
         int64 fleetId = fleetPage.fleetIdValue()
         String order = fleetPage.orderValue()
         int64 dest = fleetPage.destValue()
+        int64 hulls = fleetPage.hullsValue()
         FleetRow row = core.view.findFleet(fleetId)
         if (row.id >= 0 and row.orderLocked()) {
             status.setText("fleet locked — use Recall")
             fleetPage.syncLockChrome()
             return()
         }
+        if (row.id >= 0 and hulls > row.hullCount) {
+            String over = format(
+                "hulls {} > fleet {} stack {}",
+                hulls, fleetId, row.hullCount)
+            reportFailure("Dispatch failed", over)
+            return()
+        }
+        if (row.id >= 0 and not row.sitting and hulls > 0) {
+            reportFailure(
+                "Dispatch failed",
+                "hull peel needs a sitting fleet")
+            return()
+        }
         if (core.config.port < 1) {
             status.setText("dispatch needs live server")
             return()
         }
-        if (core.putOrderRemote(fleetId, order, dest)) {
-            status.setText(format(
-                "dispatched fleet {} {}", fleetId, order))
+        if (core.putOrderRemote(fleetId, order, dest, hulls)) {
+            String ack = format(
+                "dispatched fleet {} {} dest={} hulls={}",
+                fleetId, order, dest, hulls)
+            status.setText(ack)
             core.pullRemote()
             refreshLists()
         } else {
-            status.setText("dispatch failed")
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = format(
+                    "dispatch rejected fleet={} order={} dest={} hulls={}",
+                    fleetId, order, dest, hulls)
+            }
+            reportFailure("Dispatch failed", detail)
         }
     }
 

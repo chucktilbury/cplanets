@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Split-dispatch sitting stacks: Fleets tab **Hulls to send**
+  Entry (`0` = whole fleet) peels a subset from a multi-hull sit
+  fleet (yard builds merge same-design hulls) before `PUT /order`.
+  Trailing wire `hulls` u32 is optional for older bodies. Clear
+  status / `AlertDialog` on reject. Unit: `unit_splitDispatch`.
+  Docs: [DIALOGS.md](DIALOGS.md), [CPLANETS.md](CPLANETS.md).
+
 - Ships **Start develop** / explored-dialog fix: explored
   `TransientWindow` hides on Close (cdbg pattern) instead of
   destroy-then-present; Yard planet Entry re-pins to first owned

@@ -56,7 +56,7 @@ class PlanetRow {
         ownerId = -1
         livabilityDisplay = 0
         resourcesDisplay = 0
-        allocationPct = 50
+        allocationPct = 100
         x = 0.0
         y = 0.0
     }

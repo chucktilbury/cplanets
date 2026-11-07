@@ -12,6 +12,7 @@
  *   2026-11-06  Initial list-chrome function program.
  *   2026-11-07  Design develop / yard build + catalog decode.
  *   2026-11-07  Budget + known-competitor compose asserts.
+ *   2026-11-07  Budget allocationPct spend on production tick.
  */
 
 include "client/exploredTrack.cw"
@@ -185,12 +186,33 @@ start {
         ok = false
     }
 
-    # --- planet budget stand-in ---
-    if (ok and not drv.setOwnedBudget(0, 0, 75)) {
+    # --- planet budget → production spend ---
+    if (ok and not drv.setOwnedBudget(0, 0, 0)) {
         ok = false
     }
     Planet rock = drv.game.galaxy.planets[0]
-    if (ok and rock.allocationPct != 75) {
+    if (ok and rock.allocationPct != 0) {
+        ok = false
+    }
+    Player beforeZero = drv.game.primaryPlayer()
+    fp64 wZero = beforeZero.wealth
+    drv.game.tick()
+    Player afterZero = drv.game.primaryPlayer()
+    if (ok and afterZero.wealth != wZero) {
+        ok = false
+    }
+    if (ok and not drv.setOwnedBudget(0, 0, 100)) {
+        ok = false
+    }
+    rock = drv.game.galaxy.planets[0]
+    if (ok and rock.allocationPct != 100) {
+        ok = false
+    }
+    Player beforeFull = drv.game.primaryPlayer()
+    fp64 wFull = beforeFull.wealth
+    drv.game.tick()
+    Player afterFull = drv.game.primaryPlayer()
+    if (ok and afterFull.wealth <= wFull) {
         ok = false
     }
     if (ok and drv.setOwnedBudget(9, 0, 10)) {
@@ -200,7 +222,7 @@ start {
         drv.game, drv.policies, 0, drv.paused)
     view = decoder.decodeState(blob, 0)
     PlanetRow budgetRow = view.findPlanet(0)
-    if (ok and budgetRow.allocationPct != 75) {
+    if (ok and budgetRow.allocationPct != 100) {
         ok = false
     }
 

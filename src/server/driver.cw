@@ -20,6 +20,7 @@
  *   2026-11-07  Ship create: owned design develop + yard build.
  *   2026-11-07  Planet budget + private/broadcast compose inbox.
  *   2026-11-07  Wire afk_timeout_seconds / afk_shrink_factor.
+ *   2026-11-07  Budget allocationPct applied in production tick.
  */
 
 include "clock.cw"
@@ -111,16 +112,16 @@ class GameDriver {
     }
 
     /*
-     * Set per-owned-planet allocation % (budget chrome stand-in).
+     * Set per-owned-planet allocation % (budget chrome).
      *
      * Purpose: PUT /budget for Planets-tab Scale (DIALOGS §4.2).
-     * Stores intent only — tick spend under empire-pool remains
-     * open; does not invent logistics taxes.
+     * Production tick multiplies empire-pool credit from this
+     * rock by allocationPct/100; no yard logistics tax.
      *
      * Parameters:
      *   playerId — owner seat (must own the rock).
      *   planetId — owned planet id.
-     *   allocationPct — 0..100 spend bias stand-in.
+     *   allocationPct — 0..100 production spend fraction.
      *
      * Returns: true when stored and republished.
      */

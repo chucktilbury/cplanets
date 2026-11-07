@@ -273,7 +273,7 @@ class AppCore {
      *
      * Parameters:
      *   planetId — owned rock.
-     *   allocationPct — 0..100 stand-in.
+     *   allocationPct — 0..100 production spend fraction.
      *
      * Returns: true when accepted.
      */

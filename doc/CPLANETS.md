@@ -165,9 +165,17 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | `-h`, `--help` | Print stdlib `cli` usage and exit 0 |
 | `--config PATH` | AI config (not human settings) |
 | `--host HOST` / `--port N` | Dial overrides |
+| `--verbosity N` | config key or `0`; stdout log level; overlays config when given |
 | `--once` | Print one local policy shape (no TCP) |
 | `--serve-loop` | Dial and PUT policy for `--cycles N` (needs `port > 0`) |
 | `--cycles N` | Loop attempts (default `1`, min `1`) |
+
+**Verbosity** (headless stdout, not a GUI): `0` quiet (default),
+`1+` useful AI decisions — seat / handshake, policy PUT shape
+(role / axis percents / surprise), and cycle `put` / `skip` /
+`fail`. Same key in the AI config file: `verbosity = N`.
+CLI `--verbosity` overlays the config value when provided.
+`--once` / `--serve-loop` print `VERBOSITY=<n>` with the summary.
 
 ### `cplanets-tick`
 

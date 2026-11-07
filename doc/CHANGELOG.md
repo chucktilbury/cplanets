@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- AI client verbosity logging (headless stdout): AI config key
+  `verbosity` and CLI `--verbosity N` (0 quiet, 1+ seat /
+  handshake, policy PUT shape, cycle put|skip|fail). CLI overlays
+  the config key when provided. Docs: [CPLANETS.md](CPLANETS.md),
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md), [CODING.md](CODING.md).
+  CTest: `unit_aiVerbose`, `functional_ai_verbose`
+  (extends `unit_aiConfig`).
+
 - Ship create / design / yard list chrome: human **Ships** notebook
   tab starts timed design development (`PUT /design`), yard builds
   (`PUT /build`), and yard reclaim (`PUT /reclaim-hulls`); chrome

@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial AiClient request helpers.
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
+ *   2026-11-07  Verbosity: seat / policy / cycle decision logs.
  */
 
 import networking as Networking
@@ -24,6 +25,7 @@ include "brain.cw"
 include "config.cw"
 include "policyShape.cw"
 include "reaction.cw"
+include "verboseLog.cw"
 include "view.cw"
 
 /*
@@ -32,11 +34,13 @@ include "view.cw"
  * Brain + ReactionLag decide when to PUT. State blobs from GET
  * stay opaque in Phase H except for tick count in the response
  * header — view fill is for in-process / test callers.
+ * verbose mirrors AiConfig.verbosity (CLI may overlay).
  */
 class AiClient {
     AiConfig config
     AiBrain brain
     ReactionLag lag
+    AiVerboseLog verbose
     Networking.Socket sock
     VerbPutPolicy putVerb
     VerbGetState getStateVerb
@@ -47,6 +51,8 @@ class AiClient {
      * Construct a client around a config.
      *
      * Purpose: wire brain/lag/verbs; delay connect until dial().
+     * Copies cfg.verbosity onto the logger (tests may call
+     * setVerbosity afterward).
      *
      * Parameters:
      *   cfg — clamped AI config (host/port/playerId/seed/axes).
@@ -57,11 +63,32 @@ class AiClient {
         config = cfg
         brain = AiBrain(cfg)
         lag = ReactionLag()
+        verbose = AiVerboseLog()
+        verbose.setLevel(cfg.verbosity)
         sock = Networking.Socket()
         putVerb = VerbPutPolicy()
         getStateVerb = VerbGetState()
         getDigestVerb = VerbGetDigest()
         connected = false
+    }
+
+    /*
+     * Overlay the active verbosity level (CLI / tests).
+     *
+     * Purpose: --verbosity after config load, or unit programs that
+     * assert quiet vs decision emits. Also updates config.verbosity.
+     *
+     * Parameters:
+     *   value — 0 quiet, 1+ seat / policy / cycle.
+     *
+     * Returns: nothing.
+     */
+    void setVerbosity(int64 value) {
+        if (value < 0) {
+            value = 0
+        }
+        config.verbosity = value
+        verbose.setLevel(value)
     }
 
     /*
@@ -142,7 +169,9 @@ class AiClient {
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/handshake", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
-        return(resp.length > 0)
+        bool ok = resp.length > 0
+        verbose.logSeat(config.playerId, ok)
+        return(ok)
     }
 
     /*
@@ -181,23 +210,72 @@ class AiClient {
      * transport / reject failure when an update was attempted.
      */
     bool maybePutPolicy(AiView view, uint64 nowMs) {
+        return(maybePutPolicyAt(view, nowMs, -1))
+    }
+
+    /*
+     * Build a policy and PUT it when lag allows; log cycle action.
+     *
+     * Purpose: same as maybePutPolicy, plus an optional zero-based
+     * cycle index for verbosity: cycle lines under --serve-loop.
+     * Pass cycleIndex < 0 to omit the cycle line (handshake-only
+     * callers / tests).
+     *
+     * Parameters:
+     *   view — visibility-limited snapshot.
+     *   nowMs — wall or injectable clock.
+     *   cycleIndex — serve-loop attempt index, or -1 to skip cycle log.
+     *
+     * Returns: true when lag skipped or PUT accepted; false on
+     * transport / reject failure when an update was attempted.
+     */
+    bool maybePutPolicyAt(AiView view, uint64 nowMs, int64 cycleIndex) {
         if (not lag.shouldUpdate(
             config, view.publishedTick, nowMs)) {
+            if (cycleIndex >= 0) {
+                verbose.logCycle(
+                    cycleIndex,
+                    view.publishedTick,
+                    config.playerId,
+                    "skip")
+            }
             return(true)
         }
         AiPolicyShape shape = brain.generate(view)
+        verbose.logPolicy(config.playerId, shape, "put")
         buffer blob = shape.encode()
         buffer req = putVerb.encodeRequest(
             PutPolicyRequest(config.playerId, blob))
         buffer resp = exchange(req)
         if (resp.length < 1) {
+            if (cycleIndex >= 0) {
+                verbose.logCycle(
+                    cycleIndex,
+                    view.publishedTick,
+                    config.playerId,
+                    "fail")
+            }
             return(false)
         }
         PutPolicyResponse ack = putVerb.decodeResponse(resp)
         if (not ack.accepted) {
+            if (cycleIndex >= 0) {
+                verbose.logCycle(
+                    cycleIndex,
+                    view.publishedTick,
+                    config.playerId,
+                    "fail")
+            }
             return(false)
         }
         lag.markUpdated(view.publishedTick, nowMs)
+        if (cycleIndex >= 0) {
+            verbose.logCycle(
+                cycleIndex,
+                view.publishedTick,
+                config.playerId,
+                "put")
+        }
         return(true)
     }
 
@@ -221,6 +299,7 @@ class AiClient {
             return(skipped)
         }
         AiPolicyShape shape = brain.generate(view)
+        verbose.logPolicy(config.playerId, shape, "local")
         lag.markUpdated(view.publishedTick, nowMs)
         return(shape)
     }

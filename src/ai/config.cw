@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial AiConfig axes + clamp helpers.
+ *   2026-11-07  verbosity (0 quiet / 1+ seat, policy, cycle).
  */
 
 /*
@@ -32,6 +33,9 @@ class AiConfig {
     int64 playerId
     String host
     int64 port
+    # Stdout decision log level. CLI --verbosity may overlay after
+    # load. 0 quiet (default); 1+ seat / policy PUT / cycle actions.
+    int64 verbosity
 
     /*
      * Construct mid-band defaults for a seat.
@@ -57,6 +61,7 @@ class AiConfig {
         playerId = 0
         host = "127.0.0.1"
         port = 0
+        verbosity = 0
     }
 
     /*
@@ -91,6 +96,9 @@ class AiConfig {
         }
         if (port < 0) {
             port = 0
+        }
+        if (verbosity < 0) {
+            verbosity = 0
         }
     }
 

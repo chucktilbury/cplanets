@@ -3,10 +3,10 @@
  *
  * Default (no args): print program name + lib identity (smoke).
  * --config PATH: load own AI config (not human settings).
- * Optional --host / --port override; --once prints one policy
- * shape without TCP. --serve-loop dials and runs maybePutPolicy
- * for --cycles N. Never ticks; never opens the universe DB
- * (RULES §2 / PLAN §4.H).
+ * Optional --host / --port / --verbosity override; --once prints
+ * one policy shape without TCP. --serve-loop dials and runs
+ * maybePutPolicy for --cycles N. Never ticks; never opens the
+ * universe DB (RULES §2 / PLAN §4.H).
  * User-facing argv uses stdlib `cli` (including --help / -h).
  *
  * Created: 2026-11-05
@@ -18,6 +18,7 @@
  *   2026-11-05  Phase H: config load, local once, TCP loop.
  *   2026-11-06  Fail loud on unknown AI config keys (TUNING A).
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
+ *   2026-11-07  --verbosity N (overlay AI config verbosity key).
  */
 
 import cli as Cli
@@ -29,6 +30,7 @@ include "ai/client.cw"
 include "ai/config.cw"
 include "ai/configParse.cw"
 include "ai/policyShape.cw"
+include "ai/verboseLog.cw"
 include "ai/view.cw"
 
 /*
@@ -126,6 +128,15 @@ class AiMain {
         cycles.hasDefault = true
         cycles.defaultValue = "1"
         commandLine.addOption(cycles)
+        Cli.Option verbosity = Cli.Option()
+        verbosity.longName = "verbosity"
+        verbosity.name = "verbosity"
+        verbosity.description = (
+            "stdout log level (0 quiet, 1+ seat/policy/cycle)")
+        verbosity.valueType = Cli.ValueType().NUMBER
+        verbosity.hasDefault = true
+        verbosity.defaultValue = "0"
+        commandLine.addOption(verbosity)
         return(commandLine)
     }
 
@@ -162,11 +173,11 @@ class AiMain {
     }
 
     /*
-     * Load AiConfig from --config with host/port overlays.
+     * Load AiConfig from --config with host/port/verbosity overlays.
      *
-     * Purpose: own config file path; argv may override dial.
-     * Overlays apply only when the option was provided. Unknown
-     * config keys fail loud and exit(1).
+     * Purpose: own config file path; argv may override dial and
+     * verbosity. Overlays apply only when the option was provided.
+     * Unknown config keys fail loud and exit(1).
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -203,6 +214,14 @@ class AiMain {
                 cfg.port = port
             }
         }
+        # CLI --verbosity overlays the AI config key when given.
+        if (commandLine.wasProvided("verbosity")) {
+            int64 level = commandLine.value("verbosity").toInt64()
+            if (level < 0) {
+                level = 0
+            }
+            cfg.verbosity = level
+        }
         cfg.clampAll()
         return(cfg)
     }
@@ -223,7 +242,11 @@ class AiMain {
         view.currentRole = "neutral"
         view.publishedTick = 0
         AiPolicyShape shape = brain.generate(view)
+        AiVerboseLog verbose = AiVerboseLog()
+        verbose.setLevel(cfg.verbosity)
+        verbose.logPolicy(cfg.playerId, shape, "once")
         print("cplanets-ai\n")
+        print(format("VERBOSITY={}\n", cfg.verbosity))
         print(shape.roleName)
         print("\n")
         print(format("{}\n", shape.expansionPct))
@@ -250,6 +273,7 @@ class AiMain {
         AiClient client = AiClient(cfg)
         if (not client.dial()) {
             print("cplanets-ai\n")
+            print(format("VERBOSITY={}\n", cfg.verbosity))
             print("dial_failed\n")
             return()
         }
@@ -266,11 +290,13 @@ class AiMain {
             }
             AiView view = AiView(cfg.playerId)
             view.publishedTick = tick
-            client.maybePutPolicy(view, uint64(index * 1000))
+            client.maybePutPolicyAt(
+                view, uint64(index * 1000), index)
             index = index + 1
         }
         client.close()
         print("cplanets-ai\n")
+        print(format("VERBOSITY={}\n", cfg.verbosity))
         print("ok\n")
     }
 

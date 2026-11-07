@@ -11,6 +11,7 @@
  *   2026-11-05  Initial AI config unit program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-06  Unknown keys fail loud (TUNING A2).
+ *   2026-11-07  Assert verbosity config key.
  */
 
 include "ai/configParse.cw"
@@ -30,6 +31,7 @@ start {
     text.append("player_id = 2\n")
     text.append("host = 10.0.0.2\n")
     text.append("port = 7777\n")
+    text.append("verbosity = 2\n")
     AiConfigParse parser = AiConfigParse()
     AiConfig cfg = parser.parseText(text)
     bool ok = true
@@ -73,6 +75,9 @@ start {
         ok = false
     }
     if (cfg.port != 7777) {
+        ok = false
+    }
+    if (cfg.verbosity != 2) {
         ok = false
     }
 

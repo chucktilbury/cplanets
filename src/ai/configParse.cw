@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-05  Initial AiConfigParse overlays.
  *   2026-11-06  Fail loud on unknown keys (TUNING A2).
+ *   2026-11-07  verbosity key (AI stdout decision logging).
  */
 
 include "config.cw"
@@ -144,6 +145,8 @@ class AiConfigParse {
             cfg.host = val
         } else (key.equals("port")) {
             cfg.port = val.toInt64()
+        } else (key.equals("verbosity")) {
+            cfg.verbosity = val.toInt64()
         } else {
             if (ok) {
                 ok = false

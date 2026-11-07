@@ -115,6 +115,14 @@ including generated help via `-h` / `--help` (`Action.HELP` +
 `helpText()`). Do not hand-roll flag loops for those bins. Unit/fn
 test programs are exempt unless migration is trivial.
 
+Headless operator bins that emit decision / settings logs use a
+shared pattern: textfile key `verbosity = N` (default `0` quiet)
+plus CLI `--verbosity N` that overlays the file when
+`wasProvided("verbosity")`. Keep level `0` silent; higher levels
+log useful operator lines to stdout (not a GUI). Server and AI
+share the flag/key name; log payloads differ (combat vs seat /
+policy / cycle).
+
 ## Knobs and “tuning”
 
 Virtually every variable that touches planets, ships, players, combat,

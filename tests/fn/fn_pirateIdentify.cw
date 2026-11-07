@@ -108,13 +108,13 @@ class FnPirate {
         game.players[1] = trader
         Design war = Design(game.nextDesignId)
         game.nextDesignId = game.nextDesignId + 1
-        war.makeEscort(20.0)
+        war.makeEscort(20.0, 1.5, 3.0)
         war.speed = 1.0
         game.designs.append(war)
         int64 warId = game.designs.length - 1
         Design freighter = Design(game.nextDesignId)
         game.nextDesignId = game.nextDesignId + 1
-        freighter.makeFreighter(20.0, 10.0)
+        freighter.makeFreighter(20.0, 10.0, 1.0, 2.0)
         game.designs.append(freighter)
         int64 fid = game.designs.length - 1
         game.fleets.clear()
@@ -264,17 +264,17 @@ start {
     war.players[2] = p2
     Design warA = Design(war.nextDesignId)
     war.nextDesignId = war.nextDesignId + 1
-    warA.makeEscort(20.0)
+    warA.makeEscort(20.0, 1.5, 3.0)
     war.designs.append(warA)
     int64 wa = war.designs.length - 1
     Design warB = Design(war.nextDesignId)
     war.nextDesignId = war.nextDesignId + 1
-    warB.makeEscort(20.0)
+    warB.makeEscort(20.0, 1.5, 3.0)
     war.designs.append(warB)
     int64 wb = war.designs.length - 1
     Design freight = Design(war.nextDesignId)
     war.nextDesignId = war.nextDesignId + 1
-    freight.makeFreighter(20.0, 10.0)
+    freight.makeFreighter(20.0, 10.0, 1.0, 2.0)
     war.designs.append(freight)
     int64 ff = war.designs.length - 1
     war.fleets.clear()
@@ -341,7 +341,7 @@ start {
     idle.players[0] = ip
     Design iw = Design(idle.nextDesignId)
     idle.nextDesignId = idle.nextDesignId + 1
-    iw.makeEscort(20.0)
+    iw.makeEscort(20.0, 1.5, 3.0)
     idle.designs.append(iw)
     int64 iwid = idle.designs.length - 1
     idle.fleets.clear()

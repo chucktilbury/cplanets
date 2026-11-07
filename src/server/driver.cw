@@ -18,6 +18,7 @@
  *   2026-11-07  Server verbosity: policy PUT + combat tick logs.
  *   2026-11-07  Verbosity overlay clamps via ServerVerboseLog 0–10.
  *   2026-11-07  Ship create: owned design develop + yard build.
+ *   2026-11-07  Wire afk_timeout_seconds / afk_shrink_factor.
  */
 
 include "clock.cw"
@@ -497,6 +498,7 @@ class GameDriver {
         # Structured apply onto State lands with later client work;
         # tick() still advances fleets/orders already on State.
         lastSnapshot = policies.snapshot()
+        applyAfkProductionScales()
         lastEvents = game.tick()
         verbose.logCombatTick(
             game.tickCount, lastEvents, game.engagements)
@@ -514,6 +516,46 @@ class GameDriver {
         clock.markFired()
         fireCount = fireCount + 1
         return(true)
+    }
+
+
+    /*
+     * Apply AFK production shrink for idle connected seats.
+     *
+     * Purpose: RULES §2 — after afk_timeout_seconds without a
+     * policy PUT while still present (handshake alive), scale
+     * productive gains by afk_shrink_factor (default 1.0 = no-op
+     * placeholder). Dropped seats are not AFK; they keep 1.0.
+     *
+     * Parameters: none (mutates game.players afkProductionScale).
+     *
+     * Returns: nothing.
+     */
+    void applyAfkProductionScales() {
+        fp64 period = fp64(game.scenario.tickPeriodSeconds)
+        if (period < 1.0) {
+            period = 1.0
+        }
+        fp64 timeout = game.scenario.afkTimeoutSeconds
+        fp64 shrink = game.scenario.afkShrinkFactor
+        int64 index = 0
+        while (index < game.players.length) {
+            Player seat = game.players[index]
+            fp64 scale = 1.0
+            if (presence.isConnected(index)
+                and not seat.quit
+                and not seat.dropped
+                and index < policies.slots.length) {
+                PolicySlot slot = policies.slots[index]
+                fp64 idleSec = fp64(slot.tickUses) * period
+                if (timeout >= 0.0 and idleSec >= timeout) {
+                    scale = shrink
+                }
+            }
+            seat.afkProductionScale = scale
+            game.players[index] = seat
+            index = index + 1
+        }
     }
 
     /*

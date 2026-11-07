@@ -18,6 +18,7 @@
  *   2026-11-07  Clamp verbosity to 0–10 after parse.
  *   2026-11-07  Process CLI mirror keys (port/players/seed/…).
  *   2026-11-07  Drop process keys — server config owns them.
+ *   2026-11-07  Production/build/galaxy/design template keys.
  */
 
 include "scenario.cw"
@@ -206,6 +207,60 @@ class SetupParse {
             scenario.battleShortCircuitGap = val.toFp64()
         } else (key.equals("productive_inherent_defense")) {
             scenario.productiveInherentDefense = val.toFp64()
+        } else (key.equals("production_tick_rate")) {
+            scenario.productionTickRate = val.toFp64()
+        } else (key.equals("yard_build_cost_per_size")) {
+            scenario.yardBuildCostPerSize = val.toFp64()
+        } else (key.equals("design_develop_cost_per_size")) {
+            scenario.designDevelopCostPerSize = val.toFp64()
+        } else (key.equals("colony_hop_fraction")) {
+            scenario.colonyHopFraction = val.toFp64()
+        } else (key.equals("home_spawn_min_radius_fraction")) {
+            scenario.homeSpawnMinRadiusFraction = val.toFp64()
+        } else (key.equals("home_spawn_max_radius_fraction")) {
+            scenario.homeSpawnMaxRadiusFraction = val.toFp64()
+        } else (key.equals("home_spawn_min_radius_floor")) {
+            scenario.homeSpawnMinRadiusFloor = val.toFp64()
+        } else (key.equals("useful_livability_fraction")) {
+            scenario.usefulLivabilityFraction = val.toFp64()
+        } else (key.equals("poor_livability_fraction")) {
+            scenario.poorLivabilityFraction = val.toFp64()
+        } else (key.equals("poor_resources_fraction")) {
+            scenario.poorResourcesFraction = val.toFp64()
+        } else (key.equals("home_fallback_livability")) {
+            scenario.homeFallbackLivability = val.toFp64()
+        } else (key.equals("home_fallback_resources")) {
+            scenario.homeFallbackResources = val.toFp64()
+        } else (key.equals("contact_reach")) {
+            scenario.contactReach = val.toFp64()
+        } else (key.equals("design_scout_speed")) {
+            scenario.designScoutSpeed = val.toFp64()
+        } else (key.equals("design_scout_size")) {
+            scenario.designScoutSize = val.toFp64()
+        } else (key.equals("design_colony_speed")) {
+            scenario.designColonySpeed = val.toFp64()
+        } else (key.equals("design_colony_size")) {
+            scenario.designColonySize = val.toFp64()
+        } else (key.equals("design_colony_hold")) {
+            scenario.designColonyHold = val.toFp64()
+        } else (key.equals("design_freighter_speed")) {
+            scenario.designFreighterSpeed = val.toFp64()
+        } else (key.equals("design_freighter_size")) {
+            scenario.designFreighterSize = val.toFp64()
+        } else (key.equals("design_freighter_hold")) {
+            scenario.designFreighterHold = val.toFp64()
+        } else (key.equals("design_escort_speed")) {
+            scenario.designEscortSpeed = val.toFp64()
+        } else (key.equals("design_escort_size")) {
+            scenario.designEscortSize = val.toFp64()
+        } else (key.equals("design_frigate_speed")) {
+            scenario.designFrigateSpeed = val.toFp64()
+        } else (key.equals("design_frigate_size")) {
+            scenario.designFrigateSize = val.toFp64()
+        } else (key.equals("design_destroyer_speed")) {
+            scenario.designDestroyerSpeed = val.toFp64()
+        } else (key.equals("design_destroyer_size")) {
+            scenario.designDestroyerSize = val.toFp64()
         } else (key.equals("livability_internal_min")) {
             scenario.livabilityInternalMin = val.toFp64()
         } else (key.equals("livability_internal_max")) {

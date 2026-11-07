@@ -109,7 +109,7 @@ class FnTrade {
         game.players[1] = b
         Design freighter = Design(game.nextDesignId)
         game.nextDesignId = game.nextDesignId + 1
-        freighter.makeFreighter(game.scenario.scoutRange, hold)
+        freighter.makeFreighter(game.scenario.scoutRange, hold, 1.0, 2.0)
         game.designs.append(freighter)
         int64 fid = game.designs.length - 1
         game.fleets.clear()
@@ -127,7 +127,7 @@ start {
     int64 cargoDesign = check.prepTraders(game, 10, 10.0)
     Design escort = Design(game.nextDesignId)
     game.nextDesignId = game.nextDesignId + 1
-    escort.makeEscort(game.scenario.scoutRange)
+    escort.makeEscort(game.scenario.scoutRange, 1.5, 3.0)
     game.designs.append(escort)
     int64 escortDesign = game.designs.length - 1
     int64 pactId = game.proposeAgreement(0, 1, 100.0)
@@ -253,7 +253,7 @@ start {
     self.players[0] = sp
     Design sf = Design(self.nextDesignId)
     self.nextDesignId = self.nextDesignId + 1
-    sf.makeFreighter(self.scenario.scoutRange, 10.0)
+    sf.makeFreighter(self.scenario.scoutRange, 10.0, 1.0, 2.0)
     self.designs.append(sf)
     int64 sfid = self.designs.length - 1
     self.fleets.clear()

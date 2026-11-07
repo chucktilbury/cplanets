@@ -27,6 +27,7 @@
  *   2026-11-07  Process keys in setup; CLI silent overlay.
  *   2026-11-07  --config server runtime file; --setup scenario only.
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
+ *   2026-11-07  handshake_miss_ms / accept_poll_ms from server cfg.
  */
 
 import cli as Cli
@@ -332,6 +333,8 @@ class ServerMain {
      *   seedRaw — PRNG seed for banner.
      *   cycles — accept/serve iteration cap.
      *   injectable — test clock.
+     *   handshakeMissMs — presence drop window (server config).
+     *   acceptPollMs — accept/recv poll timeout (server config).
      *
      * Returns: process exit code (0 ok, 1 bind failure).
      */
@@ -343,7 +346,9 @@ class ServerMain {
         int64 players,
         int64 seedRaw,
         int64 cycles,
-        bool injectable) {
+        bool injectable,
+        int64 handshakeMissMs,
+        int64 acceptPollMs) {
         String setupLabel = "builtin"
         if (setupPath.length > 0) {
             setupLabel = setupPath
@@ -354,10 +359,10 @@ class ServerMain {
             injectable,
             "",
             true,
-            5000u)
+            uint64(handshakeMissMs))
         ServerHandler handler = ServerHandler(driver)
         ServerListen listener = ServerListen(
-            handler, driver, 50, cycles)
+            handler, driver, acceptPollMs, cycles)
         if (not listener.listenOn(host, port)) {
             print("cplanets-server: bind failed\n")
             driver.close()
@@ -444,7 +449,9 @@ class ServerMain {
             cfg.players,
             cfg.seed,
             cfg.cycles,
-            cfg.injectable))
+            cfg.injectable,
+            cfg.handshakeMissMs,
+            cfg.acceptPollMs))
     }
 }
 

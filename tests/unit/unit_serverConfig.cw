@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-07  Initial server config unit program.
+ *   2026-11-07  Assert handshake_miss_ms / accept_poll_ms.
  */
 
 include "server/configParse.cw"
@@ -24,6 +25,8 @@ start {
     text.append("serve = true\n")
     text.append("injectable = true\n")
     text.append("verbosity = 2\n")
+    text.append("handshake_miss_ms = 7500\n")
+    text.append("accept_poll_ms = 25\n")
     ServerConfigParse parser = ServerConfigParse()
     ServerConfig cfg = parser.parseText(text)
     bool ok = true
@@ -55,6 +58,12 @@ start {
         ok = false
     }
     if (cfg.verbosity != 2) {
+        ok = false
+    }
+    if (cfg.handshakeMissMs != 7500) {
+        ok = false
+    }
+    if (cfg.acceptPollMs != 25) {
         ok = false
     }
 

@@ -12,6 +12,7 @@
  *   2026-11-06  TUNING B: pause / humanCount / progress chrome.
  *   2026-11-07  Design catalog + seat wealth/resources milli.
  *   2026-11-07  Known competitors list for compose chrome.
+ *   2026-11-07  firstOwnedYardId / isOwnedYard for Ships yard Entry.
  */
 
 include "designRow.cw"
@@ -175,6 +176,54 @@ class ClientStateView {
             index = index + 1
         }
         return(PlanetRow())
+    }
+
+    /*
+     * Lowest-id owned shipyard planet for this seat.
+     *
+     * Purpose: Ships-tab Yard planet Entry default (home 0 at
+     * start). Avoids a stale id such as worldCount-1 (23).
+     *
+     * Parameters: none.
+     *
+     * Returns: planet id, or −1 when none owned.
+     */
+    int64 firstOwnedYardId() {
+        int64 best = -1
+        int64 index = 0
+        while (index < planets.length) {
+            PlanetRow row = planets[index]
+            if (row.visible
+                and row.shipyard
+                and row.ownerId == viewerId) {
+                if (best < 0 or row.id < best) {
+                    best = row.id
+                }
+            }
+            index = index + 1
+        }
+        return(best)
+    }
+
+    /*
+     * True when planetId is an owned shipyard for this seat.
+     *
+     * Purpose: Yard planet Entry validation before Queue build.
+     *
+     * Parameters:
+     *   planetId — candidate yard rock.
+     *
+     * Returns: true when visible owned shipyard.
+     */
+    bool isOwnedYard(int64 planetId) {
+        PlanetRow row = findPlanet(planetId)
+        if (row.id < 0) {
+            return(false)
+        }
+        if (not row.visible or not row.shipyard) {
+            return(false)
+        }
+        return(row.ownerId == viewerId)
     }
 
     /*

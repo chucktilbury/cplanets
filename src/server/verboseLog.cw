@@ -5,7 +5,7 @@
  * rejected. Provisional category thresholds (may firm up later):
  *   0     errors only (optional lines silent)
  *   1–2   reserved
- *   3+    settings / policy PUT detail
+ *   3+    settings / policy PUT detail; ship-create verbs
  *   6+    combat / battle events + engagement strengths
  *   10    full dumps / statistics (gate only; no spam yet)
  * Emits to stdout; also keeps a short in-memory line list for
@@ -17,6 +17,7 @@
  * Changelog:
  *   2026-11-07  Initial ServerVerboseLog (settings + combat).
  *   2026-11-07  Remap to 0–10 scale; clamp; provisional thresholds.
+ *   2026-11-07  Ship-create PUT /design /build /reclaim-hulls lines.
  */
 
 include "../lib/engagement.cw"
@@ -236,6 +237,95 @@ class ServerVerboseLog {
             "verbosity: settings player={} bytes={}\n",
             playerId,
             blob.length))
+    }
+
+    /*
+     * Log a PUT /design develop result.
+     *
+     * Purpose: visible server ack for Ships Start develop (settings
+     * band, same as policy PUTs).
+     *
+     * Parameters:
+     *   playerId — seat that paid wealth.
+     *   designId — new design id, or −1 when rejected.
+     *   name — draft name from the wire.
+     *
+     * Returns: nothing.
+     */
+    void logDesignDevelop(
+        int64 playerId, int64 designId, String name) {
+        if (not settingsEnabled()) {
+            return()
+        }
+        if (designId < 0) {
+            emit(format(
+                "verbosity: design player={} rejected name={}\n",
+                playerId, name))
+            return()
+        }
+        emit(format(
+            "verbosity: design player={} id={} name={} queued\n",
+            playerId, designId, name))
+    }
+
+    /*
+     * Log a PUT /build yard result.
+     *
+     * Purpose: visible server ack for Ships Queue build.
+     *
+     * Parameters:
+     *   playerId — seat paying resources.
+     *   planetId — yard planet.
+     *   designId — ready design.
+     *   accepted — true when a BuildJob was queued.
+     *
+     * Returns: nothing.
+     */
+    void logYardBuild(
+        int64 playerId,
+        int64 planetId,
+        int64 designId,
+        bool accepted) {
+        if (not settingsEnabled()) {
+            return()
+        }
+        String bit = "rejected"
+        if (accepted) {
+            bit = "queued"
+        }
+        emit(format(
+            "verbosity: build player={} planet={} design={} {}\n",
+            playerId, planetId, designId, bit))
+    }
+
+    /*
+     * Log a PUT /reclaim-hulls result.
+     *
+     * Purpose: visible server ack for Ships Reclaim hulls.
+     *
+     * Parameters:
+     *   playerId — seat reclaiming.
+     *   fleetId — sitting fleet at a yard.
+     *   hulls — requested hull count.
+     *   accepted — true when a ReclaimJob was queued.
+     *
+     * Returns: nothing.
+     */
+    void logReclaimHulls(
+        int64 playerId,
+        int64 fleetId,
+        int64 hulls,
+        bool accepted) {
+        if (not settingsEnabled()) {
+            return()
+        }
+        String bit = "rejected"
+        if (accepted) {
+            bit = "queued"
+        }
+        emit(format(
+            "verbosity: reclaim player={} fleet={} hulls={} {}\n",
+            playerId, fleetId, hulls, bit))
     }
 
     /*

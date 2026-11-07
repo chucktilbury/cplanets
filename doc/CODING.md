@@ -17,6 +17,8 @@ Changelog:
   before balance; point at KNOB-COVERAGE / TUNING-PLAYABLE.
 - 2026-11-07  Verbosity shared pattern: 0–10 scale, clamp out of
   range, provisional category thresholds.
+- 2026-11-07  CLI vs config: every flag except the file path is
+  settable in the config/setup; argv overrides silently.
 
 ## File size
 
@@ -116,6 +118,13 @@ parse argv with the Cwhip stdlib `cli` package (`import cli as Cli`),
 including generated help via `-h` / `--help` (`Action.HELP` +
 `helpText()`). Do not hand-roll flag loops for those bins. Unit/fn
 test programs are exempt unless migration is trivial.
+
+**CLI vs config:** every parameter except the config/setup **path**
+(`--setup` / `--config`) must be settable as a default in that
+file. Load the file first; any flag **present on argv**
+(`wasProvided`) overrides the file value **silently** (no warning).
+Mode FLAGs follow the same rule (file `true`/`false`; argv presence
+forces the switch on).
 
 Headless operator bins that emit decision / settings logs use a
 shared pattern: textfile key `verbosity = N` (default `0`) plus

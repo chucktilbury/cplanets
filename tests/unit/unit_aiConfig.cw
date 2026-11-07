@@ -12,6 +12,7 @@
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-06  Unknown keys fail loud (TUNING A2).
  *   2026-11-07  Assert verbosity config key.
+ *   2026-11-07  Assert cycles / once / serve_loop keys.
  */
 
 include "ai/configParse.cw"
@@ -32,6 +33,9 @@ start {
     text.append("host = 10.0.0.2\n")
     text.append("port = 7777\n")
     text.append("verbosity = 2\n")
+    text.append("cycles = 5\n")
+    text.append("once = true\n")
+    text.append("serve_loop = true\n")
     AiConfigParse parser = AiConfigParse()
     AiConfig cfg = parser.parseText(text)
     bool ok = true
@@ -78,6 +82,15 @@ start {
         ok = false
     }
     if (cfg.verbosity != 2) {
+        ok = false
+    }
+    if (cfg.cycles != 5) {
+        ok = false
+    }
+    if (not cfg.once) {
+        ok = false
+    }
+    if (not cfg.serveLoop) {
         ok = false
     }
 

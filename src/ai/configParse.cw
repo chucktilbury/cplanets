@@ -13,6 +13,7 @@
  *   2026-11-05  Initial AiConfigParse overlays.
  *   2026-11-06  Fail loud on unknown keys (TUNING A2).
  *   2026-11-07  verbosity key (AI stdout decision logging).
+ *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
  */
 
 include "config.cw"
@@ -147,11 +148,35 @@ class AiConfigParse {
             cfg.port = val.toInt64()
         } else (key.equals("verbosity")) {
             cfg.verbosity = val.toInt64()
+        } else (key.equals("cycles")) {
+            cfg.cycles = val.toInt64()
+        } else (key.equals("once")) {
+            cfg.once = parseBool(val)
+        } else (key.equals("serve_loop")) {
+            cfg.serveLoop = parseBool(val)
         } else {
             if (ok) {
                 ok = false
                 lastError = format("unknown AI config key: {}", key)
             }
         }
+    }
+
+    /*
+     * Parse a bool from AI config text.
+     *
+     * Purpose: accept true/false/1/0 for mode flags without a
+     * stdlib bool parser (matches SetupParse).
+     *
+     * Parameters:
+     *   val — trimmed token.
+     *
+     * Returns: true for "true"/"1"; otherwise false.
+     */
+    bool parseBool(String val) {
+        if (val.equals("true") or val.equals("1")) {
+            return(true)
+        }
+        return(false)
     }
 }

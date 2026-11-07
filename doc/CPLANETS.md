@@ -84,6 +84,14 @@ target. Configure with `-DBUILD_TESTING=OFF` to omit CTest wiring.
 Paths below assume you are at the project root after a successful
 `build`, with binaries in `bin/`.
 
+### CLI vs config defaults
+
+Every command-line parameter **except the config/setup file path
+itself** (`--setup` / `--config`) may also be set as a default in
+that file. Load the file first; any flag **present on argv**
+overrides the corresponding file value **silently** (no warning).
+`cplanets-tick` has no value flags yet (help only).
+
 ### `cplanets-server`
 
 ```text
@@ -91,17 +99,17 @@ bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
   [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
 ```
 
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
-| `--serve` | (required for play) | Bind TCP and run accept + cadence loop |
-| `--port N` | `0` (ephemeral) | Listen port; `0` picks a free port |
-| `--players N` | `2` | Seat count for the closed start galaxy |
-| `--seed N` | `7` | PRNG seed for the start galaxy |
-| `--setup PATH` | (builtin closed defaults) | Load §14 knobs from a scenario file |
-| `--verbosity N` | setup key or `0` | Stdout log level 0–10 (clamped); overlays setup when given |
-| `--injectable` | off | Test clock (admin advance); CI / harnesses |
-| `--cycles N` | `0` (run until stop) | Cap accept/serve loop iterations |
+| Flag | Default | Setup key | Meaning |
+| --- | --- | --- | --- |
+| `-h`, `--help` | — | — | Print stdlib `cli` usage and exit 0 |
+| `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
+| `--port N` | `0` (ephemeral) | `port` | Listen port; `0` picks a free port |
+| `--players N` | `2` | `players` | Seat count for the closed start galaxy |
+| `--seed N` | `7` | `seed` | PRNG seed for the start galaxy |
+| `--setup PATH` | (builtin closed defaults) | *(path only — not in file)* | Load §14 knobs + process defaults |
+| `--verbosity N` | setup key or `0` | `verbosity` | Stdout log level 0–10 (clamped) |
+| `--injectable` | off | `injectable` | Test clock (admin advance); CI / harnesses |
+| `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
 
 **Verbosity** (headless stdout, not a GUI): scale **0–10**
 (default `0`). Out-of-range values **clamp** into `0..10` (they
@@ -117,16 +125,18 @@ will firm up over time:
 | `7–9` | Reserved (richer combat / partial dumps) |
 | `10` | Full dumps / statistics (gate only; no extra spam yet) |
 
-Same key in the scenario file: `verbosity = N`. CLI `--verbosity`
-overlays the setup value when provided.
+Same keys in the scenario file (plus process defaults `serve`,
+`port`, `players`, `seed`, `cycles`, `injectable`). CLI flags
+present on argv overlay the setup values silently.
 
 On start it prints `PORT=<n>`, `SETUP=<path|builtin>`, `SEED=<n>`,
-`VERBOSITY=<n>`, and `INJECTABLE=0|1`. Use that port for clients.
-Pass `scenarios/closed-default.setup` (or a copy you edited) via
-`--setup` so combat / economy / travel / identify magnitudes come
-from the file. Unknown keys fail loud and the process exits before
-listen. **Knob edits take effect on process restart** — there is no
-mid-game retune in v1 (RULES §14 lock-in-progress).
+`PLAYERS=<n>`, `CYCLES=<n>`, `VERBOSITY=<n>`, and `INJECTABLE=0|1`.
+Use that port for clients. Pass `scenarios/closed-default.setup`
+(or a copy you edited) via `--setup` so combat / economy / travel /
+identify magnitudes come from the file. Unknown keys fail loud and
+the process exits before listen. **Knob edits take effect on process
+restart** — there is no mid-game retune in v1 (RULES §14
+lock-in-progress).
 
 ### `cplanets` (human)
 
@@ -134,17 +144,17 @@ mid-game retune in v1 (RULES §14 lock-in-progress).
 bin/cplanets --config config/human-default.cfg [flags…]
 ```
 
-| Flag | Meaning |
-| --- | --- |
-| `-h`, `--help` | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | Human settings file (not the AI config) |
-| `--host HOST` | Override dial host |
-| `--port N` | Override dial port (`> 0` for TCP) |
-| `--player N` | Seat id |
-| `--once` | In-process closed galaxy; print list summary (no TCP, no GTK) |
-| `--pull` | TCP GET state + digest summary (needs `--port`) |
-| `--gui` | GTK notebook debugger |
-| `--test` | GTK path that auto-quits after a short schedule |
+| Flag | Config key | Meaning |
+| --- | --- | --- |
+| `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
+| `--config PATH` | *(path only)* | Human settings file (not the AI config) |
+| `--host HOST` | `host` | Dial host |
+| `--port N` | `port` | Dial port (`> 0` for TCP) |
+| `--player N` | `player_id` | Seat id |
+| `--once` | `once` | In-process closed galaxy; print list summary (no TCP, no GTK) |
+| `--pull` | `pull` | TCP GET state + digest summary (needs `port > 0`) |
+| `--gui` | `gui` | GTK notebook debugger |
+| `--test` | `test` | GTK path that auto-quits after a short schedule |
 
 With `--gui` / `--test` and `port > 0`, the client pulls from the
 server; otherwise it prefills an offline closed galaxy.
@@ -171,15 +181,15 @@ tab still has “Show first explored”.
 bin/cplanets-ai --config config/ai-default.cfg [flags…]
 ```
 
-| Flag | Meaning |
-| --- | --- |
-| `-h`, `--help` | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | AI config (not human settings) |
-| `--host HOST` / `--port N` | Dial overrides |
-| `--verbosity N` | config key or `0`; stdout log level 0–10 (clamped); overlays config when given |
-| `--once` | Print one local policy shape (no TCP) |
-| `--serve-loop` | Dial and PUT policy for `--cycles N` (needs `port > 0`) |
-| `--cycles N` | Loop attempts (default `1`, min `1`) |
+| Flag | Config key | Meaning |
+| --- | --- | --- |
+| `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
+| `--config PATH` | *(path only)* | AI config (not human settings) |
+| `--host HOST` / `--port N` | `host` / `port` | Dial |
+| `--verbosity N` | `verbosity` | stdout log level 0–10 (clamped) |
+| `--once` | `once` | Print one local policy shape (no TCP) |
+| `--serve-loop` | `serve_loop` | Dial and PUT policy for `cycles` (needs `port > 0`) |
+| `--cycles N` | `cycles` | Loop attempts (default `1`, min `1`) |
 
 **Verbosity** (headless stdout, not a GUI): scale **0–10**
 (default `0`). Out-of-range values **clamp** into `0..10`.
@@ -193,9 +203,10 @@ Category thresholds are **provisional**:
 | `4–9` | Reserved (finer decision detail) |
 | `10` | Full decision dumps / statistics (gate only; no extra spam yet) |
 
-Same key in the AI config file: `verbosity = N`. CLI
-`--verbosity` overlays the config value when provided.
-`--once` / `--serve-loop` print `VERBOSITY=<n>` with the summary.
+Same keys in the AI config file (`verbosity`, `cycles`, `once`,
+`serve_loop`, dial / seat). CLI flags present on argv overlay
+silently. `--once` / `--serve-loop` print `VERBOSITY=<n>` with the
+summary.
 
 ### `cplanets-tick`
 
@@ -214,7 +225,8 @@ usage. No advance-N CLI yet; lib tick coverage lives in
 
 Three terminals (or background jobs): server, human, AI.
 
-**`--serve` is required** for play. Without it, `cplanets-server`
+**`--serve` (or setup `serve = true`)** is required for play.
+Without serve from argv or the setup file, `cplanets-server`
 prints smoke identity and exits — no TCP, no ticks.
 
 The server uses **one request per TCP connection** (closes after each

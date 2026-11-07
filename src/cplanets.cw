@@ -20,6 +20,7 @@
  *   2026-11-06  TUNING B: wire pause / dispatch / recall actions.
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  *   2026-11-07  Wire Ships tab design / build / reclaim actions.
+ *   2026-11-07  Config defaults for every CLI flag but --config.
  */
 
 import cli as Cli
@@ -172,10 +173,32 @@ class HumanMain {
     }
 
     /*
+     * Resolve a FLAG option: file default unless argv provided.
+     *
+     * Purpose: silent CLI override of human config mode keys.
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *   name — option name (once / pull / gui / test).
+     *   fromFile — value from HumanConfig.
+     *
+     * Returns: switchValue when wasProvided, else fromFile.
+     */
+    bool resolveFlag(
+        Cli.CommandLine commandLine,
+        String name,
+        bool fromFile) {
+        if (commandLine.wasProvided(name)) {
+            return(commandLine.switchValue(name))
+        }
+        return(fromFile)
+    }
+
+    /*
      * Load HumanConfig from --config with host/port/player overlays.
      *
-     * Purpose: own settings file; argv may override dial / seat.
-     * Overlays apply only when the option was provided.
+     * Purpose: own settings file; argv may override dial / seat /
+     * mode flags. Overlays apply only when the option was provided.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -211,6 +234,18 @@ class HumanMain {
             if (seat >= 0) {
                 cfg.playerId = seat
             }
+        }
+        if (commandLine.wasProvided("once")) {
+            cfg.once = commandLine.switchValue("once")
+        }
+        if (commandLine.wasProvided("pull")) {
+            cfg.pull = commandLine.switchValue("pull")
+        }
+        if (commandLine.wasProvided("gui")) {
+            cfg.gui = commandLine.switchValue("gui")
+        }
+        if (commandLine.wasProvided("test")) {
+            cfg.test = commandLine.switchValue("test")
         }
         cfg.clampAll()
         return(cfg)
@@ -307,8 +342,10 @@ class HumanMain {
     /*
      * Dispatch smoke / once / pull / gui from a parsed CommandLine.
      *
-     * Purpose: single entry used by start {}. Smoke when no mode
-     * flags; gui/test beat pull; pull needs port > 0.
+     * Purpose: single entry used by start {}. Smoke when no config
+     * path and no mode flags on argv. Mode defaults come from the
+     * settings file; argv overrides silently. gui/test beat pull;
+     * pull needs port > 0; otherwise once / config prints lists.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -317,16 +354,19 @@ class HumanMain {
      */
     void run(Cli.CommandLine commandLine) {
         bool wantConfig = commandLine.wasProvided("config")
-        bool wantOnce = commandLine.switchValue("once")
-        bool wantPull = commandLine.switchValue("pull")
-        bool wantGui = commandLine.switchValue("gui")
-        bool wantTest = commandLine.switchValue("test")
-        if (not wantConfig and not wantOnce and not wantPull
-            and not wantGui and not wantTest) {
+        if (not wantConfig
+            and not commandLine.wasProvided("once")
+            and not commandLine.wasProvided("pull")
+            and not commandLine.wasProvided("gui")
+            and not commandLine.wasProvided("test")) {
             printSmoke()
             return()
         }
         HumanConfig cfg = loadConfig(commandLine)
+        bool wantOnce = resolveFlag(commandLine, "once", cfg.once)
+        bool wantPull = resolveFlag(commandLine, "pull", cfg.pull)
+        bool wantGui = resolveFlag(commandLine, "gui", cfg.gui)
+        bool wantTest = resolveFlag(commandLine, "test", cfg.test)
         if (wantGui or wantTest) {
             runGui(cfg, wantTest)
             return()
@@ -335,7 +375,11 @@ class HumanMain {
             runPull(cfg)
             return()
         }
-        runOnce(cfg)
+        if (wantOnce or wantConfig or wantPull) {
+            runOnce(cfg)
+            return()
+        }
+        printSmoke()
     }
 }
 

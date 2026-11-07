@@ -60,7 +60,7 @@ written — include it when merged; not required for this docs PR.
 | Handshake miss window | **hardcoded** `5000u` ms in `cplanets-server` → `GameDriver` | needs textfile · server-textfile-only |
 | Accept/poll timeout | **hardcoded** `50` ms listen loop | needs textfile (optional) · server-textfile-only |
 | `verbosity` (0–10 clamped; provisional: 0 errors / 3 settings / 6 combat / 10 full) | setup + CLI `--verbosity` overlay | textfile already · server-textfile-only |
-| `--players` / `--seed` / `--port` | CLI | textfile already (seed also in AI cfg) · server-textfile-only |
+| `serve` / `port` / `players` / `seed` / `cycles` / `injectable` | setup + CLI overlay (path `--setup` excluded) | textfile already · server-textfile-only |
 
 ---
 
@@ -84,7 +84,7 @@ written — include it when merged; not required for this docs PR.
 | --- | --- | --- |
 | `start_wealth` / `start_resources` / `start_tech` / `start_power` / `start_experience` | setup | textfile already · server-textfile-only |
 | Standing policy % (expansion, escort, tech bias, `S`) | human client Entries → wire | GUI candidate (Scale later) · textfile N/A (runtime) |
-| Human dial (`player_id`, host, port) | `config/human-default.cfg` | textfile already · GUI candidate (connect dialog later) |
+| Human dial (`player_id`, host, port) + modes (`once` / `pull` / `gui` / `test`) | `config/human-default.cfg` + CLI overlay (path `--config` excluded) | textfile already · GUI candidate (connect dialog later) |
 
 ---
 
@@ -127,6 +127,7 @@ written — include it when merged; not required for this docs PR.
 | `reaction_lag_ticks` / `_seconds`, `surprise_rate` | AI cfg | textfile already · server-textfile-only |
 | `seed`, `player_id`, host, port | AI cfg | textfile already · server-textfile-only |
 | `verbosity` (0–10 clamped; provisional: 0 errors / 3+ decisions / 10 full) | AI cfg + CLI `--verbosity` overlay | textfile already · server-textfile-only (AI process) |
+| `cycles` / `once` / `serve_loop` | AI cfg + CLI overlay (path `--config` excluded) | textfile already · server-textfile-only (AI process) |
 | Soft/mid/hard presets | `config/ai-{soft,mid,hard}.cfg` | textfile already |
 
 Human difficulty GUI is **not** required; AI stays file-driven.

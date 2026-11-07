@@ -10,6 +10,7 @@
  *   2026-11-07  Assert design catalog on chrome trailer.
  *   2026-11-07  Phase I: assert published home x/y milli round-trip.
  *   2026-11-07  allocationPct + knownCompetitors trailer.
+ *   2026-11-07  Default allocationPct is 100 (full production).
  */
 
 include "client/publishDecode.cw"
@@ -79,7 +80,7 @@ start {
     if (ok and view.designDevelopTicks < 1) {
         ok = false
     }
-    if (ok and home.allocationPct != 50) {
+    if (ok and home.allocationPct != 100) {
         ok = false
     }
     Player seat = game.players[0]

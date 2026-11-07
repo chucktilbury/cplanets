@@ -2,14 +2,15 @@
  * src/client/guiPlanetPage.cw — planets list + budget Scales.
  *
  * Visibility-limited planet list plus per-owned-planet allocation
- * Scale stand-in (DIALOGS §4.2). Tick spend knobs under the
- * empire-pool model remain open — this stores allocationPct only.
+ * Scale (DIALOGS §4.2). PUT /budget stores allocationPct; the
+ * production tick scales empire-pool credit by pct/100.
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
  *   2026-11-07  Initial planets + budget chrome page.
+ *   2026-11-07  Default Scale 100 matches full production.
  */
 
 include "appCore.cw"
@@ -79,14 +80,14 @@ class GuiPlanetPage {
         }
         page.append(exploreBtn)
         page.append(Gtk.Label(
-            "Planet budget (owned; allocation % stand-in)"))
+            "Planet budget (owned; allocation %)"))
         planetIdEntry = Gtk.Entry("0")
         page.append(Gtk.Label("Planet id"))
         page.append(planetIdEntry)
-        budgetLabel = Gtk.Label("Allocation % (50)")
+        budgetLabel = Gtk.Label("Allocation % (100)")
         page.append(budgetLabel)
         budgetScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        budgetScale.configure(50.0, 0.0, 100.0, 1.0)
+        budgetScale.configure(100.0, 0.0, 100.0, 1.0)
         if (budgetChangedAction != null) {
             budgetScale.onValueChanged(budgetChangedAction)
         }

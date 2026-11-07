@@ -12,6 +12,7 @@
  *   2026-11-05  Initial production phase for tick core.
  *   2026-11-05  Phase D4: advance reclaim jobs at yards.
  *   2026-11-07  Use scenario.productionTickRate + afkProductionScale.
+ *   2026-11-07  Scale empire-pool credit by Planet.allocationPct.
  */
 
 include "design.cw"
@@ -93,11 +94,13 @@ class Production {
      * Credit one productive planet into its owner's pools.
      *
      * Purpose: placeholder production using livability/resources
-     * scaled by coverFactor — magnitudes open for tuning.
+     * scaled by coverFactor and the planet's allocationPct
+     * (PUT /budget). Empire-pool path only — no yard logistics.
+     * Magnitudes stay setup knobs; allocation is a 0..100 fraction.
      *
      * Parameters:
-     *   scenario — coverFactor knob.
-     *   rock — productive owned planet.
+     *   scenario — coverFactor / productionTickRate knobs.
+     *   rock — productive owned planet (allocationPct spend bias).
      *   players — empire list.
      *   events — event log.
      *
@@ -114,15 +117,46 @@ class Production {
         Player seat = players[rock.ownerId]
         fp64 rate = scenario.productionTickRate
         fp64 scale = seat.afkProductionScale
+        fp64 alloc = allocationFraction(rock.allocationPct)
         fp64 wealthGain = (
-            rock.livability * scenario.coverFactor * rate * scale)
+            rock.livability
+            * scenario.coverFactor
+            * rate
+            * scale
+            * alloc)
         fp64 resGain = (
-            rock.resources * scenario.coverFactor * rate * scale)
+            rock.resources
+            * scenario.coverFactor
+            * rate
+            * scale
+            * alloc)
         seat.wealth = seat.wealth + wealthGain
         seat.resources = seat.resources + resGain
         players[rock.ownerId] = seat
         events.append(
             TickEvent("production", -1, rock.id, seat.id, 1))
+    }
+
+    /*
+     * Convert a planet allocationPct into a 0..1 production fraction.
+     *
+     * Purpose: PUT /budget stores 0..100; production multiplies
+     * empire-pool credit by that fraction (DIALOGS §4.2).
+     *
+     * Parameters:
+     *   allocationPct — stored planet budget (may be out of range).
+     *
+     * Returns: clamped fraction in [0.0, 1.0].
+     */
+    fp64 allocationFraction(int64 allocationPct) {
+        int64 pct = allocationPct
+        if (pct < 0) {
+            pct = 0
+        }
+        if (pct > 100) {
+            pct = 100
+        }
+        return(fp64(pct) / 100.0)
     }
 
     /*

@@ -34,12 +34,12 @@ Context: `design-decisions.md`, `project-context.md`,
 | --- | --- | --- | --- |
 | **Main window** | Always-on client shell; never ticks | Title; File menu; status line (tick / counts) | **Exists (Phase G)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
-| **Planets notebook page** | Visibility-limited planet list + budget | Scrolled labels; “Show first explored”; owned-planet allocation **Scale** → PUT `/budget` | **Exists** — list + budget stand-in |
+| **Planets notebook page** | Visibility-limited planet list + budget | Scrolled labels; “Show first explored”; owned-planet allocation **Scale** → PUT `/budget` (tick scales empire-pool production) | **Exists** — list + live allocation |
 | **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; design/build progress label | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B)** |
 | **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; progress + owned yards | **Exists** (ship create chrome) |
 | **Digest notebook page** | Newspaper + compose | Digest text; known-competitors list; private/broadcast compose → PUT `/message` | **Exists** — list + compose |
 | **Policy notebook page** | Standing policy editor | Role Entry; expansion / escort / agreement `S` / tech bias **Scales**; Apply (PUT `/policy`); no dumb-order warnings | **Exists** — Scales for policy % |
-| **Map canvas panel** | Galaxy graphic in the client layout (Paned beside notebook) | Hot spots; status colors; dotted ETA paths; pan/zoom; pick; ContextMenu status + zoom-to-known | **Exists (Phase I)** — dispatch still via Fleets tab |
+| **Map canvas panel** | Galaxy graphic in the client layout (Paned beside notebook) | Hot spots; status colors; dotted ETA paths; pan/zoom; pick→fleet dest; ContextMenu status + zoom-to-known + dispatch/budget | **Exists (Phase I + pick-to-dispatch)** |
 
 **Principle:** standing policy and lists live as **panels**. True dialogs
 are for focused inspect / compose / confirm-ish flows that should not
@@ -50,9 +50,9 @@ dominate the main surface. The map is a **panel**, not a dialog.
 | Dialog | When shown | Status |
 | --- | --- | --- |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
-| Planet status / budget menus | Click planet → menu options (README) | Budget **Exists** on Planets tab; map-menu budget still **Intended** |
-| Map right-click context menu | Right-click / selected planet | **Exists (Phase I)** — status + explored + zoom-to-known; budget/dispatch menu actions still **Intended** |
-| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists (TUNING B)** as Fleets-tab Entries/buttons (list stand-in; map pick still **Intended playable**) |
+| Planet status / budget menus | Click planet → menu options (README) | Budget **Exists** on Planets tab + map ContextMenu (owned) |
+| Map right-click context menu | Right-click / selected planet | **Exists** — status + explored + zoom-to-known + dispatch/budget (owned) |
+| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets-tab Entries/buttons; map pick fills dest; ContextMenu “Dispatch fleet here” → `PUT /order` |
 | Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships tab list stand-ins) |
 | Compose private message | Player chooses send-to known competitor | **Exists** (Digest tab Entries; DropDown polish later) |
 | Known-competitors picker | Contact adds names; compose-to-pick | **Exists** (list + To Entry) |
@@ -105,8 +105,8 @@ content:
 
 ### 3.1 Right-click / context menu — current planet
 
-**Exists (Phase I)** for status + open explored; budget/dispatch menu
-actions still **Intended**. For the clicked or selected planet:
+**Exists** for status, open explored, dispatch toward rock, and
+budget (owned). For the clicked or selected planet:
 
 | Item group | Contents |
 | --- | --- |
@@ -129,10 +129,11 @@ graphic. Planet color = status (green settled OK → red taken by other;
 in-between = intermediate). Pan/zoom overview ↔ detail. Scroll bars
 for pan in addition to mouse pan/zoom.
 
-**Exists (Phase I):** map panel pick/pan/zoom/scrollbars; ContextMenu
-status + zoom-to-known; dotted hop paths when `outboundEta` published.
-Dispatch still uses the Fleets tab (map pick-to-dispatch remains
-**Intended**).
+**Exists:** map panel pick/pan/zoom/scrollbars; primary pick fills
+Fleets dest Entry; ContextMenu status + zoom-to-known + “Dispatch
+fleet here” / “Budget this planet”; dotted hop paths when
+`outboundEta` published. Dispatch still uses Fleets fleet-id/order
+Entries + `PUT /order` (no second order surface).
 
 ---
 
@@ -155,14 +156,19 @@ policy.
 
 ### 4.2 Planet budget / allocation
 
-**Exists** as Planets-tab list stand-in (allocation % Scale →
-`PUT /budget`). Map-menu entry still **Intended**. Concrete surface:
+**Exists** as Planets-tab allocation % Scale → `PUT /budget`.
+Production tick multiplies that rock’s empire-pool wealth/resource
+credit by `allocationPct/100` (existing `production_tick_rate` /
+cover / AFK magnitudes; no per-planet logistics tax). Map ContextMenu
+“Budget this planet” fills the same Entry/Scale for owned rocks.
+Concrete surface:
 
 | Content | Notes |
 | --- | --- |
-| Per-owned-planet `allocationPct` (0–100) | **Scale**; empire pools remain sacred (no yard logistics tax) |
-| Entry point | Planets tab today; map click / status menu later |
-| Exact knob list | Still **open** under empire-pool model — `allocationPct` is a stored stand-in; tick spend does not invent logistics |
+| Per-owned-planet `allocationPct` (0–100) | **Scale**; default **100** = full existing production magnitudes; empire pools remain sacred (no yard logistics tax) |
+| Tick effect | Productive owned rock → pool credit × `allocationPct/100` |
+| Entry point | Planets tab; map ContextMenu for owned rocks |
+| Exact richer knob list | Still **open** under empire-pool model — do not invent logistics |
 
 ### 4.3 Agreements UI
 
@@ -179,7 +185,7 @@ still **Intended playable**.
 
 | Surface | When | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists (TUNING B)** list Entries → `PUT /order` (map pick still **Intended**) |
+| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists** — list Entries → `PUT /order`; map pick sets dest; ContextMenu dispatch reuses same chrome |
 | **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; list shows `LOCKED` + Dispatch disabled (**TUNING B**) |
 | **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Recall → `PUT /recall` |
 | **Fleet list** | Always | Read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list |
@@ -296,7 +302,7 @@ v1. File/scenario edit remains the v1 path.
   manual “Show first explored” + auto-present on quality /
   productive / populated flips (**TUNING B**); map menu open explored
 - Policy role Entry + % **Scales** + Apply PUT; no dumb-order warnings
-- Planets-tab budget Scale → `PUT /budget` (allocationPct stand-in)
+- Planets-tab budget Scale → `PUT /budget` (allocationPct; tick spend)
 - Digest known-competitors + private/broadcast compose →
   `PUT /message` (seat-scoped digest)
 - TCP pull of seat-scoped publish flags (no second fog)
@@ -311,7 +317,7 @@ v1. File/scenario edit remains the v1 path.
 
 - Map pick-to-dispatch / budget + dispatch from ContextMenu
 - Richer planet budget knobs once RULES names them (beyond
-  allocationPct stand-in)
+  allocationPct production fraction)
 - Richer design editor (weapons/shields fields) beyond Entries
 - Human-visible AFK / drop notices (peer notify still open)
 - Full multi-partner agreements UI beyond single `agreementS` stub

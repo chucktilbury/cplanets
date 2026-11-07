@@ -192,9 +192,12 @@ development (wealth; `design_develop_ticks`); **Queue build**
 (resources; `yard_build_ticks`); **Reclaim hulls**
 (`PUT /reclaim-hulls`) starts yard reclaim for a sitting fleet.
 Progress label shows active develop / build / reclaim jobs. Policy
-tab Entries + Apply unchanged. Explored-planet dialog auto-presents
-when quality becomes known or productive/populated flips; Planets
-tab still has “Show first explored”.
+tab Entries + Apply unchanged. Planets tab allocation **Scale** →
+`PUT /budget` stores `allocationPct`; each production tick credits
+empire wealth/resources from that productive rock ×
+`allocationPct/100` (no yard logistics). Explored-planet dialog
+auto-presents when quality becomes known or productive/populated
+flips; Planets tab still has “Show first explored”.
 
 ### `cplanets-ai`
 

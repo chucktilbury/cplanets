@@ -14,6 +14,7 @@
  *   2026-11-05  Phase D1: satelliteDefense for Ho-shaped leave-behind.
  *   2026-11-05  Phase D5: partitionId for sandbox contact.
  *   2026-11-07  allocationPct stand-in for planet budget chrome.
+ *   2026-11-07  allocationPct scales production empire-pool credit.
  */
 
 /*
@@ -64,9 +65,9 @@ class Planet {
         population = 0.0
         satelliteDefense = 0.0
         partitionId = 0
-        # Mid-band stand-in until RULES names per-planet spend
-        # knobs under the empire-pool model (DIALOGS §4.2 open).
-        allocationPct = 50
+        # Full existing production magnitudes by default; PUT
+        # /budget may throttle to allocationPct/100 (DIALOGS §4.2).
+        allocationPct = 100
     }
 
     /*

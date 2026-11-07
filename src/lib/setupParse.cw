@@ -13,6 +13,7 @@
  *   2026-11-05  Initial key=value setup loader.
  *   2026-11-06  Fail loud on unknown keys (TUNING A2).
  *   2026-11-07  verbosity setup key (server stdout logging).
+ *   2026-11-07  Clamp verbosity to 0–10 after parse.
  */
 
 include "scenario.cw"
@@ -74,6 +75,7 @@ class SetupParse {
             index = index + 1
         }
         scenario.clampTickPeriod()
+        scenario.clampVerbosity()
         return(scenario)
     }
 

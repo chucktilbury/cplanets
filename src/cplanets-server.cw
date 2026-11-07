@@ -5,8 +5,8 @@
  * --serve [--port N] [--players N] [--seed N] [--setup PATH]
  * [--verbosity N] [--injectable] [--cycles N]: bind TCP, load
  * scenario from path or closed builtins, run accept + cadence
- * loop (sole writer). Verbosity 0 quiet / 1 settings / 2+ combat
- * (stdout). Stand-alone and online share this driver (RULES §2 /
+ * loop (sole writer). Verbosity is 0–10 (clamped; stdout).
+ * Stand-alone and online share this driver (RULES §2 /
  * PLAN §4.F). Knob edits take effect on process restart (no
  * mid-game retune). User-facing argv uses stdlib `cli`
  * (including --help / -h).
@@ -21,6 +21,7 @@
  *   2026-11-06  --setup PATH + --seed; fail loud on bad setup.
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  *   2026-11-07  --verbosity N (overlay setup verbosity key).
+ *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
  */
 
 import cli as Cli
@@ -146,7 +147,7 @@ class ServerMain {
         verbosity.longName = "verbosity"
         verbosity.name = "verbosity"
         verbosity.description = (
-            "stdout log level (0 quiet, 1 settings, 2+ combat)")
+            "stdout log level 0-10 (0 errors, 3 settings, 6 combat, 10 full; clamped)")
         verbosity.valueType = Cli.ValueType().NUMBER
         verbosity.hasDefault = true
         verbosity.defaultValue = "0"
@@ -237,12 +238,10 @@ class ServerMain {
         }
         # CLI --verbosity overlays setup when the flag was given.
         if (commandLine.wasProvided("verbosity")) {
-            int64 level = commandLine.value("verbosity").toInt64()
-            if (level < 0) {
-                level = 0
-            }
-            game.scenario.verbosity = level
+            game.scenario.verbosity = (
+                commandLine.value("verbosity").toInt64())
         }
+        game.scenario.clampVerbosity()
 
         GameDriver driver = GameDriver(
             game,

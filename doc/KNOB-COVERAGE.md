@@ -59,7 +59,7 @@ written — include it when merged; not required for this docs PR.
 | `afk_timeout_seconds` / `afk_shrink_factor` | **named in setup**, not applied by server presence | needs textfile (wire) · server-textfile-only |
 | Handshake miss window | **hardcoded** `5000u` ms in `cplanets-server` → `GameDriver` | needs textfile · server-textfile-only |
 | Accept/poll timeout | **hardcoded** `50` ms listen loop | needs textfile (optional) · server-textfile-only |
-| `verbosity` (0 quiet / 1 settings / 2+ combat stdout) | setup + CLI `--verbosity` overlay | textfile already · server-textfile-only |
+| `verbosity` (0–10 clamped; provisional: 0 errors / 3 settings / 6 combat / 10 full) | setup + CLI `--verbosity` overlay | textfile already · server-textfile-only |
 | `--players` / `--seed` / `--port` | CLI | textfile already (seed also in AI cfg) · server-textfile-only |
 
 ---
@@ -126,7 +126,7 @@ written — include it when merged; not required for this docs PR.
 | Axes: aggression, role_stickiness, expansion, escort, agreement_appetite, tech_vs_hulls | AI cfg | textfile already · server-textfile-only (AI process) |
 | `reaction_lag_ticks` / `_seconds`, `surprise_rate` | AI cfg | textfile already · server-textfile-only |
 | `seed`, `player_id`, host, port | AI cfg | textfile already · server-textfile-only |
-| `verbosity` (0 quiet / 1+ seat, policy, cycle stdout) | AI cfg + CLI `--verbosity` overlay | textfile already · server-textfile-only (AI process) |
+| `verbosity` (0–10 clamped; provisional: 0 errors / 3+ decisions / 10 full) | AI cfg + CLI `--verbosity` overlay | textfile already · server-textfile-only (AI process) |
 | Soft/mid/hard presets | `config/ai-{soft,mid,hard}.cfg` | textfile already |
 
 Human difficulty GUI is **not** required; AI stays file-driven.

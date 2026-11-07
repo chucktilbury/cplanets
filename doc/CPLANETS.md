@@ -99,15 +99,26 @@ bin/cplanets-server --serve [--port N] [--players N] [--seed N] \
 | `--players N` | `2` | Seat count for the closed start galaxy |
 | `--seed N` | `7` | PRNG seed for the start galaxy |
 | `--setup PATH` | (builtin closed defaults) | Load §14 knobs from a scenario file |
-| `--verbosity N` | setup key or `0` | Stdout log level; overlays setup when given |
+| `--verbosity N` | setup key or `0` | Stdout log level 0–10 (clamped); overlays setup when given |
 | `--injectable` | off | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | Cap accept/serve loop iterations |
 
-**Verbosity** (headless stdout, not a GUI): `0` quiet (default),
-`1` player settings / `PUT /policy` detail, `2+` combat / battle
-events with comparative fleet strength (`atk_milli` /
-`def_milli`). Same key in the scenario file: `verbosity = N`.
-CLI `--verbosity` overlays the setup value when provided.
+**Verbosity** (headless stdout, not a GUI): scale **0–10**
+(default `0`). Out-of-range values **clamp** into `0..10` (they
+are not rejected). Category thresholds are **provisional** and
+will firm up over time:
+
+| Level | Server categories (provisional) |
+| --- | --- |
+| `0` | Errors only (optional lines silent) |
+| `1–2` | Reserved |
+| `3+` | Player settings / `PUT /policy` detail |
+| `6+` | Combat / battle events + fleet strength (`atk_milli` / `def_milli`) |
+| `7–9` | Reserved (richer combat / partial dumps) |
+| `10` | Full dumps / statistics (gate only; no extra spam yet) |
+
+Same key in the scenario file: `verbosity = N`. CLI `--verbosity`
+overlays the setup value when provided.
 
 On start it prints `PORT=<n>`, `SETUP=<path|builtin>`, `SEED=<n>`,
 `VERBOSITY=<n>`, and `INJECTABLE=0|1`. Use that port for clients.
@@ -165,16 +176,25 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | `-h`, `--help` | Print stdlib `cli` usage and exit 0 |
 | `--config PATH` | AI config (not human settings) |
 | `--host HOST` / `--port N` | Dial overrides |
-| `--verbosity N` | config key or `0`; stdout log level; overlays config when given |
+| `--verbosity N` | config key or `0`; stdout log level 0–10 (clamped); overlays config when given |
 | `--once` | Print one local policy shape (no TCP) |
 | `--serve-loop` | Dial and PUT policy for `--cycles N` (needs `port > 0`) |
 | `--cycles N` | Loop attempts (default `1`, min `1`) |
 
-**Verbosity** (headless stdout, not a GUI): `0` quiet (default),
-`1+` useful AI decisions — seat / handshake, policy PUT shape
-(role / axis percents / surprise), and cycle `put` / `skip` /
-`fail`. Same key in the AI config file: `verbosity = N`.
-CLI `--verbosity` overlays the config value when provided.
+**Verbosity** (headless stdout, not a GUI): scale **0–10**
+(default `0`). Out-of-range values **clamp** into `0..10`.
+Category thresholds are **provisional**:
+
+| Level | AI categories (provisional) |
+| --- | --- |
+| `0` | Errors only (optional lines silent) |
+| `1–2` | Reserved |
+| `3+` | Useful decisions — seat / handshake, policy PUT shape (role / axes / surprise), cycle `put` / `skip` / `fail` |
+| `4–9` | Reserved (finer decision detail) |
+| `10` | Full decision dumps / statistics (gate only; no extra spam yet) |
+
+Same key in the AI config file: `verbosity = N`. CLI
+`--verbosity` overlays the config value when provided.
 `--once` / `--serve-loop` print `VERBOSITY=<n>` with the summary.
 
 ### `cplanets-tick`

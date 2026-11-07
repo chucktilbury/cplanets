@@ -16,6 +16,7 @@
  *   2026-11-06  TUNING B: owned fleet issueOrder / recallFleet
  *               + pause flag in publish.
  *   2026-11-07  Server verbosity: policy PUT + combat tick logs.
+ *   2026-11-07  Verbosity overlay clamps via ServerVerboseLog 0–10.
  *   2026-11-07  Ship create: owned design develop + yard build.
  */
 
@@ -111,21 +112,21 @@ class GameDriver {
      * enable logging without rewriting Scenario text.
      *
      * Parameters:
-     *   value — 0 quiet, 1 settings, 2+ combat.
+     *   value — 0–10 on the provisional ladder (clamped).
      *
      * Returns: nothing.
      */
     void setVerbosity(int64 value) {
-        game.scenario.verbosity = value
         verbose.setLevel(value)
+        game.scenario.verbosity = verbose.level
     }
 
     /*
      * Accept a policy PUT for a seat.
      *
      * Purpose: anytime write; applies on next tick snapshot. Does
-     * not advance the clock or tick. At verbosity >= 1, logs the
-     * settings change to stdout.
+     * not advance the clock or tick. At verbosity >= settingsAt
+     * (provisional 3), logs the settings change to stdout.
      *
      * Parameters:
      *   playerId — empire id.

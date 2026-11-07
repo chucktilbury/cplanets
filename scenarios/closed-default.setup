@@ -16,8 +16,9 @@ ai_reaction_lag_ticks = 1
 ai_reaction_lag_seconds = 5.0
 afk_timeout_seconds = 120.0
 afk_shrink_factor = 1.0
-# Server stdout verbosity: 0 quiet, 1 settings PUTs, 2+ combat.
-# CLI --verbosity overlays this when provided.
+# Server stdout verbosity 0–10 (clamped). Provisional: 0 errors
+# only, 3+ settings PUTs, 6+ combat, 10 full dumps. CLI
+# --verbosity overlays this when provided.
 verbosity = 0
 
 # --- galaxy ---

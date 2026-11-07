@@ -35,17 +35,31 @@ def test_help(ai: Path) -> int:
 def test_cli_verbosity(ai: Path, config: Path) -> int:
     proc = run_ai(
         ai,
-        ["--config", str(config), "--once", "--verbosity", "1"],
+        ["--config", str(config), "--once", "--verbosity", "3"],
     )
     if proc.returncode != 0:
         print(f"cli once exit {proc.returncode}: {proc.stderr!r}")
         return 1
     out = proc.stdout
-    if "VERBOSITY=1" not in out:
-        print(f"missing VERBOSITY=1: {out!r}")
+    if "VERBOSITY=3" not in out:
+        print(f"missing VERBOSITY=3: {out!r}")
         return 1
     if "verbosity: policy" not in out or "via=once" not in out:
         print(f"missing policy decision line: {out!r}")
+        return 1
+    # Below decisionsAt stays quiet for optional lines.
+    quietish = run_ai(
+        ai,
+        ["--config", str(config), "--once", "--verbosity", "2"],
+    )
+    if quietish.returncode != 0:
+        print(f"level2 once exit {quietish.returncode}: {quietish.stderr!r}")
+        return 1
+    if "VERBOSITY=2" not in quietish.stdout:
+        print(f"missing VERBOSITY=2: {quietish.stdout!r}")
+        return 1
+    if "verbosity: policy" in quietish.stdout:
+        print(f"level 2 should stay quiet: {quietish.stdout!r}")
         return 1
     return 0
 
@@ -75,7 +89,7 @@ def test_config_key_and_overlay(ai: Path) -> int:
                     "surprise_rate = 0.0",
                     "seed = 7",
                     "player_id = 0",
-                    "verbosity = 2",
+                    "verbosity = 6",
                     "",
                 ]
             ),
@@ -85,11 +99,11 @@ def test_config_key_and_overlay(ai: Path) -> int:
         if proc.returncode != 0:
             print(f"config once exit {proc.returncode}: {proc.stderr!r}")
             return 1
-        if "VERBOSITY=2" not in proc.stdout:
+        if "VERBOSITY=6" not in proc.stdout:
             print(f"config verbosity not applied: {proc.stdout!r}")
             return 1
         if "verbosity: policy" not in proc.stdout:
-            print(f"config level 2 missing policy: {proc.stdout!r}")
+            print(f"config level 6 missing policy: {proc.stdout!r}")
             return 1
 
         overlay = run_ai(
@@ -113,6 +127,20 @@ def test_config_key_and_overlay(ai: Path) -> int:
             return 1
         if "verbosity: policy" in overlay.stdout:
             print(f"overlay 0 still noisy: {overlay.stdout!r}")
+            return 1
+
+        clamped = run_ai(
+            ai,
+            ["--config", str(path), "--once", "--verbosity", "99"],
+        )
+        if clamped.returncode != 0:
+            print(
+                f"clamp once exit {clamped.returncode}: "
+                f"{clamped.stderr!r}"
+            )
+            return 1
+        if "VERBOSITY=10" not in clamped.stdout:
+            print(f"CLI clamp failed: {clamped.stdout!r}")
             return 1
     return 0
 

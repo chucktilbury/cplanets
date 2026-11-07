@@ -79,16 +79,13 @@ class AiClient {
      * assert quiet vs decision emits. Also updates config.verbosity.
      *
      * Parameters:
-     *   value — 0 quiet, 1+ seat / policy / cycle.
+     *   value — 0–10 on the provisional ladder (clamped).
      *
      * Returns: nothing.
      */
     void setVerbosity(int64 value) {
-        if (value < 0) {
-            value = 0
-        }
-        config.verbosity = value
         verbose.setLevel(value)
+        config.verbosity = verbose.level
     }
 
     /*

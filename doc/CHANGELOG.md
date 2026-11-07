@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fix human/AI clients for the server’s one-shot TCP contract:
+  `ServerListen` closes after each reply, so `HumanSession` /
+  `AiClient` now open a fresh `Networking.Socket` per verb. Before
+  this, handshake then GET on one socket left the GUI/`--pull` at
+  `tick=0` with empty lists (solo session looked frozen). CTest:
+  `functional_client_pull`. Docs: [CPLANETS.md](CPLANETS.md).
+
 - User-facing binaries (`cplanets-server`, `cplanets`, `cplanets-ai`,
   `cplanets-tick`) parse argv with stdlib `cli` (`--help` / `-h`
   via `helpText()`). Flag semantics unchanged. Docs:

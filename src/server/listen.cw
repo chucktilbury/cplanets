@@ -9,12 +9,15 @@
  * Gap: Cwhip networking has no select/poll multiplex and no
  * stream reassembly helper — each recv assumes a complete envelope
  * in one read (fine on localhost smoke; document for LAN fragments).
+ * Contract: one request / response per accepted connection; clients
+ * must dial fresh for every verb (HumanSession / AiClient exchange).
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial TCP listener with timeout accept.
+ *   2026-11-06  Document one-shot TCP client contract.
  */
 
 import networking as Networking

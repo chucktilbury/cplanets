@@ -21,6 +21,7 @@
  *   2026-11-07  Planet budget + private/broadcast compose inbox.
  *   2026-11-07  Wire afk_timeout_seconds / afk_shrink_factor.
  *   2026-11-07  Budget allocationPct applied in production tick.
+ *   2026-11-07  Verbosity lines for design / build / reclaim.
  */
 
 include "clock.cw"
@@ -361,12 +362,15 @@ class GameDriver {
      */
     int64 queueOwnedDesign(int64 playerId, Design draft) {
         if (game.ended) {
+            verbose.logDesignDevelop(playerId, -1, draft.name)
             return(-1)
         }
         if (playerId < 0 or playerId >= game.players.length) {
+            verbose.logDesignDevelop(playerId, -1, draft.name)
             return(-1)
         }
         int64 id = game.queueDesignDevelop(playerId, draft)
+        verbose.logDesignDevelop(playerId, id, draft.name)
         if (id >= 0) {
             republishWithoutTick()
         }
@@ -390,12 +394,17 @@ class GameDriver {
     bool queueOwnedBuild(
         int64 playerId, int64 planetId, int64 designId) {
         if (game.ended) {
+            verbose.logYardBuild(
+                playerId, planetId, designId, false)
             return(false)
         }
         if (playerId < 0 or playerId >= game.players.length) {
+            verbose.logYardBuild(
+                playerId, planetId, designId, false)
             return(false)
         }
         bool ok = game.queueYardBuild(playerId, planetId, designId)
+        verbose.logYardBuild(playerId, planetId, designId, ok)
         if (ok) {
             republishWithoutTick()
         }
@@ -418,13 +427,18 @@ class GameDriver {
     bool queueOwnedReclaim(
         int64 playerId, int64 fleetId, int64 hulls) {
         if (game.ended) {
+            verbose.logReclaimHulls(
+                playerId, fleetId, hulls, false)
             return(false)
         }
         Fleet fleet = game.findFleet(fleetId)
         if (fleet.id < 0 or fleet.ownerId != playerId) {
+            verbose.logReclaimHulls(
+                playerId, fleetId, hulls, false)
             return(false)
         }
         bool ok = game.queueReclaim(fleetId, hulls)
+        verbose.logReclaimHulls(playerId, fleetId, hulls, ok)
         if (ok) {
             republishWithoutTick()
         }

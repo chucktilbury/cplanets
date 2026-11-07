@@ -17,6 +17,8 @@
  *   2026-11-07  Phase I: map canvas panel beside list notebook.
  *   2026-11-07  Budget Scales + known-competitor compose pages.
  *   2026-11-07  AlertDialog + status on connect / refresh failure.
+ *   2026-11-07  Explored dialog hide-on-close; develop/build/reclaim
+ *               keep status ack after refresh; fail via AlertDialog.
  */
 
 include "appCore.cw"
@@ -135,14 +137,29 @@ class GuiMain {
      * Returns: nothing.
      */
     void reportConnectFailure(String detail) {
+        reportFailure("Connection failed", detail)
+    }
+
+    /*
+     * Present an operator-facing failure (status + optional alert).
+     *
+     * Purpose: shared path for connect errors and Ships-tab verb
+     * rejects so Start develop / build / reclaim never fail silent.
+     *
+     * Parameters:
+     *   heading — AlertDialog primary message.
+     *   detail — status line and alert detail text.
+     *
+     * Returns: nothing.
+     */
+    void reportFailure(String heading, String detail) {
         if (status != null) {
             status.setText(detail)
         }
         if (testMode or window == null or window.disposed()) {
             return()
         }
-        Gtk.AlertDialog().show(
-            window, "Connection failed", detail)
+        Gtk.AlertDialog().show(window, heading, detail)
     }
 
     /*
@@ -221,6 +238,7 @@ class GuiMain {
         split.setPosition(520)
         root.append(split)
         planetDialog.closeAction = dialogCloseAction
+        planetDialog.closeRequestAction = planetDialog.onCloseRequest
         window.present()
         refreshLists()
         if (startupError.length > 0) {
@@ -620,7 +638,8 @@ class GuiMain {
     /*
      * Start develop: PUT /design from Ships Entries.
      *
-     * Purpose: non-instant design development (RULES §5.3).
+     * Purpose: non-instant design development (RULES §5.3). Status
+     * ack is applied after refreshLists so it is not overwritten.
      *
      * Parameters: none.
      *
@@ -638,11 +657,15 @@ class GuiMain {
             yardPage.sizeValue(),
             yardPage.cargoValue(),
             yardPage.kindValue())) {
-            status.setText("design develop queued")
             core.pullRemote()
             refreshLists()
+            status.setText("design develop queued")
         } else {
-            status.setText("design develop failed")
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = "design develop rejected by server"
+            }
+            reportFailure("Design develop failed", detail)
         }
     }
 
@@ -650,6 +673,7 @@ class GuiMain {
      * Queue build: PUT /build from Ships Entries.
      *
      * Purpose: non-instant yard hull production (RULES §5.3).
+     * Yard planet defaults to home (0); status ack after refresh.
      *
      * Parameters: none.
      *
@@ -663,13 +687,19 @@ class GuiMain {
         int64 planetId = yardPage.planetValue()
         int64 designId = yardPage.designIdValue()
         if (core.putBuildRemote(planetId, designId)) {
+            core.pullRemote()
+            refreshLists()
             status.setText(format(
                 "build queued planet={} design={}",
                 planetId, designId))
-            core.pullRemote()
-            refreshLists()
         } else {
-            status.setText("build failed")
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = format(
+                    "build rejected planet={} design={}",
+                    planetId, designId)
+            }
+            reportFailure("Yard build failed", detail)
         }
     }
 
@@ -677,6 +707,7 @@ class GuiMain {
      * Reclaim hulls: PUT /reclaim-hulls from Ships Entries.
      *
      * Purpose: yard reclaim path for sitting hulls (RULES §5.2).
+     * Status ack is applied after refreshLists.
      *
      * Parameters: none.
      *
@@ -690,13 +721,19 @@ class GuiMain {
         int64 fleetId = yardPage.reclaimFleetValue()
         int64 hulls = yardPage.reclaimHullsValue()
         if (core.putReclaimHullsRemote(fleetId, hulls)) {
+            core.pullRemote()
+            refreshLists()
             status.setText(format(
                 "reclaim queued fleet={} hulls={}",
                 fleetId, hulls))
-            core.pullRemote()
-            refreshLists()
         } else {
-            status.setText("reclaim failed")
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = format(
+                    "reclaim rejected fleet={} hulls={}",
+                    fleetId, hulls)
+            }
+            reportFailure("Reclaim failed", detail)
         }
     }
 

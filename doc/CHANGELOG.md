@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Ships **Start develop** / explored-dialog fix: explored
+  `TransientWindow` hides on Close (cdbg pattern) instead of
+  destroy-then-present; Yard planet Entry re-pins to first owned
+  yard (home **0**) when stale; develop/build/reclaim status ack
+  survives `refreshLists`; failures use AlertDialog; server
+  verbosity ≥3 logs design/build/reclaim. CTest: existing
+  `functional_design_yard` + GUI smoke on Elija.
+
 - Sample play port **7700** (was `0` / ephemeral lookalike) in
   `config/server-default.cfg`, `config/human-default.cfg`, and
   `config/ai-*.cfg`. Server still accepts `port = 0` / `--port 0`

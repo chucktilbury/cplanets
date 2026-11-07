@@ -14,6 +14,7 @@
  *   2026-11-07  Ship create: design / build / reclaim remote.
  *   2026-11-07  Budget + message remote helpers.
  *   2026-11-07  lastError with host:port on dial / pull failure.
+ *   2026-11-07  lastError on design / build / reclaim reject.
  */
 
 include "config.cw"
@@ -234,14 +235,22 @@ class AppCore {
         String size,
         String cargo,
         String kind) {
+        lastError = ""
         HumanSession session = HumanSession(config)
         if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
             return(false)
         }
+        session.close()
         session.handshake()
         bool ok = session.putDesign(
             name, speed, hop, size, cargo, kind)
         session.close()
+        if (not ok) {
+            lastError = format(
+                "PUT /design rejected by {}", endpointLabel())
+        }
         return(ok)
     }
 
@@ -257,13 +266,22 @@ class AppCore {
      * Returns: true when accepted.
      */
     bool putBuildRemote(int64 planetId, int64 designId) {
+        lastError = ""
         HumanSession session = HumanSession(config)
         if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
             return(false)
         }
+        session.close()
         session.handshake()
         bool ok = session.putBuild(planetId, designId)
         session.close()
+        if (not ok) {
+            lastError = format(
+                "PUT /build rejected by {} (planet={} design={})",
+                endpointLabel(), planetId, designId)
+        }
         return(ok)
     }
 
@@ -279,13 +297,22 @@ class AppCore {
      * Returns: true when accepted.
      */
     bool putReclaimHullsRemote(int64 fleetId, int64 hulls) {
+        lastError = ""
         HumanSession session = HumanSession(config)
         if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
             return(false)
         }
+        session.close()
         session.handshake()
         bool ok = session.putReclaimHulls(fleetId, hulls)
         session.close()
+        if (not ok) {
+            lastError = format(
+                "PUT /reclaim-hulls rejected by {} (fleet={} hulls={})",
+                endpointLabel(), fleetId, hulls)
+        }
         return(ok)
     }
 

@@ -10,6 +10,8 @@
  *
  * Changelog:
  *   2026-11-07  Initial Ships notebook page.
+ *   2026-11-07  Refresh keeps Yard planet id on first owned yard
+ *               (home 0) when the Entry is empty or stale.
  */
 
 include "appCore.cw"
@@ -161,7 +163,10 @@ class GuiYardPage {
     /*
      * Refresh design list / yards / progress from core.view.
      *
-     * Purpose: after pull or offline redraw.
+     * Purpose: after pull or offline redraw. Also pins the Yard
+     * planet Entry to the first owned shipyard (normally home 0)
+     * when the field is empty or names an unknown rock — Start
+     * develop does not use this id, but Queue build must.
      *
      * Parameters: none.
      *
@@ -176,6 +181,37 @@ class GuiYardPage {
         }
         if (progressLabel != null) {
             progressLabel.setText(core.view.progressText())
+        }
+        syncYardPlanetEntry()
+    }
+
+    /*
+     * Pin Yard planet id Entry to a live owned shipyard.
+     *
+     * Purpose: avoid a stale / wrong planet id (e.g. last rock 23)
+     * when the operator has not chosen a yard yet. Prefers the
+     * lowest owned shipyard id (homeworld 0 at start).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncYardPlanetEntry() {
+        if (planetEntry == null) {
+            return()
+        }
+        int64 homeYard = core.view.firstOwnedYardId()
+        if (homeYard < 0) {
+            return()
+        }
+        String text = planetEntry.text()
+        if (text.length < 1) {
+            planetEntry.setText(format("{}", homeYard))
+            return()
+        }
+        int64 current = text.toInt64()
+        if (not core.view.isOwnedYard(current)) {
+            planetEntry.setText(format("{}", homeYard))
         }
     }
 

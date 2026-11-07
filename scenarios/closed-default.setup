@@ -21,6 +21,16 @@ afk_shrink_factor = 1.0
 # --verbosity overlays this when provided.
 verbosity = 0
 
+# --- process / CLI defaults ---
+# Every cplanets-server flag except --setup PATH may be set here.
+# Argv present on the command line overrides silently (no warning).
+serve = false
+port = 0
+players = 2
+seed = 7
+cycles = 0
+injectable = false
+
 # --- galaxy ---
 world_count = 24
 useful_mix = 0.35

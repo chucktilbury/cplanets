@@ -12,6 +12,7 @@
  *   2026-11-05  Initial AiConfig axes + clamp helpers.
  *   2026-11-07  verbosity (0 quiet / 1+ seat, policy, cycle).
  *   2026-11-07  Verbosity 0–10 scale; clamp in clampAll.
+ *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
  */
 
 /*
@@ -38,6 +39,10 @@ class AiConfig {
     # --verbosity may overlay after load. Provisional: 0 errors
     # only; 3+ seat / policy / cycle; 10 full dumps (AiVerboseLog).
     int64 verbosity
+    # CLI mirror defaults (silent argv override after load).
+    int64 cycles
+    bool once
+    bool serveLoop
 
     /*
      * Construct mid-band defaults for a seat.
@@ -64,6 +69,9 @@ class AiConfig {
         host = "127.0.0.1"
         port = 0
         verbosity = 0
+        cycles = 1
+        once = false
+        serveLoop = false
     }
 
     /*
@@ -103,6 +111,9 @@ class AiConfig {
             verbosity = 0
         } else (verbosity > 10) {
             verbosity = 10
+        }
+        if (cycles < 1) {
+            cycles = 1
         }
     }
 

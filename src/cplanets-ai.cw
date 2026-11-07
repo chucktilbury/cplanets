@@ -20,6 +20,7 @@
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  *   2026-11-07  --verbosity N (overlay AI config verbosity key).
  *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
+ *   2026-11-07  Config defaults for every CLI flag but --config.
  */
 
 import cli as Cli
@@ -124,7 +125,7 @@ class AiMain {
         Cli.Option cycles = Cli.Option()
         cycles.longName = "cycles"
         cycles.name = "cycles"
-        cycles.description = "loop attempts under --serve-loop"
+        cycles.description = "loop attempts (config key cycles)"
         cycles.valueType = Cli.ValueType().NUMBER
         cycles.hasDefault = true
         cycles.defaultValue = "1"
@@ -133,12 +134,34 @@ class AiMain {
         verbosity.longName = "verbosity"
         verbosity.name = "verbosity"
         verbosity.description = (
-            "stdout log level 0-10 (0 errors, 3+ decisions, 10 full; clamped)")
+            "stdout log level 0-10 (config key verbosity; clamped)")
         verbosity.valueType = Cli.ValueType().NUMBER
         verbosity.hasDefault = true
         verbosity.defaultValue = "0"
         commandLine.addOption(verbosity)
         return(commandLine)
+    }
+
+    /*
+     * Resolve a FLAG option: file default unless argv provided.
+     *
+     * Purpose: silent CLI override of AI config mode keys.
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *   name — option name (once / serve-loop).
+     *   fromFile — value from AiConfig.
+     *
+     * Returns: switchValue when wasProvided, else fromFile.
+     */
+    bool resolveFlag(
+        Cli.CommandLine commandLine,
+        String name,
+        bool fromFile) {
+        if (commandLine.wasProvided(name)) {
+            return(commandLine.switchValue(name))
+        }
+        return(fromFile)
     }
 
     /*
@@ -215,9 +238,18 @@ class AiMain {
                 cfg.port = port
             }
         }
-        # CLI --verbosity overlays the AI config key when given.
+        # CLI overlays config keys when the flag is present.
         if (commandLine.wasProvided("verbosity")) {
             cfg.verbosity = commandLine.value("verbosity").toInt64()
+        }
+        if (commandLine.wasProvided("cycles")) {
+            cfg.cycles = commandLine.value("cycles").toInt64()
+        }
+        if (commandLine.wasProvided("once")) {
+            cfg.once = commandLine.switchValue("once")
+        }
+        if (commandLine.wasProvided("serve-loop")) {
+            cfg.serveLoop = commandLine.switchValue("serve-loop")
         }
         cfg.clampAll()
         return(cfg)
@@ -301,8 +333,10 @@ class AiMain {
      * Dispatch smoke / once / loop from a parsed CommandLine.
      *
      * Purpose: single entry used by start {}. Smoke when no
-     * AI flags; --serve-loop needs a positive port; otherwise
-     * --once / --config prints one local policy.
+     * AI flags and no config path; serve-loop needs a positive
+     * port; otherwise once / config prints one local policy.
+     * Mode and cycles defaults come from the config file;
+     * argv overrides silently when provided.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -311,19 +345,25 @@ class AiMain {
      */
     void run(Cli.CommandLine commandLine) {
         bool wantConfig = commandLine.wasProvided("config")
-        bool wantOnce = commandLine.switchValue("once")
-        bool wantLoop = commandLine.switchValue("serve-loop")
-        if (not wantConfig and not wantOnce and not wantLoop) {
+        if (not wantConfig
+            and not commandLine.wasProvided("once")
+            and not commandLine.wasProvided("serve-loop")) {
             printSmoke()
             return()
         }
         AiConfig cfg = loadConfig(commandLine)
+        bool wantOnce = resolveFlag(commandLine, "once", cfg.once)
+        bool wantLoop = resolveFlag(
+            commandLine, "serve-loop", cfg.serveLoop)
         if (wantLoop and cfg.port > 0) {
-            int64 cycles = commandLine.value("cycles").toInt64()
-            runLoop(cfg, cycles)
+            runLoop(cfg, cfg.cycles)
             return()
         }
-        runOnce(cfg)
+        if (wantOnce or wantConfig or wantLoop) {
+            runOnce(cfg)
+            return()
+        }
+        printSmoke()
     }
 }
 

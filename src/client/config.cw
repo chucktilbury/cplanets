@@ -9,18 +9,25 @@
  *
  * Changelog:
  *   2026-11-05  Initial HumanConfig.
+ *   2026-11-07  CLI mirror mode flags: once, pull, gui, test.
  */
 
 /*
  * HumanConfig holds dial and seat knobs for the GTK client.
  *
  * No tick period, no DB path — clients never tick and never open
- * the universe DB (RULES §2).
+ * the universe DB (RULES §2). Mode flags mirror CLI switches so
+ * a settings file can select once / pull / gui / test; argv
+ * still overrides silently when the flag is present.
  */
 class HumanConfig {
     int64 playerId
     String host
     int64 port
+    bool once
+    bool pull
+    bool gui
+    bool test
 
     /*
      * Construct localhost defaults for seat 0.
@@ -35,6 +42,10 @@ class HumanConfig {
         playerId = 0
         host = "127.0.0.1"
         port = 0
+        once = false
+        pull = false
+        gui = false
+        test = false
     }
 
     /*

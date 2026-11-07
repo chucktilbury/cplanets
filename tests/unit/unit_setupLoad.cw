@@ -13,6 +13,7 @@
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-06  Unknown keys fail loud (TUNING A2).
  *   2026-11-07  Assert verbosity setup key.
+ *   2026-11-07  Assert process CLI mirror keys.
  */
 
 include "lib/setupParse.cw"
@@ -28,6 +29,12 @@ start {
     text.append("productive_inherent_defense = 1.5\n")
     text.append("livability_display_max = 10\n")
     text.append("verbosity = 2\n")
+    text.append("port = 7700\n")
+    text.append("players = 4\n")
+    text.append("seed = 99\n")
+    text.append("cycles = 12\n")
+    text.append("injectable = true\n")
+    text.append("serve = true\n")
     text.append("tick_period_seconds = 40\n")
     SetupParse parser = SetupParse()
     Scenario s = parser.parseText(text)
@@ -36,6 +43,24 @@ start {
         ok = false
     }
     if (s.verbosity != 2) {
+        ok = false
+    }
+    if (parser.port != 7700) {
+        ok = false
+    }
+    if (parser.players != 4) {
+        ok = false
+    }
+    if (parser.seed != 99) {
+        ok = false
+    }
+    if (parser.cycles != 12) {
+        ok = false
+    }
+    if (not parser.injectable) {
+        ok = false
+    }
+    if (not parser.serve) {
         ok = false
     }
     if (not s.isClosed()) {

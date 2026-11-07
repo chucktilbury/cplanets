@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- CLI vs config defaults (preference): every user-facing flag except
+  the config/setup **path** (`--setup` / `--config`) is settable in
+  the file; argv present on the command line overrides **silently**.
+  Server setup keys: `serve`, `port`, `players`, `seed`, `cycles`,
+  `injectable` (plus existing `verbosity`). AI: `cycles`, `once`,
+  `serve_loop`. Human: `once`, `pull`, `gui`, `test`. Banner adds
+  `PLAYERS=` / `CYCLES=`. Docs: [CPLANETS.md](CPLANETS.md),
+  [CODING.md](CODING.md), [KNOB-COVERAGE.md](KNOB-COVERAGE.md).
+  CTest: `functional_cli_config_defaults` (extends unit setup/AI
+  config parses).
+
 - Align server + AI verbosity to a shared **0–10** scale (preference):
   `0` errors only, `10` full dumps / statistics. Out-of-range values
   **clamp** into `0..10` (not rejected). Existing message categories

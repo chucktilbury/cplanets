@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial HumanConfigParse.
+ *   2026-11-07  CLI mirror mode flags: once, pull, gui, test.
  */
 
 include "config.cw"
@@ -82,6 +83,32 @@ class HumanConfigParse {
             cfg.host = val
         } else (key.equals("port")) {
             cfg.port = val.toInt64()
+        } else (key.equals("once")) {
+            cfg.once = parseBool(val)
+        } else (key.equals("pull")) {
+            cfg.pull = parseBool(val)
+        } else (key.equals("gui")) {
+            cfg.gui = parseBool(val)
+        } else (key.equals("test")) {
+            cfg.test = parseBool(val)
         }
+    }
+
+    /*
+     * Parse a bool from human settings text.
+     *
+     * Purpose: accept true/false/1/0 for mode flags without a
+     * stdlib bool parser (matches SetupParse / AiConfigParse).
+     *
+     * Parameters:
+     *   val — trimmed token.
+     *
+     * Returns: true for "true"/"1"; otherwise false.
+     */
+    bool parseBool(String val) {
+        if (val.equals("true") or val.equals("1")) {
+            return(true)
+        }
+        return(false)
     }
 }

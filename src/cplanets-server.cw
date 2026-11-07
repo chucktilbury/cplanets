@@ -6,6 +6,8 @@
  * [--verbosity N] [--injectable] [--cycles N]: bind TCP, load
  * scenario from path or closed builtins, run accept + cadence
  * loop (sole writer). Verbosity is 0–10 (clamped; stdout).
+ * Every flag except --setup itself may also be set in the setup
+ * file; argv present on the command line overrides silently.
  * Stand-alone and online share this driver (RULES §2 /
  * PLAN §4.F). Knob edits take effect on process restart (no
  * mid-game retune). User-facing argv uses stdlib `cli`
@@ -22,6 +24,7 @@
  *   2026-11-06  Migrate argv to stdlib cli (+ generated --help).
  *   2026-11-07  --verbosity N (overlay setup verbosity key).
  *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
+ *   2026-11-07  Setup file defaults for every CLI flag but path.
  */
 
 import cli as Cli
@@ -38,7 +41,8 @@ include "server/listen.cw"
  * ServerMain parses argv via Cli and runs smoke or serve mode.
  *
  * Kept as a class so method comments stay with the entry logic
- * (CODING.md).
+ * (CODING.md). Load --setup first when present, apply process
+ * defaults from the file, then let wasProvided CLI flags win.
  */
 class ServerMain {
     /*
@@ -100,7 +104,7 @@ class ServerMain {
         Cli.Option port = Cli.Option()
         port.longName = "port"
         port.name = "port"
-        port.description = "listen port (0 = ephemeral)"
+        port.description = "listen port (0 = ephemeral; setup key port)"
         port.valueType = Cli.ValueType().NUMBER
         port.hasDefault = true
         port.defaultValue = "0"
@@ -108,7 +112,7 @@ class ServerMain {
         Cli.Option players = Cli.Option()
         players.longName = "players"
         players.name = "players"
-        players.description = "seat count for the closed start galaxy"
+        players.description = "seat count (setup key players)"
         players.valueType = Cli.ValueType().NUMBER
         players.hasDefault = true
         players.defaultValue = "2"
@@ -116,7 +120,7 @@ class ServerMain {
         Cli.Option seed = Cli.Option()
         seed.longName = "seed"
         seed.name = "seed"
-        seed.description = "PRNG seed for the start galaxy"
+        seed.description = "PRNG seed (setup key seed)"
         seed.valueType = Cli.ValueType().NUMBER
         seed.hasDefault = true
         seed.defaultValue = "7"
@@ -124,7 +128,7 @@ class ServerMain {
         Cli.Option setup = Cli.Option()
         setup.longName = "setup"
         setup.name = "setup"
-        setup.description = "scenario file (§14 knobs); empty = builtin"
+        setup.description = "scenario file path (cannot come from the file)"
         setup.valueType = Cli.ValueType().STRING
         setup.hasDefault = true
         setup.defaultValue = ""
@@ -132,13 +136,13 @@ class ServerMain {
         Cli.Option injectable = Cli.Option()
         injectable.longName = "injectable"
         injectable.name = "injectable"
-        injectable.description = "test clock (admin advance)"
+        injectable.description = "test clock (setup key injectable)"
         injectable.valueType = Cli.ValueType().FLAG
         commandLine.addOption(injectable)
         Cli.Option cycles = Cli.Option()
         cycles.longName = "cycles"
         cycles.name = "cycles"
-        cycles.description = "cap accept/serve iterations (0 = until stop)"
+        cycles.description = "cap accept/serve iterations (setup key cycles)"
         cycles.valueType = Cli.ValueType().NUMBER
         cycles.hasDefault = true
         cycles.defaultValue = "0"
@@ -147,7 +151,7 @@ class ServerMain {
         verbosity.longName = "verbosity"
         verbosity.name = "verbosity"
         verbosity.description = (
-            "stdout log level 0-10 (0 errors, 3 settings, 6 combat, 10 full; clamped)")
+            "stdout log level 0-10 (setup key verbosity; clamped)")
         verbosity.valueType = Cli.ValueType().NUMBER
         verbosity.hasDefault = true
         verbosity.defaultValue = "0"
@@ -189,59 +193,84 @@ class ServerMain {
     }
 
     /*
-     * Run the TCP server loop from a parsed CommandLine.
+     * Resolve an int64 option: file default unless argv provided.
      *
-     * Purpose: Phase F driver under --serve. Optional --setup
-     * PATH loads §14 knobs from a fixture file (restart to
-     * retune). Optional --verbosity overlays the setup key when
-     * provided. Prints PORT= / SETUP= / SEED= / VERBOSITY= for
-     * operators and Python functional tests.
+     * Purpose: silent CLI override of setup process keys.
      *
      * Parameters:
-     *   commandLine — parsed Cli.CommandLine with serve options.
+     *   commandLine — parsed Cli.CommandLine.
+     *   name — option name (port / players / seed / cycles).
+     *   fromFile — value from SetupParse (or CLI default).
      *
-     * Returns: process exit code (0 ok, 1 bind/setup failure).
+     * Returns: argv value when wasProvided, else fromFile.
      */
-    int64 runServe(Cli.CommandLine commandLine) {
-        int64 port = commandLine.value("port").toInt64()
-        int64 players = commandLine.value("players").toInt64()
-        int64 cycles = commandLine.value("cycles").toInt64()
-        int64 seedRaw = commandLine.value("seed").toInt64()
-        String setupPath = commandLine.value("setup")
-        bool injectable = commandLine.switchValue("injectable")
-        if (players < 1) {
-            players = 1
+    int64 resolveInt(
+        Cli.CommandLine commandLine,
+        String name,
+        int64 fromFile) {
+        if (commandLine.wasProvided(name)) {
+            return(commandLine.value(name).toInt64())
         }
-        if (seedRaw < 0) {
-            seedRaw = 0
-        }
-        uint64 seed = uint64(seedRaw)
+        return(fromFile)
+    }
 
-        State game = State()
+    /*
+     * Resolve a FLAG option: file default unless argv provided.
+     *
+     * Purpose: silent CLI override of setup bool process keys.
+     * Presence of the flag on argv forces true (stdlib FLAG).
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *   name — option name (serve / injectable).
+     *   fromFile — value from SetupParse.
+     *
+     * Returns: switchValue when wasProvided, else fromFile.
+     */
+    bool resolveFlag(
+        Cli.CommandLine commandLine,
+        String name,
+        bool fromFile) {
+        if (commandLine.wasProvided(name)) {
+            return(commandLine.switchValue(name))
+        }
+        return(fromFile)
+    }
+
+    /*
+     * Run the TCP server loop with resolved options.
+     *
+     * Purpose: Phase F driver under serve (CLI or setup). Optional
+     * --setup PATH loads §14 knobs (restart to retune). Prints
+     * PORT= / SETUP= / SEED= / PLAYERS= / CYCLES= / VERBOSITY= /
+     * INJECTABLE= for operators and Python functional tests.
+     *
+     * Parameters:
+     *   setupPath — path used for SETUP= (may be empty → builtin).
+     *   loaded — Scenario already started into when setupPath set;
+     *     ignored when setupPath is empty (caller passes fresh).
+     *   haveSetup — true when setupPath was loaded successfully.
+     *   game — State with startClosed / startFromScenario done.
+     *   port — listen port (0 = ephemeral).
+     *   players — seat count (banner only; already applied).
+     *   seedRaw — PRNG seed for banner.
+     *   cycles — accept/serve iteration cap.
+     *   injectable — test clock.
+     *
+     * Returns: process exit code (0 ok, 1 bind failure).
+     */
+    int64 runServe(
+        String setupPath,
+        State game,
+        int64 port,
+        int64 players,
+        int64 seedRaw,
+        int64 cycles,
+        bool injectable) {
         String setupLabel = "builtin"
         if (setupPath.length > 0) {
-            Sys.File input = Sys.File(setupPath, "r")
-            String text = input.readAll()
-            input.close()
-            SetupParse parser = SetupParse()
-            Scenario loaded = parser.parseText(text)
-            if (not parser.ok) {
-                print("cplanets-server: setup error: ")
-                print(parser.lastError)
-                print("\n")
-                return(1)
-            }
-            game.startFromScenario(loaded, seed, players)
             setupLabel = setupPath
-        } else {
-            game.startClosed(seed, players)
         }
-        # CLI --verbosity overlays setup when the flag was given.
-        if (commandLine.wasProvided("verbosity")) {
-            game.scenario.verbosity = (
-                commandLine.value("verbosity").toInt64())
-        }
-        game.scenario.clampVerbosity()
 
         GameDriver driver = GameDriver(
             game,
@@ -261,6 +290,8 @@ class ServerMain {
         print(format("PORT={}\n", listener.getPort()))
         print(format("SETUP={}\n", setupLabel))
         print(format("SEED={}\n", seedRaw))
+        print(format("PLAYERS={}\n", players))
+        print(format("CYCLES={}\n", cycles))
         print(format(
             "VERBOSITY={}\n", game.scenario.verbosity))
         if (injectable) {
@@ -277,9 +308,11 @@ class ServerMain {
     }
 
     /*
-     * Dispatch smoke or serve from a parsed CommandLine.
+     * Dispatch smoke or serve: load setup, apply defaults, overlay.
      *
-     * Purpose: bare run stays smoke; --serve enters the TCP loop.
+     * Purpose: every CLI flag except --setup may come from the
+     * setup file; flags present on argv override silently. Bare
+     * run stays smoke unless serve is true from file or argv.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -287,11 +320,79 @@ class ServerMain {
      * Returns: process exit code (0 for smoke / serve ok).
      */
     int64 run(Cli.CommandLine commandLine) {
-        if (not commandLine.switchValue("serve")) {
+        SetupParse parser = SetupParse()
+        String setupPath = ""
+        if (commandLine.wasProvided("setup")) {
+            setupPath = commandLine.value("setup")
+        }
+
+        Scenario loaded = Scenario()
+        bool haveSetup = false
+        if (setupPath.length > 0) {
+            Sys.File input = Sys.File(setupPath, "r")
+            String text = input.readAll()
+            input.close()
+            loaded = parser.parseText(text)
+            if (not parser.ok) {
+                print("cplanets-server: setup error: ")
+                print(parser.lastError)
+                print("\n")
+                return(1)
+            }
+            haveSetup = true
+        }
+
+        int64 port = resolveInt(commandLine, "port", parser.port)
+        int64 players = resolveInt(
+            commandLine, "players", parser.players)
+        int64 seedRaw = resolveInt(commandLine, "seed", parser.seed)
+        int64 cycles = resolveInt(
+            commandLine, "cycles", parser.cycles)
+        bool injectable = resolveFlag(
+            commandLine, "injectable", parser.injectable)
+        bool wantServe = resolveFlag(
+            commandLine, "serve", parser.serve)
+
+        if (players < 1) {
+            players = 1
+        }
+        if (seedRaw < 0) {
+            seedRaw = 0
+        }
+
+        if (not wantServe) {
             printSmoke()
             return(0)
         }
-        return(runServe(commandLine))
+
+        State game = State()
+        if (haveSetup) {
+            game.startFromScenario(
+                loaded, uint64(seedRaw), players)
+        } else {
+            game.startClosed(uint64(seedRaw), players)
+        }
+
+        # Verbosity: setup/scenario default, CLI overlays when given.
+        if (commandLine.wasProvided("verbosity")) {
+            game.scenario.verbosity = (
+                commandLine.value("verbosity").toInt64())
+        } else {
+            if (not haveSetup) {
+                game.scenario.verbosity = (
+                    commandLine.value("verbosity").toInt64())
+            }
+        }
+        game.scenario.clampVerbosity()
+
+        return(runServe(
+            setupPath,
+            game,
+            port,
+            players,
+            seedRaw,
+            cycles,
+            injectable))
     }
 }
 

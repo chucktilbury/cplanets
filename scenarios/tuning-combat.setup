@@ -12,6 +12,14 @@ ai_reaction_lag_seconds = 5.0
 afk_timeout_seconds = 120.0
 afk_shrink_factor = 1.0
 
+# --- process / CLI defaults (argv overrides silently; not --setup) ---
+serve = false
+port = 0
+players = 2
+seed = 7
+cycles = 0
+injectable = false
+
 # --- galaxy ---
 world_count = 16
 useful_mix = 0.35

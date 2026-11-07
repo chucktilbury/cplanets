@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial PlanetRow view model.
+ *   2026-11-07  List label notes shipyard rocks.
  */
 
 /*
@@ -119,13 +120,18 @@ class PlanetRow {
         if (not visible) {
             return(format("Planet {} (hidden)", id))
         }
+        String yard = ""
+        if (shipyard) {
+            yard = " yard"
+        }
         if (not qualityKnown) {
             return(format(
-                "Planet {} owner={} quality=unknown",
-                id, ownerId))
+                "Planet {} owner={} quality=unknown{}",
+                id, ownerId, yard))
         }
         return(format(
-            "Planet {} owner={} liv={}/10 res={}/10",
-            id, ownerId, livabilityDisplay, resourcesDisplay))
+            "Planet {} owner={} liv={}/10 res={}/10{}",
+            id, ownerId, livabilityDisplay, resourcesDisplay,
+            yard))
     }
 }

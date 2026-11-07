@@ -1,10 +1,11 @@
 /*
  * src/client/guiMain.cw — GTK list debugger main window (G / B).
  *
- * Notebook panes: Planets, Fleets, Digest, Policy. Pause gated to
- * one human; fleet dispatch/recall via GuiFleetPage; explored
- * dialog auto-presents on quality / productive changes. No
- * DrawingArea / map canvas (PLAN §4.I).
+ * Notebook panes: Planets, Fleets, Ships, Digest, Policy. Pause
+ * gated to one human; fleet dispatch/recall via GuiFleetPage;
+ * design/yard via GuiYardPage; explored dialog auto-presents on
+ * quality / productive changes. No DrawingArea / map canvas
+ * (PLAN §4.I).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -12,12 +13,14 @@
  * Changelog:
  *   2026-11-05  Initial GuiMain window.
  *   2026-11-06  TUNING B: pause, fleet chrome, explored auto-pop.
+ *   2026-11-07  Ships tab: design develop / yard build / reclaim.
  */
 
 include "appCore.cw"
 include "exploredTrack.cw"
 include "guiFleetPage.cw"
 include "guiPlanetDialog.cw"
+include "guiYardPage.cw"
 include "planetRow.cw"
 
 /*
@@ -40,6 +43,7 @@ class GuiMain {
     Gtk.Entry techEntry
     GuiPlanetDialog planetDialog
     GuiFleetPage fleetPage
+    GuiYardPage yardPage
     ExploredTrack explored
     bool suppressPauseToggle
     void<> activateAction
@@ -50,6 +54,9 @@ class GuiMain {
     void<> showExploredAction
     void<> dispatchAction
     void<> recallAction
+    void<> developAction
+    void<> buildAction
+    void<> reclaimAction
     void<bool> pauseAction
     void<> testAction
     bool testMode
@@ -78,6 +85,7 @@ class GuiMain {
         techEntry = null
         planetDialog = GuiPlanetDialog()
         fleetPage = GuiFleetPage(appCore)
+        yardPage = GuiYardPage(appCore)
         explored = ExploredTrack()
         suppressPauseToggle = false
         activateAction = null
@@ -88,6 +96,9 @@ class GuiMain {
         showExploredAction = null
         dispatchAction = null
         recallAction = null
+        developAction = null
+        buildAction = null
+        reclaimAction = null
         pauseAction = null
         testAction = null
         testMode = false
@@ -133,6 +144,10 @@ class GuiMain {
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         notebook.appendPage(fleetPage.buildPage(), "Fleets")
+        yardPage.developAction = developAction
+        yardPage.buildAction = buildAction
+        yardPage.reclaimAction = reclaimAction
+        notebook.appendPage(yardPage.buildPage(), "Ships")
         notebook.appendPage(buildDigestPage(), "Digest")
         notebook.appendPage(buildPolicyPage(), "Policy")
         root.append(notebook)
@@ -254,6 +269,7 @@ class GuiMain {
             planetList.setText(planets)
         }
         fleetPage.refresh()
+        yardPage.refresh()
         if (digestList != null) {
             digestList.setText(core.view.digestText())
         }
@@ -479,6 +495,89 @@ class GuiMain {
             refreshLists()
         } else {
             status.setText("recall failed")
+        }
+    }
+
+    /*
+     * Start develop: PUT /design from Ships Entries.
+     *
+     * Purpose: non-instant design development (RULES §5.3).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onDevelop() {
+        if (core.config.port < 1) {
+            status.setText("design needs live server")
+            return()
+        }
+        if (core.putDesignRemote(
+            yardPage.nameValue(),
+            yardPage.speedValue(),
+            yardPage.hopValue(),
+            yardPage.sizeValue(),
+            yardPage.cargoValue(),
+            yardPage.kindValue())) {
+            status.setText("design develop queued")
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("design develop failed")
+        }
+    }
+
+    /*
+     * Queue build: PUT /build from Ships Entries.
+     *
+     * Purpose: non-instant yard hull production (RULES §5.3).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onBuild() {
+        if (core.config.port < 1) {
+            status.setText("build needs live server")
+            return()
+        }
+        int64 planetId = yardPage.planetValue()
+        int64 designId = yardPage.designIdValue()
+        if (core.putBuildRemote(planetId, designId)) {
+            status.setText(format(
+                "build queued planet={} design={}",
+                planetId, designId))
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("build failed")
+        }
+    }
+
+    /*
+     * Reclaim hulls: PUT /reclaim-hulls from Ships Entries.
+     *
+     * Purpose: yard reclaim path for sitting hulls (RULES §5.2).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onReclaimHulls() {
+        if (core.config.port < 1) {
+            status.setText("reclaim needs live server")
+            return()
+        }
+        int64 fleetId = yardPage.reclaimFleetValue()
+        int64 hulls = yardPage.reclaimHullsValue()
+        if (core.putReclaimHullsRemote(fleetId, hulls)) {
+            status.setText(format(
+                "reclaim queued fleet={} hulls={}",
+                fleetId, hulls))
+            core.pullRemote()
+            refreshLists()
+        } else {
+            status.setText("reclaim failed")
         }
     }
 

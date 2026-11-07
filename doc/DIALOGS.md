@@ -36,6 +36,7 @@ Context: `design-decisions.md`, `project-context.md`,
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
 | **Planets notebook page** | Visibility-limited planet list | Scrolled labels: id, owner, livability/resources 1–10 or `quality=unknown`; button “Show first explored” | **Exists (Phase G)** — list stand-in for map |
 | **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; design/build progress label | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B)** |
+| **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; progress + owned yards | **Exists** (ship create chrome) |
 | **Digest notebook page** | Newspaper / published events | Scrolled digest text (broadcasts + tick events) | **Exists (Phase G)** — read-only list |
 | **Policy notebook page** | Standing policy editor | Role, expansion %, escort %, agreement `S`, tech bias %; Apply (PUT `/policy`); no dumb-order warnings | **Exists (Phase G)** — Entries today; **Intended playable** prefers sliders |
 | **Map canvas panel** (future main surface) | Galaxy graphic in the client layout | Hot spots; status colors; dotted ETA/order lines; pan/zoom; pick-to-dispatch | **Intended playable** (Phase I; gated on DrawingArea) — not a dialog |
@@ -52,7 +53,7 @@ dominate the main surface. The map is a **panel**, not a dialog.
 | Planet status / budget menus | Click planet → menu options (README) | **Intended playable** |
 | Map right-click context menu | Right-click / selected planet | **Intended playable** (Phase I chrome) |
 | Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists (TUNING B)** as Fleets-tab Entries/buttons (list stand-in; map pick still **Intended playable**) |
-| Design / build timing surfaces | Start or inspect design development / yard build | **Intended playable** |
+| Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships tab list stand-ins) |
 | Compose private message | Player chooses send-to known competitor | **Intended playable** |
 | Known-competitors picker | Contact adds names; compose-to-pick | **Intended playable** |
 | Pause control | Exactly one human | Server gate **Exists**; client CheckButton **Exists (TUNING B)** (sensitive only when offered) |
@@ -191,11 +192,12 @@ ticks) — not instant.
 
 | Surface | Contents | Status |
 | --- | --- | --- |
-| **Design editor** | Speed, range, weapons, shields, size/cargo mix; pay development (mostly wealth); show remaining develop ticks | **Intended playable** |
-| **Yard / build queue** | Produce hulls (mostly resources) at productive shipyard; show build duration remaining; reclaim path at shipyard worlds | **Intended playable** |
-| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Intended playable** |
+| **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks | **Exists** Ships tab Entries → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in) |
+| **Yard / build queue** | Produce hulls (resources) at productive shipyard; show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships tab → `PUT /build` / `PUT /reclaim-hulls` |
+| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets progress labels from chrome trailer |
 
-Phase G has **no** design/build UI (policy stub only).
+List stand-ins only (no Scale / map). Timed develop/build use existing
+`State.queueDesignDevelop` / `queueYardBuild` / `queueReclaim`.
 
 ---
 
@@ -292,12 +294,14 @@ v1. File/scenario edit remains the v1 path.
 - Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
   with in-flight lock labels (**B**)
 - Design/build/reclaim progress label from chrome trailer (**B**)
+- Ships tab design develop / yard build / reclaim + design catalog
+  (`PUT /design`, `/build`, `/reclaim-hulls`)
 
 ### Remaining for intended playable human UI
 
 - Map canvas panel + right-click status / zoom-to-known
 - Sliders for policy / budget; richer planet budget menus
-- Richer design editor / yard queue (beyond progress labels)
+- Richer design editor (weapons/shields fields; Scale) beyond Entries
 - Known-competitors list + private compose (+ broadcast if applicable)
 - Human-visible AFK / drop notices (peer notify still open)
 - Full multi-partner agreements UI beyond single `agreementS` stub

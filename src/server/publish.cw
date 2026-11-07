@@ -15,6 +15,7 @@
  *   2026-11-05  Phase G: planet/fleet list rows + seat visibility.
  *   2026-11-06  TUNING B: pendingDeparture flag; chrome trailer
  *               (pause + design/yard progress).
+ *   2026-11-07  Chrome trailer: seat pools + design catalog.
  */
 
 include "../lib/event.cw"
@@ -37,8 +38,9 @@ include "policyTable.cw"
  * After fleet rows (TUNING B): CHROME_MARKER u32, paused u8,
  * designDevelopTicks u32, yardBuildTicks u32, developing design
  * count + (id, ticksLeft), build count + BuildJob rows, reclaim
- * count + ReclaimJob rows. Older decoders stop at fleets when
- * they do not read further.
+ * count + ReclaimJob rows, then (ship create) viewer wealth /
+ * resources milli + design catalog rows. Older decoders stop
+ * early when they do not read further.
  */
 class PublishCodec {
     enum {
@@ -144,7 +146,7 @@ class PublishCodec {
         w.writeU32(viewerId + 1)
         writePlanetRows(w, game, viewerId)
         writeFleetRows(w, game, viewerId)
-        writeChromeTrailer(w, game, paused)
+        writeChromeTrailer(w, game, paused, viewerId)
         if (not w.ok()) {
             return(buffer[])
         }
@@ -264,11 +266,12 @@ class PublishCodec {
      *   w — WireBytes writer past fleet rows.
      *   game — current State (scenario durations + jobs).
      *   paused — driver pause flag.
+     *   viewerId — seat for wealth/resources milli (-1 → 0).
      *
      * Returns: nothing; mutates w.
      */
     void writeChromeTrailer(
-        WireBytes w, State game, bool paused) {
+        WireBytes w, State game, bool paused, int64 viewerId) {
         w.writeU32(CHROME_MARKER)
         if (paused) {
             w.writeU8(1)
@@ -319,6 +322,92 @@ class PublishCodec {
             w.writeU32(job.ticksLeft)
             index = index + 1
         }
+        writeDesignCatalog(w, game, viewerId)
+    }
+
+    /*
+     * Append viewer wealth/resources milli and design catalog.
+     *
+     * Purpose: ship-create inspect list + cost pools for the
+     * requesting seat (viewerId); -1 publishes seat 0 pools.
+     *
+     * Parameters:
+     *   w — WireBytes writer past reclaim rows.
+     *   game — current State.
+     *   viewerId — seat for pool milli, or -1 → seat 0.
+     *
+     * Returns: nothing; mutates w.
+     */
+    void writeDesignCatalog(
+        WireBytes w, State game, int64 viewerId) {
+        int64 seatId = viewerId
+        if (seatId < 0 or seatId >= game.players.length) {
+            seatId = 0
+        }
+        int64 wealthMilli = 0
+        int64 resourcesMilli = 0
+        if (seatId >= 0 and seatId < game.players.length) {
+            Player seat = game.players[seatId]
+            wealthMilli = int64(seat.wealth * 1000.0)
+            resourcesMilli = int64(seat.resources * 1000.0)
+            if (wealthMilli < 0) {
+                wealthMilli = 0
+            }
+            if (resourcesMilli < 0) {
+                resourcesMilli = 0
+            }
+        }
+        w.writeU32(wealthMilli)
+        w.writeU32(resourcesMilli)
+        w.writeU32(game.designs.length)
+        int64 index = 0
+        while (index < game.designs.length) {
+            Design design = game.designs[index]
+            w.writeU32(design.id)
+            w.writeString(design.name)
+            w.writeU32(design.developTicksLeft)
+            int64 flags = 0
+            if (design.closed) {
+                flags = flags + 1
+            }
+            if (design.scout) {
+                flags = flags + 2
+            }
+            if (design.colony) {
+                flags = flags + 4
+            }
+            if (design.defense) {
+                flags = flags + 8
+            }
+            if (design.isReady()) {
+                flags = flags + 16
+            }
+            w.writeU8(flags)
+            w.writeU32(milliOf(design.speed))
+            w.writeU32(milliOf(design.hopReach))
+            w.writeU32(milliOf(design.size))
+            w.writeU32(milliOf(design.cargoHold))
+            index = index + 1
+        }
+    }
+
+    /*
+     * Convert an fp64 magnitude to non-negative milli units.
+     *
+     * Purpose: pack design stats on the wire without fp64 LE
+     * helpers.
+     *
+     * Parameters:
+     *   value — design field (speed / hop / size / cargo).
+     *
+     * Returns: floor(value * 1000) clamped at 0.
+     */
+    int64 milliOf(fp64 value) {
+        int64 milli = int64(value * 1000.0)
+        if (milli < 0) {
+            return(0)
+        }
+        return(milli)
     }
 
     /*

@@ -11,6 +11,7 @@
  *   2026-11-05  Initial PublishDecode.
  *   2026-11-06  TUNING B: humanCount; fleet lock flags; chrome
  *               trailer (pause + design/build progress).
+ *   2026-11-07  Chrome trailer: seat pools + design catalog.
  */
 
 include "../lib/wireBytes.cw"
@@ -172,8 +173,9 @@ class PublishDecode {
     /*
      * Decode the optional TUNING-B chrome trailer after fleets.
      *
-     * Purpose: pause flag + design/yard progress lines. No-op when
-     * the blob ends before CHROME_MARKER (older snapshots).
+     * Purpose: pause flag + design/yard progress lines + design
+     * catalog. No-op when the blob ends before CHROME_MARKER
+     * (older snapshots).
      *
      * Parameters:
      *   r — WireBytes reader past fleet rows.
@@ -185,6 +187,7 @@ class PublishDecode {
     void decodeChromeTrailer(
         WireBytes r, buffer blob, ClientStateView view) {
         view.progressLines = []
+        view.designs = []
         if (r.offset + 4 > blob.length) {
             return()
         }
@@ -231,6 +234,34 @@ class PublishDecode {
             view.progressLines.append(format(
                 "reclaim {} owner={} planet={} design={} hulls={} ticksLeft={}",
                 jobId, owner, planet, design, hulls, left))
+            index = index + 1
+        }
+        if (r.offset + 8 > blob.length) {
+            return()
+        }
+        view.wealthMilli = r.readU32()
+        view.resourcesMilli = r.readU32()
+        if (r.offset + 4 > blob.length) {
+            return()
+        }
+        int64 designCount = r.readU32()
+        index = 0
+        while (index < designCount) {
+            DesignRow row = DesignRow()
+            row.id = r.readU32()
+            row.name = r.readString()
+            row.developTicksLeft = r.readU32()
+            int64 flags = r.readU8()
+            row.closed = ((flags % 2) == 1)
+            row.scout = (((flags / 2) % 2) == 1)
+            row.colony = (((flags / 4) % 2) == 1)
+            row.defense = (((flags / 8) % 2) == 1)
+            row.ready = (((flags / 16) % 2) == 1)
+            row.speedMilli = r.readU32()
+            row.hopMilli = r.readU32()
+            row.sizeMilli = r.readU32()
+            row.cargoMilli = r.readU32()
+            view.designs.append(row)
             index = index + 1
         }
     }

@@ -2,14 +2,15 @@
  * tests/fn/fn_listChrome.cw — TUNING B list chrome (in-process).
  *
  * Pause gate, owned issue/recall, chrome trailer decode (pause +
- * progress durations), explored-track signature flips. No TCP /
- * GTK (PLAN TUNING-PLAYABLE B).
+ * progress durations + design catalog), owned design/build queue,
+ * explored-track signature flips. No TCP / GTK.
  *
  * Created: 2026-11-06
  * Author: Auto
  *
  * Changelog:
  *   2026-11-06  Initial list-chrome function program.
+ *   2026-11-07  Design develop / yard build + catalog decode.
  */
 
 include "client/exploredTrack.cw"
@@ -96,11 +97,68 @@ start {
     if (ok and view.yardBuildTicks < 1) {
         ok = false
     }
+    if (ok and view.designs.length < 1) {
+        ok = false
+    }
+    DesignRow scoutRow = view.findDesign(0)
+    if (ok and scoutRow.id != 0) {
+        ok = false
+    }
+    if (ok and not scoutRow.ready) {
+        ok = false
+    }
     FleetRow row = view.findFleet(1)
     if (ok and row.id != 1) {
         ok = false
     }
     if (ok and not row.orderLocked()) {
+        ok = false
+    }
+
+    # --- owned design develop + yard build ---
+    Player seat = drv.game.players[0]
+    seat.wealth = seat.wealth + 10000.0
+    seat.resources = seat.resources + 10000.0
+    drv.game.players[0] = seat
+    Design draft = Design(-1)
+    draft.name = "gunboat"
+    draft.speed = 1.5
+    draft.hopReach = 4.0
+    draft.size = 2.0
+    draft.cargoHold = 0.0
+    int64 did = drv.queueOwnedDesign(0, draft)
+    if (ok and did < 0) {
+        ok = false
+    }
+    Design developing = drv.game.designs[did]
+    if (ok and developing.developTicksLeft < 1) {
+        ok = false
+    }
+    # Not ready yet — yard build must refuse.
+    if (ok and drv.queueOwnedBuild(0, 0, did)) {
+        ok = false
+    }
+    # Ready scout (id 0) can queue at home yard.
+    if (ok and not drv.queueOwnedBuild(0, 0, 0)) {
+        ok = false
+    }
+    if (ok and drv.game.builds.length < 1) {
+        ok = false
+    }
+    blob = codec.encodeStateView(
+        drv.game, drv.policies, 0, drv.paused)
+    view = decoder.decodeState(blob, 0)
+    if (ok and view.progressLines.length < 1) {
+        ok = false
+    }
+    DesignRow developingRow = view.findDesign(did)
+    if (ok and developingRow.id != did) {
+        ok = false
+    }
+    if (ok and developingRow.developTicksLeft < 1) {
+        ok = false
+    }
+    if (ok and view.wealthMilli < 1) {
         ok = false
     }
 

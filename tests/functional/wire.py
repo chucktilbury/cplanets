@@ -78,6 +78,44 @@ def put_recall(player_id: int, fleet_id: int) -> bytes:
     return encode_envelope(2, "/recall", _u32(player_id) + _u32(fleet_id))
 
 
+def _string(text: str) -> bytes:
+    raw = text.encode("utf-8")
+    return _u16(len(raw)) + raw
+
+
+def put_design(
+    player_id: int,
+    name: str,
+    speed: str,
+    hop: str,
+    size: str,
+    cargo: str,
+    kind: str,
+) -> bytes:
+    body = (
+        _u32(player_id)
+        + _string(name)
+        + _string(speed)
+        + _string(hop)
+        + _string(size)
+        + _string(cargo)
+        + _string(kind)
+    )
+    return encode_envelope(2, "/design", body)
+
+
+def put_build(player_id: int, planet_id: int, design_id: int) -> bytes:
+    body = _u32(player_id) + _u32(planet_id) + _u32(design_id)
+    return encode_envelope(2, "/build", body)
+
+
+def put_reclaim_hulls(
+    player_id: int, fleet_id: int, hulls: int
+) -> bytes:
+    body = _u32(player_id) + _u32(fleet_id) + _u32(hulls)
+    return encode_envelope(2, "/reclaim-hulls", body)
+
+
 def decompress_store(blob: bytes) -> bytes:
     if not blob:
         raise ValueError("empty compress blob")

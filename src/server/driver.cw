@@ -16,6 +16,7 @@
  *   2026-11-06  TUNING B: owned fleet issueOrder / recallFleet
  *               + pause flag in publish.
  *   2026-11-07  Server verbosity: policy PUT + combat tick logs.
+ *   2026-11-07  Ship create: owned design develop + yard build.
  */
 
 include "clock.cw"
@@ -204,6 +205,91 @@ class GameDriver {
             return(false)
         }
         bool ok = game.recallFleet(fleetId)
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
+    }
+
+    /*
+     * Queue non-instant design development for a seat.
+     *
+     * Purpose: wire PUT /design for list-client ship create chrome
+     * (RULES §5.3 / DIALOGS §6). Spends wealth; develops over
+     * designDevelopTicks.
+     *
+     * Parameters:
+     *   playerId — empire paying development wealth.
+     *   draft — design template (id rewritten by State).
+     *
+     * Returns: new design id, or −1 on failure.
+     */
+    int64 queueOwnedDesign(int64 playerId, Design draft) {
+        if (game.ended) {
+            return(-1)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(-1)
+        }
+        int64 id = game.queueDesignDevelop(playerId, draft)
+        if (id >= 0) {
+            republishWithoutTick()
+        }
+        return(id)
+    }
+
+    /*
+     * Queue a yard hull build on a seat-owned productive shipyard.
+     *
+     * Purpose: wire PUT /build for list-client yard chrome
+     * (RULES §5.3). Spends resources; completes after
+     * yardBuildTicks into a sit fleet.
+     *
+     * Parameters:
+     *   playerId — empire paying resources (must own the yard).
+     *   planetId — productive shipyard planet.
+     *   designId — ready design to produce.
+     *
+     * Returns: true when the BuildJob was queued.
+     */
+    bool queueOwnedBuild(
+        int64 playerId, int64 planetId, int64 designId) {
+        if (game.ended) {
+            return(false)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(false)
+        }
+        bool ok = game.queueYardBuild(playerId, planetId, designId)
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
+    }
+
+    /*
+     * Queue reclaim of sitting hulls at a seat-owned shipyard.
+     *
+     * Purpose: wire PUT /reclaim-hulls for yard reclaim path
+     * (RULES §5.2 — reclaim only at a yard).
+     *
+     * Parameters:
+     *   playerId — requesting seat (must own the fleet).
+     *   fleetId — sitting fleet at a yard.
+     *   hulls — how many hulls to reclaim.
+     *
+     * Returns: true when a ReclaimJob was queued.
+     */
+    bool queueOwnedReclaim(
+        int64 playerId, int64 fleetId, int64 hulls) {
+        if (game.ended) {
+            return(false)
+        }
+        Fleet fleet = game.findFleet(fleetId)
+        if (fleet.id < 0 or fleet.ownerId != playerId) {
+            return(false)
+        }
+        bool ok = game.queueReclaim(fleetId, hulls)
         if (ok) {
             republishWithoutTick()
         }

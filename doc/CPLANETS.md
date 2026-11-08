@@ -235,8 +235,8 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | `--host HOST` / `--port N` | `host` / `port` | Dial |
 | `--verbosity N` | `verbosity` | stdout log level 0–10 (clamped) |
 | `--once` | `once` | Print one local policy shape (no TCP; one-shot) |
-| `--serve-loop` | `serve_loop` | Dial and PUT policy until eliminated / ended (needs `port > 0`) |
-| `--cycles N` | `cycles` | Loop attempts (`0` = until eliminated/ended/stop; `N>0` caps for smoke) |
+| `--serve-loop` | `serve_loop` | Dial and PUT policy until eliminated / ended (needs `port > 0`). CLI form without `--cycles` forces continuous (`CYCLES=0`) even if the config still has `cycles = 1`. |
+| `--cycles N` | `cycles` | Loop attempts (`0` = until eliminated/ended/stop; `N>0` caps for smoke). Required on argv to override the continuous CLI `--serve-loop` default. |
 
 **Verbosity** (headless stdout, not a GUI): scale **0–10**
 (default `0`). Out-of-range values **clamp** into `0..10`.

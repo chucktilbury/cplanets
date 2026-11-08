@@ -28,6 +28,7 @@
  *   2026-11-08  On-demand status menu via stdin m during serve-loop.
  *   2026-11-08  Menu gate wires client for PUT /suspended hold.
  *   2026-11-08  cycles 0 = play until eliminated/ended; wall clock.
+ *   2026-11-08  CLI --serve-loop without --cycles forces continuous.
  */
 
 import cli as Cli
@@ -393,14 +394,48 @@ class AiMain {
     }
 
     /*
+     * Resolve serve-loop attempt cap.
+     *
+     * Purpose: operator `cplanets-ai --config … --serve-loop` must
+     * stay continuous even when a sample/stale config still has
+     * `cycles = 1`. Only an explicit argv `--cycles N` (N > 0 for a
+     * finite smoke, or N = 0 for continuous) caps or confirms the
+     * loop. File `cycles` still applies when serve_loop comes from
+     * the config file alone (no CLI --serve-loop).
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *   fromFile — AiConfig.cycles after load/clamp.
+     *
+     * Returns: 0 for continuous, or N when argv provided --cycles.
+     */
+    int64 resolveServeCycles(
+        Cli.CommandLine commandLine,
+        int64 fromFile) {
+        if (commandLine.wasProvided("cycles")) {
+            int64 fromArgv = commandLine.value("cycles").toInt64()
+            if (fromArgv < 0) {
+                return(0)
+            }
+            return(fromArgv)
+        }
+        if (commandLine.wasProvided("serve-loop")) {
+            return(0)
+        }
+        return(fromFile)
+    }
+
+    /*
      * Dispatch smoke / once / loop from a parsed CommandLine.
      *
      * Purpose: single entry used by start {}. --config is required
      * upstream. Mode and cycles defaults come from the config file;
-     * argv overrides silently when provided. serve-loop needs a
+     * argv overrides silently when provided. CLI --serve-loop
+     * without --cycles forces continuous (0) so stale `cycles = 1`
+     * in sample configs cannot one-shot. serve-loop needs a
      * positive port; once (or loop with port 0) prints one local
-     * policy; all modes false → smoke identity. Continuous play is
-     * --serve-loop with cycles 0 (default); --once stays one-shot.
+     * policy; all modes false → smoke identity. --once stays
+     * one-shot.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -413,7 +448,9 @@ class AiMain {
         bool wantLoop = resolveFlag(
             commandLine, "serve-loop", cfg.serveLoop)
         if (wantLoop and cfg.port > 0) {
-            runLoop(cfg, cfg.cycles)
+            int64 loopCycles = resolveServeCycles(
+                commandLine, cfg.cycles)
+            runLoop(cfg, loopCycles)
             return()
         }
         if (wantOnce or wantLoop) {

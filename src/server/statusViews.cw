@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial read-only status formatters.
+ *   2026-11-08  Drop menu= from server config dump.
  */
 
 include "config.cw"
@@ -29,8 +30,8 @@ class StatusViews {
     /*
      * Construct formatters around a live driver and its config.
      *
-     * Purpose: share one State with --serve / --menu without a
-     * second authoritative world.
+     * Purpose: share one State with --serve without a second
+     * authoritative world.
      *
      * Parameters:
      *   live — GameDriver already wrapping a started State.
@@ -736,10 +737,9 @@ class StatusViews {
             cfg.seed,
             cfg.cycles))
         text.append(format(
-            "  serve={} injectable={} menu={} verbosity={}\n",
+            "  serve={} injectable={} verbosity={}\n",
             cfg.serve,
             cfg.injectable,
-            cfg.menu,
             cfg.verbosity))
         text.append(format(
             "  handshake_miss_ms={} accept_poll_ms={}\n",

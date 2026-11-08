@@ -4,12 +4,15 @@
  * In-process console over the same GameDriver State the serve path
  * owns. Walks players / planets / fleets / designs / config without
  * mutating game state. Config is dump-only (no create/save yet).
+ * Opened on demand from the serve loop (stdin `m`); Quit returns to
+ * accept / cadence.
  *
  * Created: 2026-11-08
  * Author: Auto
  *
  * Changelog:
  *   2026-11-08  Initial interactive status menu.
+ *   2026-11-08  Serve-time only: drop --menu pre-serve / exit-without-serve.
  */
 
 # Caller (cplanets-server) imports system as Sys; included files must
@@ -20,14 +23,11 @@ include "statusViews.cw"
 /*
  * StatusMenu is the read-only operator explore console.
  *
- * Driven by stdin lines (numbers / b / q / x). When serveAfter is
- * true, quitting the top menu returns a "proceed to serve" code so
- * cplanets-server can bind TCP on the same State (pause-and-inspect
- * v1 — no concurrent console during accept).
+ * Driven by stdin lines (numbers / b / q). Quitting the top menu
+ * returns to the caller (serve loop resumes after pause restore).
  */
 class StatusMenu {
     StatusViews views
-    bool serveAfter
     Sys.StandardIO io
 
     /*
@@ -37,13 +37,11 @@ class StatusMenu {
      *
      * Parameters:
      *   liveViews — StatusViews bound to GameDriver + ServerConfig.
-     *   willServe — when true, Quit may proceed into TCP serve.
      *
      * Returns: StatusMenu ready for runInteractive.
      */
-    StatusMenu(StatusViews liveViews, bool willServe) {
+    StatusMenu(StatusViews liveViews) {
         views = liveViews
-        serveAfter = willServe
         io = Sys.StandardIO()
     }
 
@@ -109,49 +107,32 @@ class StatusMenu {
         print("4) Fleets\n")
         print("5) Designs / jobs\n")
         print("6) Config (read-only)\n")
-        if (serveAfter) {
-            print("q) Quit menu and start serving\n")
-            print("x) Exit without serving\n")
-        } else {
-            print("q) Quit\n")
-        }
+        print("q) Quit menu (resume serve)\n")
     }
 
     /*
-     * Run the interactive top loop until quit / exit / EOF.
+     * Run the interactive top loop until quit / EOF.
      *
-     * Purpose: operator explore entry used by cplanets-server --menu.
+     * Purpose: operator explore while serve is running (stdin `m`).
      *
      * Parameters: none.
      *
-     * Returns: 1 when the caller should proceed to --serve on the
-     * same State; 0 when the process should exit.
+     * Returns: nothing (caller restores pause and continues accept).
      */
-    int64 runInteractive() {
+    void runInteractive() {
         print("cplanets-server status menu\n")
         print("MENU=1\n")
-        if (serveAfter) {
-            print(
-                "Note: explore first (ticks not listening yet); ")
-            print(
-                "q starts TCP serve on this State. Concurrent menu ")
-            print("during accept is not in v1.\n")
-        }
+        print("Note: ticks stay paused while this menu is open; ")
+        print("q returns to TCP accept / cadence.\n")
         io.flush()
         while (true) {
             printTopMenu()
             String choice = readChoice("status> ")
             if (choice.length == 0) {
-                return(0)
+                return()
             }
             if (choice.equals("q") or choice.equals("Q")) {
-                if (serveAfter) {
-                    return(1)
-                }
-                return(0)
-            }
-            if (choice.equals("x") or choice.equals("X")) {
-                return(0)
+                return()
             }
             if (choice.equals("1")) {
                 print(views.statusSummary())
@@ -166,14 +147,9 @@ class StatusMenu {
             } else (choice.equals("6")) {
                 browseConfig()
             } else {
-                print("Unknown choice. Use 1-6, q")
-                if (serveAfter) {
-                    print(", or x")
-                }
-                print(".\n")
+                print("Unknown choice. Use 1-6 or q.\n")
             }
         }
-        return(0)
     }
 
     /*

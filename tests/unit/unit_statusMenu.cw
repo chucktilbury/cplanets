@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial status menu unit program.
+ *   2026-11-08  Drop menu= config dump token.
  */
 
 include "server/config.cw"
@@ -24,7 +25,6 @@ start {
     ServerConfig cfg = ServerConfig()
     cfg.players = 2
     cfg.seed = 7
-    cfg.menu = true
     StatusViews views = StatusViews(driver, cfg)
 
     String summary = views.summaryLine()
@@ -120,7 +120,10 @@ start {
     }
 
     String serverDump = views.serverConfigDump()
-    if (not serverDump.contains("menu=true")) {
+    if (not serverDump.contains("Server config (read-only):")) {
+        ok = false
+    }
+    if (not serverDump.contains("serve=")) {
         ok = false
     }
     String scenarioDump = views.scenarioConfigDump()

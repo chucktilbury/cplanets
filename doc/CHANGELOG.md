@@ -2,13 +2,13 @@
 
 ## Unreleased
 
-- Operator **status menu** (`cplanets-server --menu` / config
-  `menu = true`): read-only in-process console over the same State
-  as `--serve` — status summary, players → inventory drill-down,
-  planets, fleets, designs/jobs, config dump (no write/save). With
-  `--serve --menu`, explore first then `q` starts TCP on that world.
-  CTest: `unit_statusMenu`, `functional_status_menu`. Docs:
-  [CPLANETS.md](CPLANETS.md).
+- Operator **status menu** while serving: type `m` then Enter on the
+  server console (`MENU_KEY=m`). Read-only in-process console over
+  the live State — status summary, players → inventory drill-down,
+  planets, fleets, designs/jobs, config dump (no write/save). Ticks
+  pause while open; prior pause restored on `q`. No `--menu` / config
+  `menu` flag (removed). CTest: `unit_statusMenu`,
+  `functional_status_menu`. Docs: [CPLANETS.md](CPLANETS.md).
 
 - Develop / yard-build **ProgressBars**: Ships and Fleets pages show
   `Gtk.ProgressBar` footers (fraction from ticksLeft / setup total;

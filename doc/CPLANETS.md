@@ -125,22 +125,16 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--verbosity N` | `0` | `verbosity` | Stdout log level 0–10 (clamped) |
 | `--injectable` | off | `injectable` | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
-| `--menu` | off | `menu` | Read-only in-process status console (same State as serve) |
 
-**Status menu (`--menu`):** explore what the server knows — tick /
-pause summary, players (wealth, owned planets/fleets/ships), planet
-and fleet detail, designs / yard jobs, and a read-only dump of
-loaded server + scenario knobs. Config create/save is out of scope
-for now. Launch:
-
-```sh
-bin/cplanets-server --config config/server-default.cfg --menu
-```
-
-With `--serve --menu`, the console runs first on the live State
-(pause-and-inspect); `q` quits the menu and then binds TCP / cadence
-on that same world. `x` exits without serving. Concurrent menu
-during the accept loop is not in v1.
+**Status menu (while serving):** type `m` then Enter on the server
+console (banner prints `MENU_KEY=m`). Opens a read-only in-process
+console over the live State — tick / pause summary, players (wealth,
+owned planets/fleets/ships), planet and fleet detail, designs / yard
+jobs, and a dump of loaded server + scenario knobs. Config
+create/save is out of scope. **Ticks pause while the menu is open**
+and the prior pause flag is restored on `q` (clients can wait). The
+serve loop polls stdin non-blocking between accepts, so TCP accept
+is not blocked forever waiting for menu input.
 
 **Bind address:** default `127.0.0.1` (loopback), matching the
 prior hard-coded TCP listen. Set `host = 0.0.0.0` (or CLI
@@ -281,9 +275,9 @@ lib tick coverage lives in `tests/unit/` and `tests/fn/`.
 Three terminals (or background jobs): server, human, AI.
 
 **`--config`** is always required. **`--serve` (or server-config
-`serve = true`)** is required for play. Without serve and without
-`--menu` / `menu = true`, `cplanets-server` prints smoke identity
-and exits — no TCP, no ticks, no status console.
+`serve = true`)** is required for play. Without serve,
+`cplanets-server` prints smoke identity and exits — no TCP, no
+ticks. While serving, open the status menu anytime with stdin `m`.
 
 The server uses **one request per TCP connection** (closes after each
 reply). Clients redial per verb; wall-clock cadence advances even with

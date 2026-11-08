@@ -13,6 +13,7 @@
  * Changelog:
  *   2026-11-08  Initial interactive status menu.
  *   2026-11-08  Serve-time only: drop --menu pre-serve / exit-without-serve.
+ *   2026-11-08  Lobby Go command (g) shares operator go path.
  */
 
 # Caller (cplanets-server) imports system as Sys; included files must
@@ -107,6 +108,9 @@ class StatusMenu {
         print("4) Fleets\n")
         print("5) Designs / jobs\n")
         print("6) Config (read-only)\n")
+        if (views.driver.inLobby()) {
+            print("g) Go — leave lobby; start wall ticks\n")
+        }
         print("q) Quit menu (resume serve)\n")
     }
 
@@ -134,7 +138,15 @@ class StatusMenu {
             if (choice.equals("q") or choice.equals("Q")) {
                 return()
             }
-            if (choice.equals("1")) {
+            if (choice.equals("g") or choice.equals("G")) {
+                if (views.driver.go()) {
+                    print("GO=1 PHASE=running (ticks may advance)\n")
+                } else (views.driver.running) {
+                    print("Already running.\n")
+                } else {
+                    print("Go rejected.\n")
+                }
+            } else (choice.equals("1")) {
                 print(views.statusSummary())
             } else (choice.equals("2")) {
                 browsePlayers()
@@ -147,7 +159,7 @@ class StatusMenu {
             } else (choice.equals("6")) {
                 browseConfig()
             } else {
-                print("Unknown choice. Use 1-6 or q.\n")
+                print("Unknown choice. Use 1-6, g (go), or q.\n")
             }
         }
     }

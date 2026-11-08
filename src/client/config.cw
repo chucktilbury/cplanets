@@ -11,6 +11,7 @@
  *   2026-11-05  Initial HumanConfig.
  *   2026-11-07  CLI mirror mode flags: once, pull, gui, test.
  *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
+ *   2026-11-08  reconnectToken from handshake ack for reclaim.
  */
 
 /*
@@ -20,9 +21,12 @@
  * the universe DB (RULES §2). Mode flags mirror CLI switches so
  * a settings file can select once / pull / gui / test; argv
  * still overrides silently when the flag is present.
+ * reconnectToken is opaque TOKEN_BYTES from the server handshake
+ * ack; process-local only (not a config-file key).
  */
 class HumanConfig {
     int64 playerId
+    buffer reconnectToken
     String host
     int64 port
     bool once
@@ -39,10 +43,12 @@ class HumanConfig {
      *
      * Parameters: none.
      *
-     * Returns: HumanConfig host 127.0.0.1, port 0, seat -1.
+     * Returns: HumanConfig host 127.0.0.1, port 0, seat -1,
+     * empty reconnect token.
      */
     HumanConfig() {
         playerId = -1
+        reconnectToken = buffer[]
         host = "127.0.0.1"
         port = 0
         once = false

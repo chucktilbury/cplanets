@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+TOKEN_BYTES = 16
+
 
 def _u8(value: int) -> bytes:
     return bytes((value & 0xFF,))
@@ -52,22 +54,41 @@ def admin_advance(count: int) -> bytes:
     return encode_envelope(2, "/admin/advance", _u32(count))
 
 
-def handshake(player_id: int | None = None) -> bytes:
-    """PUT /handshake. Omit player_id (or None) for server allocate."""
+def admin_go() -> bytes:
+    """PUT /admin/go — leave lobby (same path as operator `g`)."""
+    return encode_envelope(2, "/admin/go", b"")
+
+
+def handshake(
+    player_id: int | None = None, *, token: bytes | None = None
+) -> bytes:
+    """PUT /handshake.
+
+    Omit both args for server allocate. Pass player_id for keep-alive
+    (4 bytes). Pass token=TOKEN_BYTES for reclaim / token keep-alive.
+    """
+    if token is not None:
+        if len(token) != TOKEN_BYTES:
+            raise ValueError(f"token must be {TOKEN_BYTES} bytes")
+        return encode_envelope(2, "/handshake", token)
     if player_id is None:
         return encode_envelope(2, "/handshake", b"")
     return encode_envelope(2, "/handshake", _u32(player_id))
 
 
-def parse_handshake_ack(body: bytes) -> tuple[bool, int, bool, int]:
-    """Parse handshake ack: accepted, tick, ended, playerId."""
-    if len(body) < 10:
+def parse_handshake_ack(
+    body: bytes,
+) -> tuple[bool, int, bool, int, bytes]:
+    """Parse handshake ack: accepted, tick, ended, playerId, token."""
+    need = 10 + TOKEN_BYTES
+    if len(body) < need:
         raise ValueError(f"short handshake ack: {body!r}")
     accepted = body[0] == 1
     tick = int.from_bytes(body[1:5], "little")
     ended = body[5] == 1
     player_id = int.from_bytes(body[6:10], "little")
-    return accepted, tick, ended, player_id
+    token = body[10 : 10 + TOKEN_BYTES]
+    return accepted, tick, ended, player_id, token
 
 
 def put_suspended(player_id: int, flag: bool) -> bytes:

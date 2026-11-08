@@ -126,15 +126,26 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--injectable` | off | `injectable` | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
 
+**Lobby / go (while serving):** the server starts in **lobby**
+(`PHASE=lobby`). TCP accept, seat allocate, reconnect tokens, and
+the status menu work, but **wall ticks do not advance** until the
+operator starts the game. Type **`g` then Enter** on the server
+console (banner prints `GO_KEY=g`) — or choose **Go** in the status
+menu — to leave lobby (`PHASE=running`). Harnesses may
+`PUT /admin/go` (same path). Later “all humans ready” can share that
+path; v1 is operator go only. Injectable `/admin/advance` is also
+blocked until go.
+
 **Status menu (while serving):** type `m` then Enter on the server
 console (banner prints `MENU_KEY=m`). Opens a read-only in-process
-console over the live State — tick / pause summary, players (wealth,
-owned planets/fleets/ships), planet and fleet detail, designs / yard
-jobs, and a dump of loaded server + scenario knobs. Config
-create/save is out of scope. **Ticks pause while the menu is open**
-and the prior pause flag is restored on `q` (clients can wait). The
-serve loop polls stdin non-blocking between accepts, so TCP accept
-is not blocked forever waiting for menu input.
+console over the live State — phase / tick / pause summary, players
+(wealth, owned planets/fleets/ships), planet and fleet detail,
+designs / yard jobs, and a dump of loaded server + scenario knobs.
+In lobby the menu also offers **Go**. Config create/save is out of
+scope. **Ticks pause while the menu is open** and the prior pause
+flag is restored on `q` (clients can wait). The serve loop polls
+stdin non-blocking between accepts, so TCP accept is not blocked
+forever waiting for menu input.
 
 **Bind address:** default `127.0.0.1` (loopback), matching the
 prior hard-coded TCP listen. Set `host = 0.0.0.0` (or CLI

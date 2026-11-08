@@ -31,6 +31,7 @@
  *   2026-11-07  CLI port help default 7700 (0 still ephemeral).
  *   2026-11-08  --menu read-only status console (pause-and-inspect).
  *   2026-11-08  Drop --menu; on-demand status via stdin m while serving.
+ *   2026-11-08  Lobby until operator go (stdin g); reconnect tokens.
  */
 
 import cli as Cli
@@ -114,7 +115,7 @@ class ServerMain {
         serve.longName = "serve"
         serve.name = "serve"
         serve.description = (
-            "bind TCP and run accept + cadence (stdin m = status menu)")
+            "bind TCP; lobby until g=go; m=status menu")
         serve.valueType = Cli.ValueType().FLAG
         commandLine.addOption(serve)
         Cli.Option host = Cli.Option()
@@ -416,8 +417,18 @@ class ServerMain {
             print("INJECTABLE=0\n")
         }
         print("MENU_KEY=m\n")
+        print("GO_KEY=g\n")
+        if (driver.inLobby()) {
+            print("PHASE=lobby\n")
+        } else {
+            print("PHASE=running\n")
+        }
         print(
-            "Status menu: type m then Enter on this console ")
+            "Lobby: wall ticks do not advance until go. ")
+        print(
+            "Type g then Enter to start (or status-menu Go). ")
+        print(
+            "Status menu: type m then Enter ")
         print(
             "(ticks pause while open; q resumes prior pause).\n")
         # Flush so Python functional tests see PORT= before accept.

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from wire import (
     admin_advance,
+    admin_go,
     decode_envelope,
     handshake,
     put_build,
@@ -140,7 +141,13 @@ def main() -> int:
             )
             return 1
 
-        # Advance past default designDevelopTicks (5).
+        # Leave lobby, then advance past default designDevelopTicks (5).
+        resp = exchange("127.0.0.1", port, admin_go())
+        _, _verb, path, body = decode_envelope(resp)
+        if path != "/admin/go" or body[0] != 1:
+            print(f"go failed path={path} body={body!r}")
+            return 1
+
         resp = exchange("127.0.0.1", port, admin_advance(8))
         _, _verb, path, body = decode_envelope(resp)
         if path != "/admin/advance" or body[0] != 1:

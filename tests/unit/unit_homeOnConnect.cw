@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-08  Initial home-on-connect unit program.
  *   2026-11-08  Server allocate: first free seat; drop frees seat.
+ *   2026-11-08  Drop keeps token; reclaim by token (no steal).
  */
 
 include "lib/state.cw"
@@ -121,7 +122,11 @@ start {
     if (drv.handshakeKeepAlive(0) != 0) {
         ok = false
     }
-    # Drop leaves the home in place and frees the seat.
+    # Drop leaves the home in place; token still held (no steal).
+    buffer token0 = drv.presence.reconnectToken(0)
+    if (token0.length != PresenceBook.TOKEN_BYTES) {
+        ok = false
+    }
     if (not drv.dropPlayer(0)) {
         ok = false
     }
@@ -136,8 +141,12 @@ start {
     if (drv.handshakeKeepAlive(0) >= 0) {
         ok = false
     }
-    # New connect reuses the free dropped seat (no identity reclaim).
-    int64 reseat = drv.handshakeAllocate()
+    # Empty allocate cannot steal the token-held dropped seat.
+    if (drv.handshakeAllocate() >= 0) {
+        ok = false
+    }
+    # Reclaim with the opaque token restores the same seat.
+    int64 reseat = drv.handshakeReclaim(token0)
     if (reseat != 0) {
         ok = false
     }

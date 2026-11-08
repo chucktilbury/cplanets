@@ -7,7 +7,9 @@
  * menu-open flag), which keeps the seat connected for presence and
  * skips handshake_miss drop while normal AFK production shrink
  * still applies. Pause is offered only with exactly one human
- * (RULES §2 / PLAN §4.F).
+ * (RULES §2 / PLAN §4.F). Opaque reconnect tokens let a dropped
+ * seat reclaim itself; empty handshake cannot steal a token-held
+ * seat.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -17,9 +19,12 @@
  *   2026-11-08  Intentional suspended flag skips handshake_miss.
  *   2026-11-08  Server allocates free seats on connect (no client
  *               seat claim); keep-alive only when already connected.
+ *   2026-11-08  Opaque 16-byte reconnect tokens on allocate;
+ *               drop keeps token; quit clears it.
  */
 
 include "../lib/player.cw"
+include "../lib/rng.cw"
 
 /*
  * PresenceSeat tracks live contact for one empire.
@@ -30,6 +35,9 @@ include "../lib/player.cw"
  * (menu open / marked AFK): seat stays connected and
  * handshake_miss does not drop it. missLimitMs is how long
  * without handshake before drop when not suspended.
+ * reconnectToken is opaque TOKEN_BYTES issued on allocate; empty
+ * means the seat is free for a new empty-body allocate. Drop
+ * clears connected but keeps the token until quit / game end.
  */
 class PresenceSeat {
     int64 playerId
@@ -37,6 +45,7 @@ class PresenceSeat {
     bool suspended
     uint64 lastHandshakeMs
     uint64 missLimitMs
+    buffer reconnectToken
 
     /*
      * Construct a disconnected presence seat.
@@ -47,7 +56,8 @@ class PresenceSeat {
      *   seat — empire id.
      *   missMs — drop after this many ms without handshake.
      *
-     * Returns: PresenceSeat with connected false, suspended false.
+     * Returns: PresenceSeat with connected false, suspended false,
+     * and an empty reconnect token.
      */
     PresenceSeat(int64 seat, uint64 missMs) {
         playerId = seat
@@ -55,18 +65,26 @@ class PresenceSeat {
         suspended = false
         lastHandshakeMs = 0u
         missLimitMs = missMs
+        reconnectToken = buffer[]
     }
 }
 
 /*
- * PresenceBook owns handshake, drop detection, and pause rules.
+ * PresenceBook owns handshake, drop detection, pause rules, and
+ * opaque reconnect tokens.
  *
  * Does not store policy — that is PolicyTable. Call scanDrops with
- * the current clock before cadence fire.
+ * the current clock before cadence fire. TOKEN_BYTES is the fixed
+ * wire length for reconnect tokens (opaque; not printable).
  */
 class PresenceBook {
     list seats
     uint64 defaultMissMs
+    SeededRng tokenRng
+
+    enum {
+        TOKEN_BYTES = 16
+    }
 
     /*
      * Construct an empty presence book.
@@ -76,11 +94,14 @@ class PresenceBook {
      * Parameters:
      *   missMs — default handshake miss window (milliseconds).
      *
-     * Returns: PresenceBook with no seats.
+     * Returns: PresenceBook with no seats and a seeded token RNG.
      */
     PresenceBook(uint64 missMs) {
         seats = []
         defaultMissMs = missMs
+        # Deterministic stream so unit tests stay reproducible; the
+        # seed advances on each mint via nextU64.
+        tokenRng = SeededRng(0xc01a7e75u)
     }
 
     /*
@@ -192,7 +213,8 @@ class PresenceBook {
      * Force a drop (lost contact) on one seat.
      *
      * Purpose: TCP close / scanDrops path; last policy continues
-     * for the live remainder (no rejoin in v1). Clears suspended.
+     * for the live remainder. Clears suspended and connected but
+     * keeps reconnectToken so the same client can reclaim.
      *
      * Parameters:
      *   playerId — empire id.
@@ -209,6 +231,162 @@ class PresenceBook {
         seat.suspended = false
         seats[playerId] = seat
         return(was)
+    }
+
+    /*
+     * True when two opaque token buffers are byte-identical.
+     *
+     * Purpose: reclaim / keep-alive match without string codecs.
+     *
+     * Parameters:
+     *   left — first token (may be empty).
+     *   right — second token (may be empty).
+     *
+     * Returns: true when both have the same length and bytes.
+     */
+    bool tokensEqual(buffer left, buffer right) {
+        if (left.length != right.length) {
+            return(false)
+        }
+        int64 index = 0
+        while (index < left.length) {
+            if (left[index] != right[index]) {
+                return(false)
+            }
+            index = index + 1
+        }
+        return(true)
+    }
+
+    /*
+     * Mint a fresh TOKEN_BYTES opaque reconnect token.
+     *
+     * Purpose: issue on allocate so only the holder can reclaim
+     * after drop. Not cryptographic — live-process opacity only.
+     *
+     * Parameters: none (advances tokenRng).
+     *
+     * Returns: buffer of length TOKEN_BYTES.
+     */
+    buffer mintToken() {
+        buffer token = buffer[]
+        while (token.length < TOKEN_BYTES) {
+            token.append(int64(tokenRng.nextBounded(256u)))
+        }
+        return(token)
+    }
+
+    /*
+     * Store a reconnect token on a seat (allocate path).
+     *
+     * Purpose: bind the opaque token issued in the handshake ack.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *   token — TOKEN_BYTES opaque bytes.
+     *
+     * Returns: true when the seat exists and token was stored.
+     */
+    bool setReconnectToken(int64 playerId, buffer token) {
+        if (playerId < 0 or playerId >= seats.length) {
+            return(false)
+        }
+        if (token.length != TOKEN_BYTES) {
+            return(false)
+        }
+        PresenceSeat seat = seats[playerId]
+        seat.reconnectToken = token
+        seats[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * Clear the reconnect token (quit / game-end path).
+     *
+     * Purpose: seat is no longer reclaimable; a later empty
+     * handshake may treat it as free only when also not quit.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *
+     * Returns: true when the seat exists.
+     */
+    bool clearReconnectToken(int64 playerId) {
+        if (playerId < 0 or playerId >= seats.length) {
+            return(false)
+        }
+        PresenceSeat seat = seats[playerId]
+        seat.reconnectToken = buffer[]
+        seats[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * Copy the reconnect token for a seat (ack / client store).
+     *
+     * Purpose: handshake response trailing TOKEN_BYTES.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *
+     * Returns: token copy, or empty when missing / out of range.
+     */
+    buffer reconnectToken(int64 playerId) {
+        buffer empty = buffer[]
+        if (playerId < 0 or playerId >= seats.length) {
+            return(empty)
+        }
+        PresenceSeat seat = seats[playerId]
+        buffer out = buffer[]
+        int64 index = 0
+        while (index < seat.reconnectToken.length) {
+            out.append(seat.reconnectToken[index])
+            index = index + 1
+        }
+        return(out)
+    }
+
+    /*
+     * True when the seat holds an outstanding reclaim token.
+     *
+     * Purpose: empty allocate must not steal token-held seats.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *
+     * Returns: true when token length is TOKEN_BYTES.
+     */
+    bool hasReconnectToken(int64 playerId) {
+        if (playerId < 0 or playerId >= seats.length) {
+            return(false)
+        }
+        PresenceSeat seat = seats[playerId]
+        return(seat.reconnectToken.length == TOKEN_BYTES)
+    }
+
+    /*
+     * Find the seat that owns this reconnect token.
+     *
+     * Purpose: reclaim path — client sends token, not playerId.
+     *
+     * Parameters:
+     *   token — opaque TOKEN_BYTES from the client.
+     *
+     * Returns: seat id, or -1 when unknown / wrong length.
+     */
+    int64 findSeatByToken(buffer token) {
+        if (token.length != TOKEN_BYTES) {
+            return(-1)
+        }
+        int64 index = 0
+        while (index < seats.length) {
+            PresenceSeat seat = seats[index]
+            if (tokensEqual(seat.reconnectToken, token)) {
+                return(seat.playerId)
+            }
+            index = index + 1
+        }
+        return(-1)
     }
 
     /*

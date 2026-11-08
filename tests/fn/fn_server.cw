@@ -12,6 +12,7 @@
  *   2026-11-05  Initial server function program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-08  Suspended hold past handshake_miss; clear resumes.
+ *   2026-11-08  Lobby: go() before injectable advance.
  */
 
 include "lib/envelope.cw"
@@ -32,6 +33,19 @@ start {
     GameDriver driver = GameDriver(
         game, true, "", true, 10000u)
     if (not driver.store.openOk) {
+        ok = false
+    }
+    if (ok and not driver.inLobby()) {
+        ok = false
+    }
+    # Lobby blocks injectable advance until go.
+    if (ok and driver.advanceTicks(1) != 0) {
+        ok = false
+    }
+    if (ok and not driver.go()) {
+        ok = false
+    }
+    if (ok and driver.inLobby()) {
         ok = false
     }
     buffer pol = buffer[]
@@ -121,6 +135,9 @@ start {
     solo.ensureAllSeatHomes()
     GameDriver soloDrv = GameDriver(
         solo, true, "", false, 10000u)
+    if (ok and not soloDrv.go()) {
+        ok = false
+    }
     if (ok and not soloDrv.pauseOffered()) {
         ok = false
     }

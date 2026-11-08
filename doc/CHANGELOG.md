@@ -2,18 +2,25 @@
 
 ## Unreleased
 
+- **Lobby until go + reconnect tokens:** server starts in **lobby**
+  (TCP accept, seating, status menu; **no wall ticks** until go).
+  Operator starts with console **`g`+Enter** (`GO_KEY=g`), status-menu
+  **Go**, or harness `PUT /admin/go` (shared path; v1 = operator go
+  only). Injectable `/admin/advance` is also blocked until go.
+  Allocate handshake issues an opaque **16-byte** reconnect token in
+  the ack (`accepted + tick + ended + playerId + token`). Reclaim by
+  sending the token; empty handshake cannot steal a token-held
+  dropped seat. Tokens remain valid until quit or game end. Human and
+  AI clients store/send the token. Docs: [RULES.md](RULES.md),
+  [CPLANETS.md](CPLANETS.md), [SYNTAX.md](SYNTAX.md). Tests:
+  `unit_lobbyReconnect`, `unit_homeOnConnect`, `fn_server`.
+
 - **Server allocates seats on connect:** `PUT /handshake` no longer
-  takes a client seat claim as authority. Empty body (or ignored
-  legacy `playerId`) assigns the first free seat in `0…players−1`
-  (never-seated or free dropped; quit not reused). Response shape
-  is `u8 accepted`, `u32 tick`, `u8 ended`, `u32 playerId`. Human
-  and AI clients adopt that id for all later traffic. Reconnect v1:
-  new connect gets a new free seat (no identity reclaim); keep-alive
-  only while still connected. Config `player_id` / `--player` are
-  offline-only; sample AI/human configs drop seating claims. Docs:
-  [RULES.md](RULES.md), [CPLANETS.md](CPLANETS.md). Tests:
-  `unit_homeOnConnect`, `unit_serverPresence`, functional wire
-  handshake helpers.
+  takes a client seat claim as authority. Empty body assigns the
+  first free never-seated seat; response includes assigned
+  `playerId` (and now a reconnect token — see above). Config
+  `player_id` / `--player` are offline-only. Docs:
+  [RULES.md](RULES.md), [CPLANETS.md](CPLANETS.md).
 
 - **AI continuous serve-loop:** `--serve-loop` with `cycles = 0`
   (default) keeps `cplanets-ai` deciding until the seat is

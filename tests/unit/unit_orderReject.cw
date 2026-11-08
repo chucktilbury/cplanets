@@ -22,6 +22,9 @@ start {
     game.startClosed(47u, 1)
     game.ensureAllSeatHomes()
     GameDriver drv = GameDriver(game, true, "", false, 10000u)
+    if (not drv.go()) {
+        ok = false
+    }
 
     # Fleet 0 does not exist — clear reason (playable Entry trap).
     if (drv.issueOwnedOrder(0, 0, "explore", 1, 0)) {
@@ -77,6 +80,9 @@ start {
     stacked.startClosed(49u, 1)
     stacked.ensureAllSeatHomes()
     GameDriver d2 = GameDriver(stacked, true, "", false, 10000u)
+    if (ok and not d2.go()) {
+        ok = false
+    }
     Player s2 = d2.game.players[0]
     s2.resources = s2.resources + 10000.0
     d2.game.players[0] = s2

@@ -95,39 +95,53 @@ who is notified, and heartbeat interval are **not** locked here
 (§17). AFK vs drop is **live session contact** only — not a save /
 rejoin feature (see Session below).
 
+**Lobby until go (v1).** One server process, two phases: **lobby**
+then **running**. In lobby the server accepts TCP, allocates seats,
+issues reconnect tokens, and the operator status menu works, but
+**wall ticks do not advance** (injectable `/admin/advance` is also
+blocked). The operator starts the game with console **`g`+Enter**
+(banner `GO_KEY=g`), status-menu **Go**, or harness
+`PUT /admin/go` — all share one `go()` path. Later “all humans
+ready” may call that same path; **v1 = operator go only** (auto-ready
+is a stub). After go, phase is **running** and cadence proceeds as
+below.
+
 **Seat allocation (v1).** The **server allocates seats** on connect.
 Clients must **not** choose `playerId` as seating authority — there
 is no way for a client to know a free seat without being told.
-`PUT /handshake` with an **empty body** (new connect) assigns the
-**first free** seat in `0…players−1`: never-seated, or a **free
-dropped** seat (not currently connected; **quit** seats are not
-reused). The handshake **response** returns the assigned `playerId`;
-human and AI clients use that id for all later traffic (policy,
-suspended, orders, GET, …). A body that still carries a legacy
-`playerId` is **keep-alive only** when that seat is already
-connected; otherwise the claim is ignored and a free seat is
-allocated. Multi-AI sessions do **not** need distinct config
-`player_id` values.
+`PUT /handshake` body shapes:
+- **empty** — new connect; first seat in `0…players−1` that is not
+  connected, not quit, and has **no** outstanding reconnect token
+  (never-seated). Issues a fresh opaque **16-byte** token.
+- **exactly 4 bytes (`playerId` u32)** — **keep-alive only** when
+  that seat is already connected; otherwise **reject** (cannot
+  steal a dropped / token-held seat).
+- **exactly 16 bytes** — **reclaim** (or keep-alive) the seat that
+  owns that opaque token.
 
-**Reconnect / drop (v1).** Simple rule: a **new** connect always
-takes the next free seat (never-seated or free dropped) — it does
-**not** reclaim a prior seat by identity. Keep-alive with the
-assigned id refreshes presence while still connected. After
-handshake_miss drop, the seat becomes free for a later allocate;
-there is no durable rejoin into “the same player” (see Session).
+Handshake **response** shape: `u8 accepted`, `u32 tick`, `u8 ended`,
+`u32 playerId`, **16-byte token**. Human and AI clients store the
+token and use `playerId` for all later traffic. Multi-AI sessions do
+**not** need distinct config `player_id` values.
+
+**Reconnect / drop (v1).** Drop frees **presence** (connected=false)
+but the seat remains **reclaimable with its token** until **quit**
+or **game end** (simple rule — no wall-clock reclaim window). Empty
+handshake **cannot** take a token-held seat. Keep-alive with the
+assigned id refreshes presence only while still connected. This is
+**live-process** reclaim, not durable save/rejoin (see Session).
 
 **Session / game instance (v1).** Each game is **stand-alone**. There
-is **no durable status save** and **no rejoin** after leave or drop:
-the player does not reclaim a seat by identity, and there is no
-reconnect into a saved game. While **dropped** during a live game,
-**last policy continues** for the remainder of that **live** process
-until the game ends (same last-policy spirit as AFK); the dropped
-seat may later be **reassigned** to a new connect as a free seat
-(home stays in place). If **all human players quit** (leave / drop
-with no human remaining), the **server registers the end of the
-game** — do not leave an AI-only zombie match running as a live
-human game. When that live game / process ends, participation for
-that instance is over — start a new stand-alone game to play again.
+is **no durable status save** and **no rejoin** after process end.
+While **dropped** during a live game, **last policy continues** for
+the remainder of that **live** process until the game ends (same
+last-policy spirit as AFK); the dropped seat is reclaimable only
+with its token (home stays in place). If **all human players quit**
+(leave / drop with no human remaining), the **server registers the
+end of the game** — do not leave an AI-only zombie match running as
+a live human game. When that live game / process ends, participation
+for that instance is over — start a new stand-alone game to play
+again.
 
 **Future (deferred — plan accordingly):** durable status save and
 rejoin are expected later. Keep server state **SQLite-shaped** so that
@@ -657,7 +671,7 @@ this human dialog.
     who sees it.
 - **Deferred (not v1):** durable status save / rejoin — plan
   accordingly (keep SQLite-shaped); no save / rejoin API in v1.
-  v1 reconnect / reclaim is **closed** (no rejoin).
+  live-process token reclaim is in; durable save/rejoin still deferred.
 - Exact default tick period **inside** the provisional 1–30s band for
   the first fixture (setup choice; band itself is locked in §2 / §14).
   Auto-config-from-AI-lag **direction** is locked (§2); the exact
@@ -691,7 +705,8 @@ lag**, still **setup-tunable**; **all humans quit → server ends the
 game**; zombies fall to **normal play** (no consistent zombie-win
 path); **home yards spawn on seat connect** (not pre-seeded; drop
 leaves home in place); **server allocates seats on handshake**
-(clients do not claim `playerId`; reconnect = next free seat);
+(clients do not claim `playerId`; opaque reconnect token reclaim);
+**lobby until operator go** (no ticks until `g` / Go / `/admin/go`);
 mid-dispatch: other policy OK, that fleet
 locked until recall; design/build take time (setup/ticks);
 combat/production/other tunables live in **setup outside code**;

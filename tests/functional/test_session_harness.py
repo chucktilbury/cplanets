@@ -19,6 +19,7 @@ from pathlib import Path
 
 from wire import (
     admin_advance,
+    admin_go,
     decode_envelope,
     get_digest,
     get_state,
@@ -110,7 +111,7 @@ def spawn_server(
         "--port",
         "0",
         "--players",
-        "2",
+        "3",
         "--seed",
         str(seed),
         "--setup",
@@ -301,6 +302,12 @@ def test_session(
             if rc != 0:
                 return rc
 
+        resp = exchange("127.0.0.1", port, admin_go())
+        _, _verb, path, body = decode_envelope(resp)
+        if path != "/admin/go" or body[0] != 1:
+            print(f"bad go path={path} body={body!r}")
+            return 1
+
         resp = exchange("127.0.0.1", port, admin_advance(3))
         _, _verb, path, body = decode_envelope(resp)
         if path != "/admin/advance" or body[0] != 1:
@@ -331,21 +338,39 @@ def test_session(
             )
             return 1
 
-        # Human presence after ticks: empty handshake allocates a
-        # free seat (AI may have held / dropped seat 0).
-        resp = exchange("127.0.0.1", port, handshake())
-        _, _verb, path, body = decode_envelope(resp)
-        accepted, _tick, _ended, seat = parse_handshake_ack(body)
-        if path != "/handshake" or not accepted or seat > 1:
-            print(
-                f"human handshake failed path={path} body={body!r} "
-                f"seat={seat}"
-            )
-            return 1
-
+        # Human --pull allocates its own seat. Do not wire-handshake
+        # first: an AI token-held drop still occupies that seat, so a
+        # prior empty allocate can exhaust free seats before pull.
         rc = run_human_pull(client, port, human_cfg)
         if rc != 0:
             return rc
+
+        # Reclaim: allocate, drop-equivalent keep token, reclaim same.
+        resp = exchange("127.0.0.1", port, handshake())
+        _, _verb, path, body = decode_envelope(resp)
+        accepted, _tick, _ended, seat, token = parse_handshake_ack(body)
+        if path != "/handshake" or not accepted or len(token) != 16:
+            print(
+                f"alloc handshake failed path={path} body={body!r}"
+            )
+            return 1
+        # Empty allocate must not steal this token-held seat while
+        # still connected; keep-alive with player id should work.
+        resp = exchange("127.0.0.1", port, handshake(seat))
+        _, _verb, path, body = decode_envelope(resp)
+        ok2, _t2, _e2, seat2, token2 = parse_handshake_ack(body)
+        if path != "/handshake" or not ok2 or seat2 != seat:
+            print(f"keep-alive failed path={path} seat={seat2}")
+            return 1
+        resp = exchange("127.0.0.1", port, handshake(token=token))
+        _, _verb, path, body = decode_envelope(resp)
+        ok3, _t3, _e3, seat3, _tok3 = parse_handshake_ack(body)
+        if path != "/handshake" or not ok3 or seat3 != seat:
+            print(f"token keep-alive failed path={path} seat={seat3}")
+            return 1
+        if token2 != token:
+            print("token changed on keep-alive")
+            return 1
     finally:
         proc.terminate()
         try:

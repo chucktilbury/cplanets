@@ -22,6 +22,8 @@
  *   2026-11-08  PUT /suspended intentional AFK presence flag.
  *   2026-11-08  PUT /handshake: server allocates seat; ack returns
  *               assigned playerId (clients do not claim seats).
+ *   2026-11-08  Lobby + reconnect tokens: handshake ack trails
+ *               TOKEN_BYTES; reclaim by token; PUT /admin/go.
  */
 
 include "driver.cw"
@@ -139,6 +141,10 @@ class ServerHandler {
             and env.path.equals("/admin/advance")) {
             return(handleAdvance(env.body))
         }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/admin/go")) {
+            return(handleGo(env.body))
+        }
         return(errorFrame("unknown_path"))
     }
 
@@ -212,26 +218,31 @@ class ServerHandler {
     }
 
     /*
-     * Serve PUT /handshake (empty body or optional legacy playerId).
+     * Serve PUT /handshake (allocate / keep-alive / reclaim).
      *
      * Purpose: presence keep-alive distinct from policy PUT. The
-     * server allocates seats — clients must not choose playerId.
-     * Empty body = new connect (first free never-seated or free
-     * dropped seat). Body with playerId u32 = keep-alive only when
-     * that seat is already connected; otherwise the claim is
-     * ignored and a free seat is allocated (legacy clients that
-     * still send a config player_id).
+     * server allocates seats — clients must not choose playerId
+     * as seating authority.
+     *
+     * Request body shapes:
+     *   empty — new connect; first never-seated free seat; issues
+     *           a TOKEN_BYTES opaque reconnect token.
+     *   exactly 4 bytes (playerId u32) — keep-alive only when that
+     *           seat is already connected; otherwise reject (no
+     *           steal of a dropped / token-held seat).
+     *   exactly TOKEN_BYTES — reclaim (or keep-alive) the seat
+     *           that owns that opaque token.
      *
      * Parameters:
-     *   body — uncompressed request body (empty or playerId u32).
+     *   body — uncompressed request body (see shapes above).
      *
-     * Returns: handshake ack with assigned playerId on success.
+     * Returns: handshake ack with playerId + token on success.
      */
     buffer handleHandshake(buffer body) {
         int64 player = -1
         if (body.length == 0) {
             player = driver.handshakeAllocate()
-        } else {
+        } else (body.length == 4) {
             WireBytes r = WireBytes()
             r.setRead(body)
             int64 claim = r.readU32()
@@ -239,10 +250,10 @@ class ServerHandler {
                 return(errorFrame("bad_handshake"))
             }
             player = driver.handshakeKeepAlive(claim)
-            if (player < 0) {
-                # Not connected: ignore client claim; assign free.
-                player = driver.handshakeAllocate()
-            }
+        } else (body.length == PresenceBook.TOKEN_BYTES) {
+            player = driver.handshakeReclaim(body)
+        } else {
+            return(errorFrame("bad_handshake"))
         }
         return(handshakeAck(player))
     }
@@ -250,9 +261,10 @@ class ServerHandler {
     /*
      * Build the PUT /handshake response body.
      *
-     * Purpose: tell the client which seat it owns. Shape is
-     * u8 accepted, u32 tick, u8 ended, u32 playerId. On failure
-     * accepted is 0 and playerId is 0xffffffff.
+     * Purpose: tell the client which seat it owns and the opaque
+     * reconnect token. Shape is u8 accepted, u32 tick, u8 ended,
+     * u32 playerId, TOKEN_BYTES token. On failure accepted is 0,
+     * playerId is 0xffffffff, and token is TOKEN_BYTES zeros.
      *
      * Parameters:
      *   playerId — assigned seat (>= 0) or -1 on failure.
@@ -274,8 +286,14 @@ class ServerHandler {
         }
         if (playerId >= 0) {
             w.writeU32(playerId)
+            w.writeBytes(driver.presence.reconnectToken(playerId))
         } else {
             w.writeU32(0xffffffff)
+            buffer zeros = buffer[]
+            while (zeros.length < PresenceBook.TOKEN_BYTES) {
+                zeros.append(0)
+            }
+            w.writeBytes(zeros)
         }
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/handshake", w.bytes)
@@ -543,7 +561,9 @@ class ServerHandler {
     /*
      * Serve PUT /admin/advance body (count u32).
      *
-     * Purpose: injectable-clock test / CI advance N ticks.
+     * Purpose: injectable-clock test / CI advance N ticks. Blocked
+     * while still in lobby (same gate as wall ticks); call
+     * PUT /admin/go or operator `g` first.
      *
      * Parameters:
      *   body — uncompressed request body.
@@ -559,7 +579,7 @@ class ServerHandler {
         }
         int64 fired = driver.advanceTicks(count)
         WireBytes w = WireBytes()
-        if (driver.clock.injectable) {
+        if (driver.clock.injectable and driver.running) {
             w.writeU8(1)
         } else {
             w.writeU8(0)
@@ -569,6 +589,31 @@ class ServerHandler {
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/admin/advance", w.bytes)
         return(codec.encode(env))
+    }
+
+    /*
+     * Serve PUT /admin/go (empty body).
+     *
+     * Purpose: harness / remote force-go — same path as operator
+     * console `g` and status-menu Go. Leaves lobby so wall and
+     * injectable ticks may fire.
+     *
+     * Parameters:
+     *   body — must be empty.
+     *
+     * Returns: flag ack on /admin/go (accepted when transitioned
+     * or already running).
+     */
+    buffer handleGo(buffer body) {
+        if (body.length != 0) {
+            return(errorFrame("bad_go"))
+        }
+        bool ok = driver.go()
+        if (not ok and driver.running and not driver.game.ended) {
+            # Already running counts as success for harness retries.
+            ok = true
+        }
+        return(flagAck("/admin/go", ok))
     }
 
     /*

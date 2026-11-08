@@ -47,7 +47,9 @@ Phase D5 adds contact/end modules: `contact.cw`, `endgame.cw`
 (plus player partition / knownCompetitors / quit-drop flags,
 planet `partitionId`, sandbox homes). Unit programs
 `unit_contact`, `unit_endgame` and function program
-`fn_contactEnd` print a bool line.
+`fn_contactEnd` print a bool line. Homes are granted on seat
+connect (`ensureHomeForSeat` / handshake), not pre-seeded;
+`unit_homeOnConnect` covers that lock.
 
 Phase E adds the messages library: `wireBytes.cw`, `compress.cw`,
 `envelope.cw`, `verbGetState.cw`, `verbPutPolicy.cw`,

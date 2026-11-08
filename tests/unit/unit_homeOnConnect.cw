@@ -1,0 +1,128 @@
+/*
+ * tests/unit/unit_homeOnConnect.cw — homes deferred until seat connect.
+ *
+ * Scenario start leaves seats without owned yards. Handshake (or
+ * ensureHomeForSeat) grants the home once; drop leaves it in place.
+ *
+ * Created: 2026-11-08
+ * Author: Auto
+ *
+ * Changelog:
+ *   2026-11-08  Initial home-on-connect unit program.
+ */
+
+include "lib/state.cw"
+include "server/driver.cw"
+
+start {
+    bool ok = true
+
+    # --- start: no owned homes / no fleets ---
+    State bare = State()
+    bare.startClosed(7u, 2)
+    Planet slot = bare.galaxy.planets[0]
+    if (slot.ownerId >= 0) {
+        ok = false
+    }
+    Player p0 = bare.players[0]
+    Player p1 = bare.players[1]
+    if (p0.homeGranted or p1.homeGranted) {
+        ok = false
+    }
+    if (bare.fleets.length != 0) {
+        ok = false
+    }
+    # Tick must not eliminate unseated seats / end the game.
+    bare.tick()
+    if (bare.ended) {
+        ok = false
+    }
+    p0 = bare.players[0]
+    p1 = bare.players[1]
+    if (p0.eliminated or p1.eliminated) {
+        ok = false
+    }
+
+    # --- seat 0 connect grants primary home + starter fleet ---
+    if (not bare.ensureHomeForSeat(0)) {
+        ok = false
+    }
+    slot = bare.galaxy.planets[0]
+    p0 = bare.players[0]
+    if (not p0.homeGranted or slot.ownerId != 0) {
+        ok = false
+    }
+    if (not slot.productive or not slot.shipyard) {
+        ok = false
+    }
+    if (bare.fleets.length < 1) {
+        ok = false
+    }
+    # Idempotent: second grant does not duplicate fleet/home.
+    int64 fleetsAfter = bare.fleets.length
+    if (not bare.ensureHomeForSeat(0)) {
+        ok = false
+    }
+    if (bare.fleets.length != fleetsAfter) {
+        ok = false
+    }
+
+    # --- seat 1 connect claims a sandbox home (no starter fleet) ---
+    if (not bare.ensureHomeForSeat(1)) {
+        ok = false
+    }
+    p1 = bare.players[1]
+    if (not p1.homeGranted) {
+        ok = false
+    }
+    int64 owned1 = 0
+    int64 index = 0
+    while (index < bare.galaxy.planets.length) {
+        Planet rock = bare.galaxy.planets[index]
+        if (rock.ownerId == 1) {
+            owned1 = owned1 + 1
+        }
+        index = index + 1
+    }
+    if (owned1 != 1) {
+        ok = false
+    }
+
+    # --- GameDriver handshake seats a home ---
+    State live = State()
+    live.startClosed(11u, 1)
+    Planet before = live.galaxy.planets[0]
+    if (before.ownerId >= 0) {
+        ok = false
+    }
+    GameDriver drv = GameDriver(live, true, "", false, 5000u)
+    if (not drv.handshake(0)) {
+        ok = false
+    }
+    Planet after = drv.game.galaxy.planets[0]
+    Player seated = drv.game.players[0]
+    if (not seated.homeGranted or after.ownerId != 0) {
+        ok = false
+    }
+    if (drv.game.fleets.length < 1) {
+        ok = false
+    }
+    # Drop leaves the home in place.
+    if (not drv.dropPlayer(0)) {
+        ok = false
+    }
+    Planet kept = drv.game.galaxy.planets[0]
+    Player dropped = drv.game.players[0]
+    if (kept.ownerId != 0 or not dropped.homeGranted) {
+        ok = false
+    }
+    if (not dropped.dropped) {
+        ok = false
+    }
+
+    if (ok) {
+        print("true\n")
+    } else {
+        print("false\n")
+    }
+}

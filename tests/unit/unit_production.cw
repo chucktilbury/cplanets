@@ -23,6 +23,7 @@ start {
     # --- allocationPct 0: no empire-pool credit ---
     State idle = State()
     idle.startClosed(13u, 1)
+    idle.ensureAllSeatHomes()
     Planet idleHome = idle.galaxy.planets[0]
     idleHome.allocationPct = 0
     idle.galaxy.planets[0] = idleHome
@@ -53,6 +54,7 @@ start {
     # --- mid-band (50): positive gain ---
     State mid = State()
     mid.startClosed(13u, 1)
+    mid.ensureAllSeatHomes()
     Planet midHome = mid.galaxy.planets[0]
     midHome.allocationPct = 50
     mid.galaxy.planets[0] = midHome
@@ -91,6 +93,7 @@ start {
     # --- default / 100: roughly 2x mid-band gain ---
     State full = State()
     full.startClosed(13u, 1)
+    full.ensureAllSeatHomes()
     Planet fullHome = full.galaxy.planets[0]
     if (fullHome.allocationPct != 100) {
         ok = false

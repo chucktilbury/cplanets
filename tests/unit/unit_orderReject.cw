@@ -20,6 +20,7 @@ start {
 
     State game = State()
     game.startClosed(47u, 1)
+    game.ensureAllSeatHomes()
     GameDriver drv = GameDriver(game, true, "", false, 10000u)
 
     # Fleet 0 does not exist — clear reason (playable Entry trap).
@@ -74,6 +75,7 @@ start {
     # Merge path: build adds hulls to existing sit stack id 1.
     State stacked = State()
     stacked.startClosed(49u, 1)
+    stacked.ensureAllSeatHomes()
     GameDriver d2 = GameDriver(stacked, true, "", false, 10000u)
     Player s2 = d2.game.players[0]
     s2.resources = s2.resources + 10000.0
@@ -97,6 +99,7 @@ start {
     # Oversize peel reason.
     State fat = State()
     fat.startClosed(51u, 1)
+    fat.ensureAllSeatHomes()
     GameDriver d3 = GameDriver(fat, true, "", false, 10000u)
     if (d3.issueOwnedOrder(0, 1, "explore", 1, 99)) {
         ok = false

@@ -11,6 +11,8 @@
  *
  * Changelog:
  *   2026-11-05  Initial end-of-game checks for Phase D5.
+ *   2026-11-08  Unseated (no homeGranted) seats skip elimination
+ *               and do not count as living / closed-win blockers.
  */
 
 include "event.cw"
@@ -88,7 +90,10 @@ class EndGame {
         }
         if (scenario.isClosed() and players.length > 1) {
             int64 living = countLiving(players)
-            if (living == 1) {
+            int64 unseated = countUnseated(players)
+            # Unseated slots are reserved but not yet in play; do
+            # not crown a winner while any seat has never connected.
+            if (living == 1 and unseated == 0) {
                 int64 win = firstLiving(players)
                 endedOut = true
                 endReasonOut = "eliminate_all"
@@ -102,7 +107,7 @@ class EndGame {
                         1))
                 return(true)
             }
-            if (living == 0) {
+            if (living == 0 and unseated == 0) {
                 endedOut = true
                 endReasonOut = "eliminate_all"
                 winnerIdOut = -1
@@ -120,10 +125,12 @@ class EndGame {
     }
 
     /*
-     * Mark seats with zero owned planets as eliminated.
+     * Mark seated seats with zero owned planets as eliminated.
      *
      * Purpose: closed eliminate-all uses planet ownership as the
-     * living test. Zombies are not spared (RULES §15).
+     * living test. Seats that have never received a home (not yet
+     * connected) are skipped. Zombies are not spared (RULES §15).
+     * Disconnect does not revoke homeGranted — homes stay in place.
      *
      * Parameters:
      *   planets — ownership.
@@ -139,7 +146,7 @@ class EndGame {
         int64 index = 0
         while (index < players.length) {
             Player seat = players[index]
-            if (not seat.eliminated) {
+            if (seat.homeGranted and not seat.eliminated) {
                 int64 owned = countOwnedPlanets(planets, seat.id)
                 if (owned == 0) {
                     seat.eliminated = true
@@ -182,9 +189,10 @@ class EndGame {
     }
 
     /*
-     * Count non-eliminated seats.
+     * Count seated, non-eliminated empires.
      *
-     * Purpose: closed win when exactly one living seat remains.
+     * Purpose: closed win when exactly one living seated seat
+     * remains. Unseated seats are ignored.
      *
      * Parameters:
      *   players — seats.
@@ -196,7 +204,7 @@ class EndGame {
         int64 index = 0
         while (index < players.length) {
             Player seat = players[index]
-            if (not seat.eliminated) {
+            if (seat.homeGranted and not seat.eliminated) {
                 found = found + 1
             }
             index = index + 1
@@ -205,7 +213,31 @@ class EndGame {
     }
 
     /*
-     * Return the first non-eliminated seat id.
+     * Count seats that have never received a home.
+     *
+     * Purpose: closed eliminate-all waits until every configured
+     * seat has connected at least once (or the fixture seated them).
+     *
+     * Parameters:
+     *   players — seats.
+     *
+     * Returns: number of players with homeGranted == false.
+     */
+    int64 countUnseated(list players) {
+        int64 found = 0
+        int64 index = 0
+        while (index < players.length) {
+            Player seat = players[index]
+            if (not seat.homeGranted) {
+                found = found + 1
+            }
+            index = index + 1
+        }
+        return(found)
+    }
+
+    /*
+     * Return the first living seated seat id.
      *
      * Purpose: closed-game winner when living == 1.
      *
@@ -218,7 +250,7 @@ class EndGame {
         int64 index = 0
         while (index < players.length) {
             Player seat = players[index]
-            if (not seat.eliminated) {
+            if (seat.homeGranted and not seat.eliminated) {
                 return(seat.id)
             }
             index = index + 1

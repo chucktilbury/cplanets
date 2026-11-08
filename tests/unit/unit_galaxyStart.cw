@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-05  Initial galaxy-start unit program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-08  Seat home via ensureAllSeatHomes (deferred spawn).
  */
 
 include "lib/state.cw"
@@ -17,9 +18,15 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(7u, 1)
+    bool ok = true
+    Planet reserved = game.galaxy.planets[0]
+    # Layout reserves planet 0 geometry, but ownership waits for seat.
+    if (reserved.ownerId >= 0) {
+        ok = false
+    }
+    game.ensureAllSeatHomes()
     Scenario s = game.scenario
     Galaxy g = game.galaxy
-    bool ok = true
     if (g.planets.length != s.worldCount) {
         ok = false
     }

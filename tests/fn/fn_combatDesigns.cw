@@ -90,6 +90,7 @@ start {
     # --- mid-dispatch: in-flight fleet locked; other policy OK ---
     State lockGame = State()
     lockGame.startClosed(17u, 1)
+    lockGame.ensureAllSeatHomes()
     Design lockScout = lockGame.designs[0]
     lockScout.hopReach = 100.0
     lockGame.designs[0] = lockScout
@@ -130,6 +131,7 @@ start {
     # --- design develop takes time (not instant) ---
     State desGame = State()
     desGame.startClosed(61u, 1)
+    desGame.ensureAllSeatHomes()
     Design draft = Design(0)
     draft.makeFrigate(desGame.scenario.scoutRange, 1.5, 2.0)
     desGame.scenario.designDevelopTicks = 3
@@ -155,6 +157,7 @@ start {
     # --- reclaim only at yard; takes time; percent credit ---
     State reclaimGame = State()
     reclaimGame.startClosed(62u, 1)
+    reclaimGame.ensureAllSeatHomes()
     reclaimGame.scenario.yardBuildTicks = 2
     reclaimGame.scenario.reclaimPercent = 0.50
     Fleet homeFleet = reclaimGame.findFleet(1)
@@ -193,6 +196,7 @@ start {
     # --- multi-tick engagement (no short-circuit) ---
     State fightGame = State()
     fightGame.startClosed(63u, 2)
+    fightGame.ensureAllSeatHomes()
     fightGame.scenario.battleShortCircuitGap = 100.0
     fightGame.scenario.battleStrengthDurationCoeff = 2.0
     fightGame.scenario.productiveInherentDefense = 3.0
@@ -247,6 +251,7 @@ start {
     setup.append("tech_teleport_threshold = 1.0\n")
     State attrGame = State()
     attrGame.startFromText(setup, 64u, 2)
+    attrGame.ensureAllSeatHomes()
     attrGame.setRole(0, "trader")
     attrGame.setRole(1, "trader")
     Planet far = attrGame.galaxy.planets[1]

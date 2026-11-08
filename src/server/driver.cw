@@ -25,6 +25,7 @@
  *   2026-11-07  issueOwnedOrder accepts optional hull peel count.
  *   2026-11-07  lastOrderError + pre-peel validation for clear
  *               PUT /order reject reasons (fleet missing / locked).
+ *   2026-11-08  Handshake grants seat home yard + starter fleet.
  */
 
 include "clock.cw"
@@ -533,17 +534,29 @@ class GameDriver {
      * Record a presence handshake for a seat.
      *
      * Purpose: AFK ≠ drop — live contact without a policy PUT.
+     * First successful handshake for a seat also creates that
+     * seat's home planet and starter fleet (RULES §3). Later
+     * handshakes / AFK keep-alives leave the home in place.
+     * Drop and quit do not destroy an already-granted home.
      *
      * Parameters:
      *   playerId — empire id.
      *
-     * Returns: true when recorded.
+     * Returns: true when presence was recorded and the seat home
+     * is granted (or was already granted).
      */
     bool handshake(int64 playerId) {
         if (game.ended) {
             return(false)
         }
-        return(presence.handshake(playerId, clock.now()))
+        if (not presence.handshake(playerId, clock.now())) {
+            return(false)
+        }
+        if (not game.ensureHomeForSeat(playerId)) {
+            return(false)
+        }
+        republishWithoutTick()
+        return(true)
     }
 
     /*

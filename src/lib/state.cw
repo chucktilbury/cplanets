@@ -6,7 +6,8 @@
  * combat; D2 adds player–player agreements and trade issue
  * helpers; D3 adds issueAmbush and pirate role stickiness —
  * still no TCP/SQLite/scheduler (PLAN §4.B–D / RULES §7).
- * D5 adds contact/end fields and sandbox homes.
+ * D5 adds contact/end fields and sandbox homes. Homes are created
+ * on seat connect (ensureHomeForSeat), not pre-seeded at start.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -24,6 +25,7 @@
  *   2026-11-07  Build/design costs + default templates from Scenario.
  *   2026-11-07  peelSittingHulls + issueOrderHulls for split
  *               dispatch of a multi-hull sitting stack.
+ *   2026-11-08  Defer home yards / starter fleets to seat connect.
  */
 
 include "agreement.cw"
@@ -110,8 +112,10 @@ class State {
      * Start a closed-scenario game from the default fixture.
      *
      * Purpose: one-call bootstrap for unit tests and the tick CLI
-     * host — home yard, scout rocks, empire pools, seeded RNG,
-     * default designs and a home scout fleet.
+     * host — galaxy rocks, empire seats/pools, seeded RNG, and
+     * default designs. Player homes and starter fleets are not
+     * created here; call ensureHomeForSeat (or ensureAllSeatHomes
+     * in tests) after a client connects / is seated.
      *
      * Parameters:
      *   seed — PRNG seed (0 remapped inside SeededRng).
@@ -174,7 +178,8 @@ class State {
      * Shared galaxy / pool / design wiring after scenario is set.
      *
      * Purpose: keep startClosed and startFromText aligned on player
-     * seats, home ownership, default designs, and RNG.
+     * seats, unowned start galaxy, default designs, and RNG.
+     * Homes stay deferred until ensureHomeForSeat / handshake.
      *
      * Parameters:
      *   seed — PRNG seed.
@@ -216,35 +221,10 @@ class State {
             index = index + 1
         }
         galaxy = Galaxy()
-        galaxy.buildFrom(scenario, rng, 0)
-        seedSandboxHomes()
+        # −1: reserved primary home slot stays unowned until seat 0
+        # connects (RULES §2 / §3 connect-time home spawn).
+        galaxy.buildFrom(scenario, rng, -1)
         seedDefaultDesigns()
-        seedHomeFleet()
-    }
-
-    /*
-     * Give seats beyond empire 0 their own sandbox home yards.
-     *
-     * Purpose: partitions stay uncoupled until contact (RULES §2).
-     * Empire 0 already owns planet 0 from buildFrom.
-     *
-     * Parameters: none.
-     *
-     * Returns: nothing; mutates galaxy / players.
-     */
-    void seedSandboxHomes() {
-        int64 index = 1
-        while (index < players.length) {
-            int64 homeId = galaxy.claimSandboxHome(
-                scenario, index, index)
-            if (homeId < 0) {
-                # No free rock: keep the seat but it will eliminate
-                # on the first end-game pass unless tests assign one.
-                index = index + 1
-            } else {
-                index = index + 1
-            }
-        }
     }
 
     /*
@@ -277,20 +257,91 @@ class State {
     }
 
     /*
-     * Park a small scout fleet on the home yard.
+     * Create this seat's home yard and starter fleet once.
      *
-     * Purpose: give dispatch/recall/move tests a starting stock
-     * without yard production first.
+     * Purpose: RULES lock — homes are not pre-seeded at scenario
+     * start. The live server calls this from handshake when a
+     * human or AI client connects and is seated. Idempotent: a
+     * later handshake / reconnect path does not destroy or
+     * duplicate an existing home.
+     *
+     * Parameters:
+     *   playerId — empire seat to seat (>= 0).
+     *
+     * Returns: true when the seat already had a home or a new home
+     * was claimed; false when the seat is invalid or no free rock
+     * remains for a sandbox home.
+     */
+    bool ensureHomeForSeat(int64 playerId) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        if (seat.homeGranted) {
+            return(true)
+        }
+        int64 homeId = -1
+        if (playerId == 0) {
+            homeId = galaxy.claimPrimaryHome(scenario, 0)
+        } else {
+            homeId = galaxy.claimSandboxHome(
+                scenario, playerId, playerId)
+        }
+        if (homeId < 0) {
+            return(false)
+        }
+        seat.homeGranted = true
+        players[playerId] = seat
+        # Primary seat keeps the historical starter scout stack;
+        # sandbox seats get the yard only (same as prior seed path).
+        if (playerId == 0) {
+            seedStarterFleet(playerId, homeId)
+        }
+        return(true)
+    }
+
+    /*
+     * Seat every configured empire with a home (test helper).
+     *
+     * Purpose: in-process unit/fn programs that never open TCP still
+     * need productive yards and starter fleets. Production servers
+     * must not call this — they seat via handshake only.
      *
      * Parameters: none.
      *
-     * Returns: nothing; appends to fleets.
+     * Returns: true when every seat received a home.
      */
-    void seedHomeFleet() {
-        if (designs.length < 1 or players.length < 1) {
+    bool ensureAllSeatHomes() {
+        bool ok = true
+        int64 index = 0
+        while (index < players.length) {
+            if (not ensureHomeForSeat(index)) {
+                ok = false
+            }
+            index = index + 1
+        }
+        return(ok)
+    }
+
+    /*
+     * Park a small scout fleet on a newly granted home yard.
+     *
+     * Purpose: give dispatch/recall/move a starting stock without
+     * yard production first (same starter band as the former
+     * empire-0 seedHomeFleet).
+     *
+     * Parameters:
+     *   ownerId — empire that owns the fleet.
+     *   homePlanetId — sitting location (the new home yard).
+     *
+     * Returns: nothing; appends to fleets when designs exist.
+     */
+    void seedStarterFleet(int64 ownerId, int64 homePlanetId) {
+        if (designs.length < 1 or ownerId < 0) {
             return()
         }
-        Fleet home = Fleet(nextFleetId, 0, 0, 0, 3)
+        Fleet home = Fleet(
+            nextFleetId, ownerId, homePlanetId, 0, 3)
         nextFleetId = nextFleetId + 1
         fleets.append(home)
     }

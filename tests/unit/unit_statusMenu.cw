@@ -20,6 +20,7 @@ start {
 
     State game = State()
     game.startClosed(7u, 2)
+    game.ensureAllSeatHomes()
     GameDriver driver = GameDriver(
         game, true, "", false, 5000u)
     ServerConfig cfg = ServerConfig()

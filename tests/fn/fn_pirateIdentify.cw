@@ -139,6 +139,7 @@ start {
     setup.append("pirate_idle_ticks = 50\n")
     State game = State()
     game.startFromText(setup, 47u, 2)
+    game.ensureAllSeatHomes()
     # Escort size 3 ⇒ need enough hulls to beat 10× freighter size 2.
     check.prepPirateTrade(game, 20)
     int64 pactId = game.proposeAgreement(0, 1, 100.0)
@@ -239,6 +240,7 @@ start {
     setup2.append("pirate_idle_ticks = 50\n")
     State war = State()
     war.startFromText(setup2, 99u, 3)
+    war.ensureAllSeatHomes()
     war.setRole(0, "pirate")
     war.setRole(1, "pirate")
     war.setRole(2, "trader")
@@ -332,6 +334,7 @@ start {
     setup3.append("identify_defender_base = 0.0\n")
     State idle = State()
     idle.startFromText(setup3, 7u, 2)
+    idle.ensureAllSeatHomes()
     idle.setRole(0, "pirate")
     check.placeFar(idle, 10.0)
     Player ip = idle.players[0]

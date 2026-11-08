@@ -18,6 +18,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(41u, 2)
+    game.ensureAllSeatHomes()
     bool ok = true
     Player p0 = game.players[0]
     Player p1 = game.players[1]

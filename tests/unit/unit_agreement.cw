@@ -17,6 +17,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(41u, 2)
+    game.ensureAllSeatHomes()
     bool ok = true
     int64 id = game.proposeAgreement(0, 1, 100.0)
     if (id < 0) {

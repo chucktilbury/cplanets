@@ -21,6 +21,7 @@ start {
     # --- closed eliminate-all ---
     State closed = State()
     closed.startClosed(43u, 2)
+    closed.ensureAllSeatHomes()
     int64 index = 0
     while (index < closed.galaxy.planets.length) {
         Planet rock = closed.galaxy.planets[index]
@@ -63,6 +64,7 @@ start {
     # --- all humans quit; AI left behind ---
     State quitGame = State()
     quitGame.startClosed(44u, 3)
+    quitGame.ensureAllSeatHomes()
     if (not quitGame.markPlayerAi(2)) {
         ok = false
     }
@@ -94,6 +96,7 @@ start {
     # --- zombie drop while another human remains: game continues ---
     State zombie = State()
     zombie.startClosed(45u, 2)
+    zombie.ensureAllSeatHomes()
     if (not zombie.dropPlayer(1)) {
         ok = false
     }

@@ -27,6 +27,7 @@ start {
     # --- injectable advance + policy anytime (no ready barrier) ---
     State game = State()
     game.startClosed(11u, 2)
+    game.ensureAllSeatHomes()
     GameDriver driver = GameDriver(
         game, true, "", true, 10000u)
     if (not driver.store.openOk) {
@@ -116,6 +117,7 @@ start {
     }
     State solo = State()
     solo.startClosed(13u, 1)
+    solo.ensureAllSeatHomes()
     GameDriver soloDrv = GameDriver(
         solo, true, "", false, 10000u)
     if (ok and not soloDrv.pauseOffered()) {
@@ -155,6 +157,7 @@ start {
     # --- all humans quit ends game ---
     State endGame = State()
     endGame.startClosed(17u, 2)
+    endGame.ensureAllSeatHomes()
     endGame.markPlayerAi(1)
     GameDriver endDrv = GameDriver(
         endGame, true, "", false, 10000u)

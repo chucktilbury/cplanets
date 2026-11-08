@@ -22,6 +22,7 @@ start {
     bool ok = true
     State game = State()
     game.startClosed(11u, 2)
+    game.ensureAllSeatHomes()
     PolicyTable policies = PolicyTable()
     policies.ensureSeats(game.players.length)
     PublishCodec codec = PublishCodec()

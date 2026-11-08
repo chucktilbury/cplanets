@@ -119,8 +119,8 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
 | `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
 | `--port N` | `7700` (sample) | `port` | Listen port; `0` still picks an ephemeral free port (CI / harnesses) |
-| `--players N` | `2` | `players` | Seat count for the closed start galaxy |
-| `--seed N` | `7` | `seed` | PRNG seed for the start galaxy |
+| `--players N` | `2` | `players` | Seat count (homes granted on connect) |
+| `--seed N` | `7` | `seed` | PRNG seed for the start galaxy layout |
 | `--setup PATH` | (empty → builtin) | `setup` | Scenario file (§14 knobs only) |
 | `--verbosity N` | `0` | `verbosity` | Stdout log level 0–10 (clamped) |
 | `--injectable` | off | `injectable` | Test clock (admin advance); CI / harnesses |
@@ -324,8 +324,10 @@ tests can advance ticks without waiting on wall time.
 
 **Ship create / design / yard (Ships tab):**
 
-1. Open **Ships**. Confirm home yard (planet 0) and ready designs
-   (seeded scout/colony are ready immediately).
+1. Open **Ships**. After handshake, confirm home yard (planet 0 for
+   seat 0) and ready designs (seeded scout/colony are ready
+   immediately). Homes are created when the client connects, not
+   when the server starts.
 2. **Start develop** — set name / speed / hop / size / cargo / kind
    (`scout` / `colony` / `defense` / `war`). Cost ≈ `size * 50 *
    design_speed_cost_coeff * design_range_cost_coeff` wealth. The

@@ -17,6 +17,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(17u, 1)
+    game.ensureAllSeatHomes()
     Fleet home = game.findFleet(1)
     bool ok = true
     if (home.id != 1 or home.hullCount != 3) {
@@ -64,6 +65,7 @@ start {
     # issueOrderHulls peels then orders in one call.
     State stacked = State()
     stacked.startClosed(19u, 1)
+    stacked.ensureAllSeatHomes()
     if (ok and not stacked.issueOrderHulls(1, "explore", 1, 2)) {
         ok = false
     }

@@ -12,6 +12,8 @@
  *   2026-11-05  Initial player / empire pool fields.
  *   2026-11-05  Phase D5: partition, competitors, quit/drop flags.
  *   2026-11-07  afkProductionScale for AFK timeout shrink wire-up.
+ *   2026-11-08  homeGranted: home spawned on seat connect, not at
+ *               scenario start.
  */
 
 include "scenario.cw"
@@ -37,6 +39,10 @@ class Player {
     bool quit
     bool dropped
     bool eliminated
+    # True once this seat's home yard (and starter fleet) were
+    # created on connect/handshake. Unseated seats are not living
+    # for eliminate-all and are not eliminated for zero planets.
+    bool homeGranted
     int64 partitionId
     list knownCompetitors
     # Multiplier on productive gains; GameDriver sets this from
@@ -47,7 +53,7 @@ class Player {
      * Construct a player with neutral role and empty pools.
      *
      * Purpose: allocate a seat before applyStartingPools fills
-     * scenario defaults.
+     * scenario defaults. Home is deferred until connect.
      *
      * Parameters:
      *   playerId — stable empire index (0 = first human/AI seat).
@@ -68,6 +74,7 @@ class Player {
         quit = false
         dropped = false
         eliminated = false
+        homeGranted = false
         partitionId = playerId
         knownCompetitors = []
         afkProductionScale = 1.0

@@ -17,6 +17,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(3u, 2)
+    game.ensureAllSeatHomes()
     Player p0 = game.primaryPlayer()
     Player p1 = game.players[1]
     Scenario s = game.scenario

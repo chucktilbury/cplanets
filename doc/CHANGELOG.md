@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Home yards on connect:** the server no longer pre-seeds player
+  home planets at scenario start. `PUT /handshake` (human or AI)
+  grants that seat's home yard + the primary seat's starter scout
+  fleet. Drop / AFK / quit leave a granted home in place. Unseated
+  seats are not eliminated for zero planets; closed eliminate-all
+  waits until every configured seat has been seated at least once.
+  Docs: [RULES.md](RULES.md), [PLAN.md](PLAN.md),
+  [CPLANETS.md](CPLANETS.md). Unit: `unit_homeOnConnect`.
+
 - AI client **status menu** while `--serve-loop`: type `m` then Enter
   on the AI console (`MENU_KEY=m`). Read-only explore of this client's
   knowledge — connection/config, seat/role, last decoded GET snapshot,

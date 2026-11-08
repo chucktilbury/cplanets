@@ -263,6 +263,7 @@ if(BUILD_TESTING)
         unit_serverPolicy
         unit_serverVerbose
         unit_serverConfig
+        unit_statusMenu
         unit_aiConfig
         unit_aiVerbose
         unit_aiTickSuggest
@@ -371,4 +372,9 @@ if(BUILD_TESTING)
         "-DHUMAN_CONFIG=${PROJECT_SOURCE_DIR}/config/human-default.cfg"
         "-DTICK_CONFIG=${PROJECT_SOURCE_DIR}/config/tick-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_cli_config_defaults.cmake")
+    add_test(NAME functional_status_menu COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_status_menu.cmake")
 endif()

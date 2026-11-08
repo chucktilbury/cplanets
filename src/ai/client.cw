@@ -12,10 +12,13 @@
  *   2026-11-05  Initial AiClient request helpers.
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
  *   2026-11-07  Verbosity: seat / policy / cycle decision logs.
+ *   2026-11-08  Decode GET /state into explore bag for status menu.
  */
 
 import networking as Networking
 
+include "../client/publishDecode.cw"
+include "../client/stateView.cw"
 include "../lib/envelope.cw"
 include "../lib/verbGetDigest.cw"
 include "../lib/verbGetState.cw"
@@ -23,6 +26,7 @@ include "../lib/verbPutPolicy.cw"
 include "../lib/wireBytes.cw"
 include "brain.cw"
 include "config.cw"
+include "exploreState.cw"
 include "policyShape.cw"
 include "reaction.cw"
 include "verboseLog.cw"
@@ -31,9 +35,9 @@ include "view.cw"
 /*
  * AiClient talks to a live server over one TCP connection.
  *
- * Brain + ReactionLag decide when to PUT. State blobs from GET
- * stay opaque in Phase H except for tick count in the response
- * header — view fill is for in-process / test callers.
+ * Brain + ReactionLag decide when to PUT. GET /state is decoded
+ * into ClientStateView (same visibility as a human client) and
+ * mirrored into AiExploreState for the on-demand status menu.
  * verbose mirrors AiConfig.verbosity (CLI may overlay).
  */
 class AiClient {
@@ -41,6 +45,8 @@ class AiClient {
     AiBrain brain
     ReactionLag lag
     AiVerboseLog verbose
+    AiExploreState explore
+    PublishDecode decoder
     Networking.Socket sock
     VerbPutPolicy putVerb
     VerbGetState getStateVerb
@@ -50,8 +56,8 @@ class AiClient {
     /*
      * Construct a client around a config.
      *
-     * Purpose: wire brain/lag/verbs; delay connect until dial().
-     * Copies cfg.verbosity onto the logger (tests may call
+     * Purpose: wire brain/lag/verbs/explore; delay connect until
+     * dial(). Copies cfg.verbosity onto the logger (tests may call
      * setVerbosity afterward).
      *
      * Parameters:
@@ -65,6 +71,8 @@ class AiClient {
         lag = ReactionLag()
         verbose = AiVerboseLog()
         verbose.setLevel(cfg.verbosity)
+        explore = AiExploreState(cfg, lag, verbose)
+        decoder = PublishDecode()
         sock = Networking.Socket()
         putVerb = VerbPutPolicy()
         getStateVerb = VerbGetState()
@@ -99,6 +107,7 @@ class AiClient {
      */
     bool dial() {
         connected = sock.connect(config.host, config.port)
+        explore.noteDial(connected)
         return(connected)
     }
 
@@ -167,15 +176,16 @@ class AiClient {
             Envelope.VERB_PUT, "/handshake", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
         bool ok = resp.length > 0
+        explore.noteHandshake(ok)
         verbose.logSeat(config.playerId, ok)
         return(ok)
     }
 
     /*
-     * GET /state and return the response tick.
+     * GET /state, decode into explore, and return the tick.
      *
-     * Purpose: read published tick for lag gating. State blob
-     * stays opaque here.
+     * Purpose: read published tick for lag gating and fill the
+     * client-visible snapshot the status menu explores.
      *
      * Parameters: none.
      *
@@ -186,9 +196,16 @@ class AiClient {
             GetStateRequest(config.playerId, 0))
         buffer resp = exchange(req)
         if (resp.length < 1) {
+            explore.noteError("pull_state_failed")
             return(-1)
         }
         GetStateResponse ack = getStateVerb.decodeResponse(resp)
+        ClientStateView decoded = decoder.decodeState(
+            ack.stateBlob, config.playerId)
+        if (ack.tick >= 0) {
+            decoded.tick = ack.tick
+        }
+        explore.noteSnapshot(decoded, ack.tick)
         return(ack.tick)
     }
 
@@ -227,9 +244,21 @@ class AiClient {
      * transport / reject failure when an update was attempted.
      */
     bool maybePutPolicyAt(AiView view, uint64 nowMs, int64 cycleIndex) {
+        if (explore.decisionPaused) {
+            if (cycleIndex >= 0) {
+                explore.noteCycle(cycleIndex, "skip")
+                verbose.logCycle(
+                    cycleIndex,
+                    view.publishedTick,
+                    config.playerId,
+                    "skip")
+            }
+            return(true)
+        }
         if (not lag.shouldUpdate(
             config, view.publishedTick, nowMs)) {
             if (cycleIndex >= 0) {
+                explore.noteCycle(cycleIndex, "skip")
                 verbose.logCycle(
                     cycleIndex,
                     view.publishedTick,
@@ -239,6 +268,7 @@ class AiClient {
             return(true)
         }
         AiPolicyShape shape = brain.generate(view)
+        explore.notePolicy(shape, "put")
         verbose.logPolicy(config.playerId, shape, "put")
         buffer blob = shape.encode()
         buffer req = putVerb.encodeRequest(
@@ -246,27 +276,32 @@ class AiClient {
         buffer resp = exchange(req)
         if (resp.length < 1) {
             if (cycleIndex >= 0) {
+                explore.noteCycle(cycleIndex, "fail")
                 verbose.logCycle(
                     cycleIndex,
                     view.publishedTick,
                     config.playerId,
                     "fail")
             }
+            explore.noteError("put_transport_failed")
             return(false)
         }
         PutPolicyResponse ack = putVerb.decodeResponse(resp)
         if (not ack.accepted) {
             if (cycleIndex >= 0) {
+                explore.noteCycle(cycleIndex, "fail")
                 verbose.logCycle(
                     cycleIndex,
                     view.publishedTick,
                     config.playerId,
                     "fail")
             }
+            explore.noteError("put_rejected")
             return(false)
         }
         lag.markUpdated(view.publishedTick, nowMs)
         if (cycleIndex >= 0) {
+            explore.noteCycle(cycleIndex, "put")
             verbose.logCycle(
                 cycleIndex,
                 view.publishedTick,

@@ -255,6 +255,14 @@ Same keys in the AI config file (`verbosity`, `cycles`, `once`,
 silently. `--once` / `--serve-loop` print `VERBOSITY=<n>` with the
 summary.
 
+**Status menu (while `--serve-loop`):** type `m` then Enter on the
+AI console (banner prints `MENU_KEY=m`). Opens a read-only
+in-process console over **this client's knowledge** — connection /
+config dump, seat/role, last decoded GET snapshot, client-visible
+planets / fleets / designs, and recent decisions / errors. Does not
+invent server-only authority. **AI decision cycles pause while the
+menu is open**; `q` resumes. No `--menu` flag.
+
 ### `cplanets-tick`
 
 ```text
@@ -298,8 +306,9 @@ bin/cplanets-server --config config/server-default.cfg --serve \
 bin/cplanets --config config/human-default.cfg --gui
 
 # 3) AI client (seat 1 presets: config/ai-mid.cfg etc.)
+#    While looping: type m then Enter for the AI status menu.
 bin/cplanets-ai --config config/ai-mid.cfg \
-  --player 1 --serve-loop --cycles 20
+  --serve-loop --cycles 20
 ```
 
 **Solo human (no AI):** use `--players 1` so pause is offered, or keep
@@ -308,9 +317,10 @@ still run. Prefer `scripts/tuning-session` (server + AI) for the
 documented tuning loop.
 
 Without a display, use `--pull` / `--once` on the human binary and
-`--once` or `--serve-loop` on the AI. For automated harnesses, add
-`--injectable` on the server so tests can advance ticks without
-waiting on wall time.
+`--once` or `--serve-loop` on the AI. While the AI serve-loop runs,
+open its status menu anytime with stdin `m` (decisions pause until
+`q`). For automated harnesses, add `--injectable` on the server so
+tests can advance ticks without waiting on wall time.
 
 **Ship create / design / yard (Ships tab):**
 

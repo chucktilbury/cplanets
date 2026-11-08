@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- AI client **status menu** while `--serve-loop`: type `m` then Enter
+  on the AI console (`MENU_KEY=m`). Read-only explore of this client's
+  knowledge — connection/config, seat/role, last decoded GET snapshot,
+  client-visible planets/fleets/designs, decisions/errors. Decision
+  cycles pause while open; `q` resumes. Reuses server `StdinPoll`.
+  No `--menu` flag. CTest: `unit_aiStatusMenu`,
+  `functional_ai_status_menu`. Docs: [CPLANETS.md](CPLANETS.md).
+
 - Operator **status menu** while serving: type `m` then Enter on the
   server console (`MENU_KEY=m`). Read-only in-process console over
   the live State — status summary, players → inventory drill-down,

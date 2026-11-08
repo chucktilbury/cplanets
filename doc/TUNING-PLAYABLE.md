@@ -142,7 +142,7 @@ CTest/fn where behavior lands.
 
 | Chunk | Landed |
 | --- | --- |
-| B1–B4 | Pause; dispatch/recall; explored auto-pop; design/build progress **labels** |
+| B1–B4 | Pause; dispatch/recall; explored auto-pop; design/build progress **labels** → **ProgressBars** (CPL-72) |
 | B5 | Deferred (known-competitors / compose) |
 | B6 | Scale polish later |
 | **Still missing** | Ship create / design editor / yard queue chrome |

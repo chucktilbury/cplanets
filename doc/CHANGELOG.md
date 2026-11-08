@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Develop / yard-build **ProgressBars**: Ships and Fleets pages show
+  `Gtk.ProgressBar` footers (fraction from ticksLeft / setup total;
+  pulse when duration unknown) refreshed on each snapshot pull.
+  Detail Label keeps reclaim + multi-job text. Footer Box is
+  dialog-ready for the near-term menubar / non-modal rearrange.
+  Docs: [DIALOGS.md](DIALOGS.md), [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
+
 - Dispatch after yard build: Fleets **Fleet id** Entry defaults to
   `1` and re-pins to a sitting owned stack when empty/`0`/stale
   (fleets never use id `0` — that looked like “fleet does not exist

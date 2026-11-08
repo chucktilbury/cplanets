@@ -66,7 +66,9 @@ widgets. It already runs on what ships today: `Application`, `Window`,
 - Structured lists (`Tree` exists but is editor/directory-oriented;
   game uses scrolled `Label` blobs), `DropDown` / `SpinButton`,
   plain `TextView` for compose/newspaper, `Frame` / `Expander` /
-  `Separator` for dense setup trees, `ProgressBar` for ETA chrome.
+  `Separator` for dense setup trees. `ProgressBar` landed in Cwhip
+  (CPL-71) and is wired in Cplanets Ships/Fleets develop/build
+  chrome (CPL-72).
 
 **PLAN note:** Phase I map canvas is implemented in Cplanets on the
 installed DrawingArea + pointer + Scrollbar/ContextMenu APIs
@@ -85,7 +87,7 @@ the current list debugger and many dialog shells:
 | App / timing | `Application` (`run`, `quit`, `shutdown`, `post`, `schedule`, `cancel`) |
 | Windows | `Window`, `TransientWindow` (explored-planet dialog) |
 | Containers | `Box`, `Grid`, `ScrolledWindow`, `Notebook`, `Paned` |
-| Controls | `Label`, `Button`, `Entry`, `CheckButton` |
+| Controls | `Label`, `Button`, `Entry`, `CheckButton`, `Scrollbar`, `Scale`, `ProgressBar`, `DrawingArea` |
 | Menus | `MenuBar`, `ContextMenu` (item / check / submenu / separator) |
 | Lists (editor-shaped) | `Tree`, `DirectoryScan` |
 | Dialogs | `FileDialog` (open/save/multi/folder), `AlertDialog` |
@@ -303,7 +305,7 @@ rather than a huge hand-built widget tree.
 | Height request | Only `setWidthRequest` today — minor layout polish |
 | Plain multiline text | Nice for compose / digest; SourceView is overkill |
 | SpinButton / DropDown | Prefer with Scale for numeric/enum policy |
-| ProgressBar | Optional ETA chrome once map exists |
+| ProgressBar | **Landed** in Cwhip (CPL-71) and wired in Cplanets Ships/Fleets develop/build chrome (CPL-72: fraction / text / pulse) |
 | Frame / Expander / Separator (widget) | Help dense setup dialogs; menu separators already exist |
 | Drag-and-drop between widgets | Not required by rules |
 | OpenGL / video | Not required |

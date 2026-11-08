@@ -14,12 +14,15 @@
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
+ *   2026-11-08  Structured develop/build/reclaim ProgressJob lists
+ *               for Gtk.ProgressBar fraction chrome (CPL-72).
  */
 
 include "../lib/wireBytes.cw"
 include "digestLine.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
+include "progressJob.cw"
 include "stateView.cw"
 
 /*
@@ -195,6 +198,9 @@ class PublishDecode {
     void decodeChromeTrailer(
         WireBytes r, buffer blob, ClientStateView view) {
         view.progressLines = []
+        view.developJobs = []
+        view.buildJobs = []
+        view.reclaimJobs = []
         view.designs = []
         view.knownCompetitors = []
         if (r.offset + 4 > blob.length) {
@@ -213,9 +219,13 @@ class PublishDecode {
         while (index < developing) {
             int64 designId = r.readU32()
             int64 left = r.readU32()
-            view.progressLines.append(format(
-                "design {} developing ticksLeft={}",
-                designId, left))
+            ProgressJob job = ProgressJob()
+            job.kind = ProgressJob.KIND_DEVELOP
+            job.id = designId
+            job.designId = designId
+            job.ticksLeft = left
+            view.developJobs.append(job)
+            view.progressLines.append(job.detailLine())
             index = index + 1
         }
         int64 builds = r.readU32()
@@ -226,9 +236,15 @@ class PublishDecode {
             int64 planet = r.readU32() - 1
             int64 design = r.readU32() - 1
             int64 left = r.readU32()
-            view.progressLines.append(format(
-                "build {} owner={} planet={} design={} ticksLeft={}",
-                jobId, owner, planet, design, left))
+            ProgressJob job = ProgressJob()
+            job.kind = ProgressJob.KIND_BUILD
+            job.id = jobId
+            job.ownerId = owner
+            job.planetId = planet
+            job.designId = design
+            job.ticksLeft = left
+            view.buildJobs.append(job)
+            view.progressLines.append(job.detailLine())
             index = index + 1
         }
         int64 reclaims = r.readU32()
@@ -240,9 +256,16 @@ class PublishDecode {
             int64 design = r.readU32() - 1
             int64 hulls = r.readU32()
             int64 left = r.readU32()
-            view.progressLines.append(format(
-                "reclaim {} owner={} planet={} design={} hulls={} ticksLeft={}",
-                jobId, owner, planet, design, hulls, left))
+            ProgressJob job = ProgressJob()
+            job.kind = ProgressJob.KIND_RECLAIM
+            job.id = jobId
+            job.ownerId = owner
+            job.planetId = planet
+            job.designId = design
+            job.hulls = hulls
+            job.ticksLeft = left
+            view.reclaimJobs.append(job)
+            view.progressLines.append(job.detailLine())
             index = index + 1
         }
         if (r.offset + 8 > blob.length) {

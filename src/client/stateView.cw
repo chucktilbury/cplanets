@@ -14,6 +14,7 @@
  *   2026-11-07  Known competitors list for compose chrome.
  *   2026-11-07  firstOwnedYardId / isOwnedYard for Ships yard Entry.
  *   2026-11-07  firstSittingOwnedFleetId for Fleets Entry sync.
+ *   2026-11-08  developJobs / buildJobs / reclaimJobs for bars.
  */
 
 include "designRow.cw"
@@ -21,6 +22,7 @@ include "digestLine.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
 include "policyShape.cw"
+include "progressJob.cw"
 
 /*
  * ClientStateView is the human debugger's working snapshot.
@@ -44,6 +46,9 @@ class ClientStateView {
     list designs
     list digest
     list progressLines
+    list developJobs
+    list buildJobs
+    list reclaimJobs
     list knownCompetitors
     HumanPolicyShape policy
 
@@ -73,6 +78,9 @@ class ClientStateView {
         designs = []
         digest = []
         progressLines = []
+        developJobs = []
+        buildJobs = []
+        reclaimJobs = []
         knownCompetitors = []
         policy = HumanPolicyShape()
     }
@@ -384,6 +392,8 @@ class ClientStateView {
      * Join design/build progress lines for the progress label.
      *
      * Purpose: non-modal design/yard chrome (TUNING-PLAYABLE B4).
+     * ProgressBars show the lead develop/build job; this text
+     * keeps setup durations, reclaim rows, and multi-job detail.
      *
      * Parameters: none.
      *
@@ -407,6 +417,38 @@ class ClientStateView {
             index = index + 1
         }
         return(text)
+    }
+
+    /*
+     * Lead in-progress design-develop job, if any.
+     *
+     * Purpose: Ships / Fleets ProgressBar primary develop slot.
+     *
+     * Parameters: none.
+     *
+     * Returns: first ProgressJob in developJobs, or id -1 sentinel.
+     */
+    ProgressJob leadDevelopJob() {
+        if (developJobs.length < 1) {
+            return(ProgressJob())
+        }
+        return(developJobs[0])
+    }
+
+    /*
+     * Lead in-progress yard-build job, if any.
+     *
+     * Purpose: Ships / Fleets ProgressBar primary build slot.
+     *
+     * Parameters: none.
+     *
+     * Returns: first ProgressJob in buildJobs, or id -1 sentinel.
+     */
+    ProgressJob leadBuildJob() {
+        if (buildJobs.length < 1) {
+            return(ProgressJob())
+        }
+        return(buildJobs[0])
     }
 
     /*

@@ -2,33 +2,36 @@
  * src/client/guiFleetPage.cw — fleets tab + dispatch/recall chrome.
  *
  * List stand-in for map pick-to-dispatch (TUNING-PLAYABLE B2).
- * Entries + buttons only — no DrawingArea / Scale.
+ * Entries + buttons only — no DrawingArea / Scale. Design/build
+ * ProgressBars reuse GuiProgressChrome (same footer as Ships).
  *
  * Created: 2026-11-06
  * Author: Auto
  *
  * Changelog:
- *   2026-11-06  Initial fleet dispatch/recall / progress page.
+ *   2026-11-06  Initial text dispatch/recall / progress page.
  *   2026-11-07  Hulls Entry for split-dispatch of sitting stacks.
  *   2026-11-07  Fleet id Entry defaults/syncs to a sitting stack
  *               (never leave 0 — fleets start at 1).
+ *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
  */
 
 include "appCore.cw"
 include "fleetRow.cw"
+include "guiProgressChrome.cw"
 
 /*
  * GuiFleetPage owns the Fleets notebook page widgets.
  *
  * Dispatch Entries feed PUT /order; Recall uses PUT /recall.
  * Hulls Entry peels a subset from a multi-hull sitting stack
- * (0 = whole fleet). Progress label shows setup durations +
- * active jobs (B4).
+ * (0 = whole fleet). Progress chrome shows setup durations +
+ * develop/build bars (B4 / CPL-72).
  */
 class GuiFleetPage {
     AppCore core
+    GuiProgressChrome progressChrome
     Gtk.Label fleetList
-    Gtk.Label progressLabel
     Gtk.Entry fleetIdEntry
     Gtk.Entry orderEntry
     Gtk.Entry destEntry
@@ -51,8 +54,8 @@ class GuiFleetPage {
      */
     GuiFleetPage(AppCore appCore) {
         core = appCore
+        progressChrome = GuiProgressChrome(appCore)
         fleetList = null
-        progressLabel = null
         fleetIdEntry = null
         orderEntry = null
         destEntry = null
@@ -67,7 +70,8 @@ class GuiFleetPage {
     /*
      * Build the Fleets notebook page widget tree.
      *
-     * Purpose: scrolled list + Entry dispatch/recall + progress.
+     * Purpose: scrolled list + Entry dispatch/recall + progress
+     * bars (dialog-ready footer Box).
      *
      * Parameters: none.
      *
@@ -113,10 +117,7 @@ class GuiFleetPage {
         row.append(dispatchBtn)
         row.append(recallBtn)
         page.append(row)
-        progressLabel = Gtk.Label("(progress)")
-        progressLabel.setHExpand(true)
-        page.append(Gtk.Label("Design / build progress"))
-        page.append(progressLabel)
+        page.append(progressChrome.buildWidget())
         return(page)
     }
 
@@ -146,8 +147,8 @@ class GuiFleetPage {
         if (fleetList != null) {
             fleetList.setText(fleets)
         }
-        if (progressLabel != null) {
-            progressLabel.setText(core.view.progressText())
+        if (progressChrome != null) {
+            progressChrome.refresh()
         }
         syncFleetIdEntry()
         syncLockChrome()

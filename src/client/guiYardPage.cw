@@ -4,6 +4,7 @@
  * List stand-ins for design develop + yard build / reclaim
  * (DIALOGS §6). Entry fields only — no Scale / DrawingArea.
  * Wires to timed State.queueDesignDevelop / queueYardBuild.
+ * Progress footer uses Gtk.ProgressBar (dialog-ready Box).
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -12,9 +13,11 @@
  *   2026-11-07  Initial Ships notebook page.
  *   2026-11-07  Refresh keeps Yard planet id on first owned yard
  *               (home 0) when the Entry is empty or stale.
+ *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
  */
 
 include "appCore.cw"
+include "guiProgressChrome.cw"
 
 /*
  * GuiYardPage owns the Ships notebook page widgets.
@@ -25,9 +28,9 @@ include "appCore.cw"
  */
 class GuiYardPage {
     AppCore core
+    GuiProgressChrome progressChrome
     Gtk.Label designList
     Gtk.Label yardHint
-    Gtk.Label progressLabel
     Gtk.Entry nameEntry
     Gtk.Entry speedEntry
     Gtk.Entry hopEntry
@@ -57,9 +60,9 @@ class GuiYardPage {
      */
     GuiYardPage(AppCore appCore) {
         core = appCore
+        progressChrome = GuiProgressChrome(appCore)
         designList = null
         yardHint = null
-        progressLabel = null
         nameEntry = null
         speedEntry = null
         hopEntry = null
@@ -82,7 +85,7 @@ class GuiYardPage {
      * Build the Ships notebook page widget tree.
      *
      * Purpose: design list + editor Entries + yard/reclaim
-     * Entries + progress (DIALOGS §6 list stand-ins).
+     * Entries + ProgressBar footer (DIALOGS §6).
      *
      * Parameters: none.
      *
@@ -153,10 +156,7 @@ class GuiYardPage {
             reclaimBtn.onClicked(reclaimAction)
         }
         page.append(reclaimBtn)
-        progressLabel = Gtk.Label("(progress)")
-        progressLabel.setHExpand(true)
-        page.append(Gtk.Label("Active design / build / reclaim"))
-        page.append(progressLabel)
+        page.append(progressChrome.buildWidget())
         return(page)
     }
 
@@ -179,8 +179,8 @@ class GuiYardPage {
         if (yardHint != null) {
             yardHint.setText(core.view.yardPlanetsText())
         }
-        if (progressLabel != null) {
-            progressLabel.setText(core.view.progressText())
+        if (progressChrome != null) {
+            progressChrome.refresh()
         }
         syncYardPlanetEntry()
     }

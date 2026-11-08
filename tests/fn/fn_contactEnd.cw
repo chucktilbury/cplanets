@@ -96,6 +96,7 @@ start {
     # --- setup lock in progress ---
     State lockGame = State()
     lockGame.startClosed(50u, 1)
+    lockGame.ensureAllSeatHomes()
     if (lockGame.locked) {
         ok = false
     }
@@ -107,6 +108,7 @@ start {
     # --- empire pool only (production credits player, not planet) ---
     State poolGame = State()
     poolGame.startClosed(51u, 1)
+    poolGame.ensureAllSeatHomes()
     Player before = poolGame.primaryPlayer()
     fp64 w0 = before.wealth
     poolGame.tick()
@@ -123,6 +125,7 @@ start {
     # --- contact couples partitions; known competitors ---
     State contactGame = State()
     contactGame.startClosed(52u, 2)
+    contactGame.ensureAllSeatHomes()
     Player a = contactGame.players[0]
     Player b = contactGame.players[1]
     if (a.partitionId == b.partitionId) {
@@ -165,6 +168,7 @@ start {
     # --- closed eliminate-all ---
     State endGame = State()
     endGame.startClosed(53u, 2)
+    endGame.ensureAllSeatHomes()
     int64 i = 0
     while (i < endGame.galaxy.planets.length) {
         Planet rock = endGame.galaxy.planets[i]
@@ -194,6 +198,7 @@ start {
     # --- all humans quit ends game (AI remains) ---
     State quitGame = State()
     quitGame.startClosed(54u, 3)
+    quitGame.ensureAllSeatHomes()
     quitGame.markPlayerAi(2)
     quitGame.quitPlayer(0)
     if (quitGame.ended) {
@@ -210,6 +215,7 @@ start {
     # --- zombies fall to normal play (no special win path) ---
     State zombieGame = State()
     zombieGame.startClosed(55u, 2)
+    zombieGame.ensureAllSeatHomes()
     zombieGame.dropPlayer(1)
     if (zombieGame.ended) {
         ok = false
@@ -247,6 +253,7 @@ start {
     # --- stranded moves after N ticks ---
     State strandGame = State()
     strandGame.startClosed(56u, 1)
+    strandGame.ensureAllSeatHomes()
     Fleet colony = Fleet(1, 0, 0, 1, 1)
     strandGame.fleets.clear()
     strandGame.fleets.append(colony)

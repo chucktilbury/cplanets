@@ -14,6 +14,7 @@ from pathlib import Path
 from wire import (
     admin_advance,
     decode_envelope,
+    handshake,
     put_build,
     put_design,
 )
@@ -61,8 +62,12 @@ def main() -> int:
         "--serve",
         "--port",
         "0",
+        # Two seats so an injectable-clock handshake miss on seat 0
+        # does not trip all-humans-quit before the post-advance build
+        # (seat 1 stays present/unseated). Home still lands on the
+        # seat-0 handshake below.
         "--players",
-        "1",
+        "2",
         "--injectable",
         "--cycles",
         "400",
@@ -95,10 +100,14 @@ def main() -> int:
         return 1
 
     try:
-        # No handshake before injectable advance: a handshake at
-        # clock 0 ages out when advanceMs(period) hits the miss
-        # window and refreshEndStatus ends the 1-human game
-        # (same contract as functional_session_harness).
+        # Home yard is created on connect (handshake), not at server
+        # start. Two-player fixture keeps the game alive if this
+        # handshake later ages out during admin_advance.
+        resp = exchange("127.0.0.1", port, handshake(0))
+        _, _verb, path, body = decode_envelope(resp)
+        if path != "/handshake" or body[0] != 1:
+            print(f"handshake failed path={path} body={body!r}")
+            return 1
 
         # Tiny size keeps develop wealth cost affordable on startWealth.
         resp = exchange(

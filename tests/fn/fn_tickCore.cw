@@ -65,6 +65,7 @@ start {
     # --- production + ordinary hop arrive ---
     State game = State()
     game.startClosed(29u, 1)
+    game.ensureAllSeatHomes()
     fp64 w0 = game.primaryPlayer().wealth
     if (not game.issueOrder(1, "move", 1)) {
         ok = false
@@ -108,6 +109,7 @@ start {
     # --- high-tech teleport ETA → 0 ---
     State tele = State()
     tele.startClosed(31u, 1)
+    tele.ensureAllSeatHomes()
     Player seat = tele.primaryPlayer()
     seat.tech = tele.scenario.techTeleportThreshold
     tele.players[0] = seat
@@ -133,6 +135,7 @@ start {
     # --- same-tick cancel ---
     State cancel = State()
     cancel.startClosed(37u, 1)
+    cancel.ensureAllSeatHomes()
     fp64 cw = cancel.primaryPlayer().wealth
     cancel.issueOrder(1, "move", 1)
     cancel.recallFleet(1)
@@ -154,6 +157,7 @@ start {
     # --- in-flight recall toward sender ---
     State rec = State()
     rec.startClosed(41u, 1)
+    rec.ensureAllSeatHomes()
     Design d = rec.designs[0]
     d.speed = 0.1
     rec.designs[0] = d
@@ -185,6 +189,7 @@ start {
     # --- stranded then unstuck ---
     State strand = State()
     strand.startClosed(43u, 1)
+    strand.ensureAllSeatHomes()
     strand.fleets.clear()
     strand.fleets.append(Fleet(1, 0, 0, 1, 1))
     int64 farId = strand.scenario.worldCount - 1
@@ -208,6 +213,7 @@ start {
     # --- yard build completes after yardBuildTicks ---
     State yard = State()
     yard.startClosed(47u, 1)
+    yard.ensureAllSeatHomes()
     int64 hull0 = yard.findFleet(1).hullCount
     if (not yard.queueYardBuild(0, 0, 0)) {
         ok = false

@@ -17,6 +17,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(23u, 1)
+    game.ensureAllSeatHomes()
     # Replace home scout stock with a colony fleet (short reach).
     Fleet colony = Fleet(1, 0, 0, 1, 1)
     game.fleets.clear()

@@ -140,6 +140,7 @@ start {
     # --- GameDriver putPolicy hooks verbosity ---
     State game = State()
     game.startClosed(19u, 2)
+    game.ensureAllSeatHomes()
     GameDriver driver = GameDriver(
         game, true, "", false, 10000u)
     if (driver.verbose.level != 0) {

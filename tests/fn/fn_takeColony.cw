@@ -121,6 +121,7 @@ start {
     # --- unowned take (no fight); war fleet stays; no populate ---
     State game = State()
     game.startClosed(41u, 2)
+    game.ensureAllSeatHomes()
     Planet target = game.galaxy.planets[1]
     if (target.ownerId >= 0) {
         ok = false
@@ -167,6 +168,7 @@ start {
     # --- colony required to populate ---
     State colGame = State()
     colGame.startClosed(42u, 1)
+    colGame.ensureAllSeatHomes()
     check.unlockColonyReach(colGame)
     Fleet colonyFleet = Fleet(1, 0, 0, 1, 1)
     colGame.fleets = []
@@ -196,6 +198,7 @@ start {
     # --- undefended owned non-productive: free take ---
     State freeGame = State()
     freeGame.startClosed(43u, 2)
+    freeGame.ensureAllSeatHomes()
     Planet strip = freeGame.galaxy.planets[1]
     strip.ownerId = 1
     strip.productive = false
@@ -238,6 +241,7 @@ start {
     # --- productive owned (zero fleet): never free ---
     State prodGame = State()
     prodGame.startClosed(44u, 2)
+    prodGame.ensureAllSeatHomes()
     Planet prod = prodGame.galaxy.planets[1]
     prod.ownerId = 1
     prod.productive = true
@@ -287,6 +291,7 @@ start {
     # --- satellites defend after warships leave ---
     State satGame = State()
     satGame.startClosed(45u, 2)
+    satGame.ensureAllSeatHomes()
     Planet satRock = satGame.galaxy.planets[1]
     satRock.ownerId = 1
     satRock.productive = false
@@ -324,6 +329,7 @@ start {
     # --- dead colony does not populate ---
     State deadGame = State()
     deadGame.startClosed(46u, 2)
+    deadGame.ensureAllSeatHomes()
     check.unlockColonyReach(deadGame)
     Planet deadRock = deadGame.galaxy.planets[1]
     deadRock.ownerId = 1

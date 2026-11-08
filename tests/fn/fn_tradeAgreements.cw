@@ -124,6 +124,7 @@ start {
     # --- happy path: exchange + return profit + recycle; escorts ---
     State game = State()
     game.startClosed(47u, 2)
+    game.ensureAllSeatHomes()
     int64 cargoDesign = check.prepTraders(game, 10, 10.0)
     Design escort = Design(game.nextDesignId)
     game.nextDesignId = game.nextDesignId + 1
@@ -228,6 +229,7 @@ start {
     # --- S=100 with 9×10 holds fails to leave ---
     State thin = State()
     thin.startClosed(47u, 2)
+    thin.ensureAllSeatHomes()
     check.prepTraders(thin, 9, 10.0)
     int64 thinPact = thin.proposeAgreement(0, 1, 100.0)
     thin.acceptAgreement(thinPact, 0)
@@ -246,6 +248,7 @@ start {
     # --- self-trade: cost-only, no exchange / profit ---
     State self = State()
     self.startClosed(47u, 1)
+    self.ensureAllSeatHomes()
     Player sp = self.players[0]
     sp.tech = self.scenario.techTeleportThreshold
     sp.wealth = 100000.0
@@ -290,6 +293,7 @@ start {
     # --- closed agreement: finish hop, no exchange ---
     State closed = State()
     closed.startClosed(47u, 2)
+    closed.ensureAllSeatHomes()
     check.prepTraders(closed, 10, 10.0)
     int64 cPact = closed.proposeAgreement(0, 1, 100.0)
     closed.acceptAgreement(cPact, 0)
@@ -318,6 +322,7 @@ start {
     # --- role-off-trader: break like closed pact ---
     State role = State()
     role.startClosed(47u, 2)
+    role.ensureAllSeatHomes()
     check.prepTraders(role, 10, 10.0)
     int64 rPact = role.proposeAgreement(0, 1, 100.0)
     role.acceptAgreement(rPact, 0)
@@ -341,6 +346,7 @@ start {
     # --- same-tick recall cancels (no dispatch) ---
     State cancel = State()
     cancel.startClosed(47u, 2)
+    cancel.ensureAllSeatHomes()
     check.prepTraders(cancel, 10, 10.0)
     int64 kPact = cancel.proposeAgreement(0, 1, 100.0)
     cancel.acceptAgreement(kPact, 0)

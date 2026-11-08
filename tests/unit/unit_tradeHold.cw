@@ -30,6 +30,7 @@ start {
 
     State game = State()
     game.startClosed(43u, 2)
+    game.ensureAllSeatHomes()
     game.setRole(0, "trader")
     game.setRole(1, "trader")
     # Partner owns planet 1; teleport so ETA is 0.
@@ -85,6 +86,7 @@ start {
 
     State rich = State()
     rich.startClosed(43u, 2)
+    rich.ensureAllSeatHomes()
     rich.setRole(0, "trader")
     rich.setRole(1, "trader")
     Planet r1 = rich.galaxy.planets[1]

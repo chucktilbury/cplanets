@@ -91,8 +91,9 @@ def main() -> int:
         "Player id=0",
         "Planets:",
         "Planet id=",
+        # Homes/fleets spawn on client connect — empty before seating.
         "Fleets:",
-        "Fleet id=",
+        "fleets=0",
         "Designs:",
         "Build jobs:",
         "Server config (read-only):",

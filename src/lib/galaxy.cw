@@ -1,10 +1,11 @@
 /*
  * src/lib/galaxy.cw — start-of-game galaxy builder (Phase B / D5).
  *
- * Builds the full map at start: home yard, scout-range rocks,
- * unknown quality elsewhere, world count and useful/poor mix from
- * the scenario (RULES §2 / §3 / §14). D5 assigns sandbox partitions
- * and late-seat home yards. No tick rules.
+ * Builds the full map at start: reserved primary home slot at the
+ * origin, scout-range rocks, unknown quality elsewhere, world count
+ * and useful/poor mix from the scenario (RULES §2 / §3 / §14).
+ * Player home ownership is deferred until seat connect (claim
+ * helpers). No tick rules.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -13,6 +14,8 @@
  *   2026-11-05  Initial galaxy placement from scenario + RNG.
  *   2026-11-05  Phase D5: partition tags + sandbox home yards.
  *   2026-11-07  Spawn/mix/fallback/contact knobs from Scenario.
+ *   2026-11-08  claimPrimaryHome; start layout may leave planet 0
+ *               unowned until seat connect.
  */
 
 import math as Math
@@ -48,9 +51,12 @@ class Galaxy {
     /*
      * Populate planets from scenario knobs and a seeded RNG.
      *
-     * Purpose: create worldCount rocks; planet 0 is the home yard
-     * for ownerPlayerId; a few others fall inside scoutRange with
-     * quality still unknown (RULES §3 homeworld / scout start).
+     * Purpose: create worldCount rocks; planet 0 is the reserved
+     * primary home slot (productive yard geometry). Pass
+     * ownerPlayerId −1 to leave it unowned until seat connect;
+     * otherwise assign that empire immediately (legacy / tests).
+     * A few neighbors fall inside scoutRange with quality still
+     * unknown (RULES §3 homeworld / scout start).
      *
      * Parameters:
      *   scenario — world count, mix, scout range, radius.
@@ -233,16 +239,46 @@ class Galaxy {
         rock.qualityKnown = false
         rock.ownerId = -1
         rock.population = 0.0
-        # Unowned start rocks sit in partition 0 until a sandbox
-        # home claims them (State.finishStart / claimSandboxHome).
+        # Unowned start rocks sit in partition 0 until a seat
+        # connect claims a home (claimPrimaryHome / claimSandboxHome).
         rock.partitionId = 0
+    }
+
+    /*
+     * Assign planet 0 as the primary seat's home yard.
+     *
+     * Purpose: seat 0 connect path — the origin slot is reserved at
+     * buildFrom; ownership (and partition stamp) land only when the
+     * client is seated (RULES §3).
+     *
+     * Parameters:
+     *   scenario — home livability / contact reach knobs.
+     *   ownerPlayerId — empire receiving the primary home (>= 0).
+     *
+     * Returns: 0 when claimed or already owned by ownerPlayerId;
+     * −1 when planet 0 is missing or owned by someone else.
+     */
+    int64 claimPrimaryHome(Scenario scenario, int64 ownerPlayerId) {
+        if (planets.length < 1 or ownerPlayerId < 0) {
+            return(-1)
+        }
+        Planet rock = planets[0]
+        if (rock.ownerId >= 0 and rock.ownerId != ownerPlayerId) {
+            return(-1)
+        }
+        placeHome(rock, scenario, ownerPlayerId)
+        planets[0] = rock
+        stampNearbyPartition(
+            scenario, rock.x, rock.y, ownerPlayerId)
+        return(0)
     }
 
     /*
      * Claim an unowned remote rock as a sandbox home yard.
      *
      * Purpose: each late / multi-seat empire starts in its own
-     * partition of the same map until contact (RULES §2).
+     * partition of the same map until contact (RULES §2). Called
+     * from seat connect, not scenario start.
      *
      * Parameters:
      *   scenario — home fallback livability/resources + contact reach.

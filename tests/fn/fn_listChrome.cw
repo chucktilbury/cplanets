@@ -28,6 +28,7 @@ start {
     # --- one-human pause offered; two-human rejected ---
     State solo = State()
     solo.startClosed(17u, 1)
+    solo.ensureAllSeatHomes()
     GameDriver soloDrv = GameDriver(
         solo, true, "", false, 10000u)
     if (ok and not soloDrv.pauseOffered()) {
@@ -43,6 +44,7 @@ start {
 
     State duo = State()
     duo.startClosed(19u, 2)
+    duo.ensureAllSeatHomes()
     GameDriver duoDrv = GameDriver(
         duo, true, "", false, 10000u)
     if (ok and duoDrv.pauseOffered()) {
@@ -56,6 +58,7 @@ start {
     # --- owned dispatch + recall ---
     State game = State()
     game.startClosed(23u, 1)
+    game.ensureAllSeatHomes()
     GameDriver drv = GameDriver(
         game, true, "", false, 10000u)
     if (ok and not drv.issueOwnedOrder(0, 1, "explore", 1, 0)) {

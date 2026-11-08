@@ -104,10 +104,17 @@ rejoin are expected later. Keep server state **SQLite-shaped** so that
 path stays clean. Do **not** implement a save / rejoin API in v1.
 
 **All worlds exist when the game starts.** How many, and the mix of
-useful vs poor rocks, is setup. New players may join later into their
-**own sandbox** (a partition of that same map). Partitions **do not
-couple** until that player **makes contact** by exploration and/or
-conquest. Then they compete like everyone else.
+useful vs poor rocks, is setup. **Player home yards are not
+pre-seeded** at scenario start: a seat receives its home (productive
+yard + the minimal starter fleet the closed fixture grants today)
+only when a client **connects and is seated** (handshake). Empty
+configured seats stay unseated until then and are **not** eliminated
+for zero planets. **Drop / AFK / quit does not destroy** a home once
+granted — leave it in place (no casual home teardown; rejoin remains
+out of v1). New players may join later into their **own sandbox** (a
+partition of that same map). Partitions **do not couple** until that
+player **makes contact** by exploration and/or conquest. Then they
+compete like everyone else.
 
 **Stocks are an empire pool** (wealth, resources, tech on the player).
 Shipping metal to a specific yard to build is interesting and too
@@ -141,8 +148,9 @@ all hit the same pools.
 - **Messages**: broadcast, or pick a **known competitor** for a
   private send.
 
-**Homeworld:** already **productive**, with the **first shipyard**
-given. At start, only a **few** planets sit within **scout range**.
+**Homeworld:** when the seat is granted (on connect), already
+**productive**, with the **first shipyard** given. From that home,
+only a **few** planets sit within **scout range**.
 
 Named classes are **default designs** and size bands. Combat uses
 actual stats. A shipyard on a non-productive planet cannot **produce**.
@@ -466,7 +474,8 @@ exception already productive with a yard.
 ### 11.4 Range hops
 
 From an occupied world (including sitting on a new take), hull **range**
-limits the next hop. Scouts see a few rocks from home at start.
+limits the next hop. Scouts see a few rocks from home once the seat
+home is granted.
 
 ## 12. Combat
 
@@ -502,8 +511,8 @@ closed-form strength function remain open (§17).
 ## 13. Visibility, newspaper, messages
 
 **Visibility** is capability-scaled. Detection/range comes from the
-player’s **technology**. At start, only a few planets sit in scout
-range. **Exploration** reveals rocks already inside that range; it
+player’s **technology**. Once a seat home is granted, only a few
+planets sit in scout range. **Exploration** reveals rocks already inside that range; it
 does **not** extend range. Raising **technology** increases range.
 Unexplored rocks: known to exist in range or not, **quality unknown**
 until explore or take. Balance visibility as a real **limitation**,
@@ -647,16 +656,17 @@ future); clock = server real-time tick + digest, policy anytime, AFK
 = setup **seconds**, provisional **1–30**, **may auto-config from AI
 lag**, still **setup-tunable**; **all humans quit → server ends the
 game**; zombies fall to **normal play** (no consistent zombie-win
-path); mid-dispatch: other policy OK, that fleet locked until recall;
-design/build take time (setup/ticks); combat/production/other tunables
-live in **setup outside code**; explored planet **human dialog** on
-**1–10** livability/quality scale (may change when populated /
-productive); seeded RNG in `lib` (not `SecureRandom`) — see
-[PLAN.md](PLAN.md) §3; **combat spans ticks** with duration from
-**comparative strength**; **recall into/out of a fight still under
-battle rules** (can reverse or share defeat); **productive planets
-have inherent defense** (take never free) — magnitudes remain
-setup/open above.
+path); **home yards spawn on seat connect** (not pre-seeded; drop
+leaves home in place); mid-dispatch: other policy OK, that fleet
+locked until recall; design/build take time (setup/ticks);
+combat/production/other tunables live in **setup outside code**;
+explored planet **human dialog** on **1–10** livability/quality scale
+(may change when populated / productive); seeded RNG in `lib` (not
+`SecureRandom`) — see [PLAN.md](PLAN.md) §3; **combat spans ticks**
+with duration from **comparative strength**; **recall into/out of a
+fight still under battle rules** (can reverse or share defeat);
+**productive planets have inherent defense** (take never free) —
+magnitudes remain setup/open above.
 
 Work order, file shape, tests, and line-count estimates: [PLAN.md](PLAN.md).
 

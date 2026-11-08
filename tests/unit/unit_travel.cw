@@ -17,6 +17,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(11u, 1)
+    game.ensureAllSeatHomes()
     Travel travel = Travel()
     Player seat = game.primaryPlayer()
     Design scout = game.designs[0]

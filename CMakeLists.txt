@@ -250,6 +250,7 @@ if(BUILD_TESTING)
         unit_scenarioFixture
         unit_setupLoad
         unit_galaxyStart
+        unit_homeOnConnect
         unit_empirePools
         unit_travel
         unit_production

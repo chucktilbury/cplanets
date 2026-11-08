@@ -18,6 +18,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(17u, 1)
+    game.ensureAllSeatHomes()
     Fleet home = game.findFleet(1)
     bool ok = true
     if (home.id != 1 or home.hullCount != 3) {
@@ -59,6 +60,7 @@ start {
     # Cannot-pay: colony dispatch 5.0 > production credit ~1.0.
     State poor = State()
     poor.startClosed(17u, 1)
+    poor.ensureAllSeatHomes()
     poor.fleets.clear()
     poor.fleets.append(Fleet(1, 0, 0, 1, 1))
     Player p = poor.primaryPlayer()

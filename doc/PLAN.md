@@ -105,8 +105,10 @@ the CMake `test` target / `ctest` (see `cplanets_add_test_program`).
 ### B. Scenario + state + RNG
 
 Load setup (application text, not a stdlib format). Galaxy at start:
-home yard, scout-range rocks, unknown quality, world count/mix.
-Empire pools. Seeded rng.
+rock layout (reserved primary home slot + scout-range neighbors),
+unknown quality, world count/mix — **no player-owned homes yet**.
+Empire pools. Seeded rng. Home yard + starter fleet land on seat
+**connect / handshake** (`ensureHomeForSeat`).
 
 **Closed-scenario default fixture** (v1): every RULES §14 knob named —
 including tick period (**seconds**; provisional clamp **1–30**; **may
@@ -338,7 +340,8 @@ Each item is **one** `tests/fn/` program unless noted.
 
 **Setup / visibility / pools**
 
-- Home is productive with a yard; rocks in scout range; quality unknown
+- After seat connect: home is productive with a yard; rocks in scout
+  range; quality unknown (no pre-seeded homes at scenario start)
 - Tech raises detection/range; explore fills view inside range (does not
   extend range)
 - High tech may reduce travel **ETA to zero** (teleport) via setup

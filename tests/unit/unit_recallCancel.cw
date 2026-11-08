@@ -19,6 +19,7 @@ include "lib/state.cw"
 start {
     State game = State()
     game.startClosed(19u, 1)
+    game.ensureAllSeatHomes()
     Player seat = game.primaryPlayer()
     fp64 w0 = seat.wealth
     bool ok = true

@@ -13,6 +13,7 @@
  *   2026-11-07  Design catalog + seat wealth/resources milli.
  *   2026-11-07  Known competitors list for compose chrome.
  *   2026-11-07  firstOwnedYardId / isOwnedYard for Ships yard Entry.
+ *   2026-11-07  firstSittingOwnedFleetId for Fleets Entry sync.
  */
 
 include "designRow.cw"
@@ -227,6 +228,55 @@ class ClientStateView {
     }
 
     /*
+     * Lowest-id owned sitting fleet for this seat.
+     *
+     * Purpose: Fleets-tab Fleet id Entry default. Seed home fleet
+     * is id 1; Entry must not stay on 0 (no fleet ever has id 0).
+     * Prefers sitting unlocked stacks so Dispatch works after a
+     * yard build merges into / spawns a sit fleet.
+     *
+     * Parameters: none.
+     *
+     * Returns: fleet id, or −1 when none sitting/owned/visible.
+     */
+    int64 firstSittingOwnedFleetId() {
+        int64 best = -1
+        int64 index = 0
+        while (index < fleets.length) {
+            FleetRow row = fleets[index]
+            if (row.visible
+                and row.sitting
+                and not row.orderLocked()
+                and row.ownerId == viewerId
+                and row.hullCount > 0) {
+                if (best < 0 or row.id < best) {
+                    best = row.id
+                }
+            }
+            index = index + 1
+        }
+        return(best)
+    }
+
+    /*
+     * True when fleetId is a visible owned fleet in this snapshot.
+     *
+     * Purpose: Fleets Entry validation before Dispatch.
+     *
+     * Parameters:
+     *   fleetId — candidate fleet id.
+     *
+     * Returns: true when the row is present, visible, and owned.
+     */
+    bool isOwnedFleet(int64 fleetId) {
+        FleetRow row = findFleet(fleetId)
+        if (row.id < 0 or not row.visible) {
+            return(false)
+        }
+        return(row.ownerId == viewerId)
+    }
+
+    /*
      * Find a fleet row by id.
      *
      * Purpose: dispatch/recall chrome lock lookup.
@@ -343,6 +393,8 @@ class ClientStateView {
         String text = format(
             "setup designDevelopTicks={} yardBuildTicks={}\n",
             designDevelopTicks, yardBuildTicks)
+        text.append(
+            "yard builds merge into same-design sitting fleets — dispatch that id (hulls peel splits)\n")
         if (progressLines.length < 1) {
             text.append("(no active design/build/reclaim)\n")
             return(text)

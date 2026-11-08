@@ -10,6 +10,8 @@
  * Changelog:
  *   2026-11-06  Initial fleet dispatch/recall / progress page.
  *   2026-11-07  Hulls Entry for split-dispatch of sitting stacks.
+ *   2026-11-07  Fleet id Entry defaults/syncs to a sitting stack
+ *               (never leave 0 — fleets start at 1).
  */
 
 include "appCore.cw"
@@ -83,11 +85,11 @@ class GuiFleetPage {
         page.append(scroll)
         page.append(Gtk.Label(
             "Dispatch (explore/take/trade/move/ambush)"))
-        fleetIdEntry = Gtk.Entry("0")
+        fleetIdEntry = Gtk.Entry("1")
         orderEntry = Gtk.Entry("explore")
         destEntry = Gtk.Entry("1")
         hullsEntry = Gtk.Entry("0")
-        page.append(Gtk.Label("Fleet id"))
+        page.append(Gtk.Label("Fleet id (sitting stack)"))
         page.append(fleetIdEntry)
         page.append(Gtk.Label("Order"))
         page.append(orderEntry)
@@ -147,7 +149,39 @@ class GuiFleetPage {
         if (progressLabel != null) {
             progressLabel.setText(core.view.progressText())
         }
+        syncFleetIdEntry()
         syncLockChrome()
+    }
+
+    /*
+     * Pin Fleet id Entry to a live sitting owned stack.
+     *
+     * Purpose: Entry must not stay on 0 (no fleet has id 0) or on
+     * a stale id after yard builds spawn / merge sit fleets. Prefer
+     * the lowest sitting owned id when the field is empty, 0, or
+     * names a fleet missing from the snapshot.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncFleetIdEntry() {
+        if (fleetIdEntry == null) {
+            return()
+        }
+        int64 sit = core.view.firstSittingOwnedFleetId()
+        if (sit < 0) {
+            return()
+        }
+        String text = fleetIdEntry.text()
+        if (text.length < 1) {
+            fleetIdEntry.setText(format("{}", sit))
+            return()
+        }
+        int64 current = text.toInt64()
+        if (current < 1 or not core.view.isOwnedFleet(current)) {
+            fleetIdEntry.setText(format("{}", sit))
+        }
     }
 
     /*

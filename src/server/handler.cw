@@ -18,6 +18,7 @@
  *   2026-11-07  Ship create: PUT /design, /build, /reclaim-hulls.
  *   2026-11-07  Planet budget + private/broadcast compose.
  *   2026-11-07  PUT /order optional trailing hulls peel count.
+ *   2026-11-07  Rejected /order ack carries lastOrderError string.
  */
 
 include "driver.cw"
@@ -297,7 +298,7 @@ class ServerHandler {
         }
         bool ok = driver.issueOwnedOrder(
             player, fleet, order, dest, hulls)
-        return(flagAck("/order", ok))
+        return(flagAckReason("/order", ok, driver.lastOrderError))
     }
 
     /*
@@ -493,7 +494,7 @@ class ServerHandler {
      * Build a simple flag ack on an arbitrary path.
      *
      * Purpose: handshake / quit / pause responses share one shape
-     * (u8 accepted, u32 tick).
+     * (u8 accepted, u32 tick, u8 ended). No reject reason trailer.
      *
      * Parameters:
      *   path — response path echo.
@@ -502,6 +503,24 @@ class ServerHandler {
      * Returns: envelope bytes.
      */
     buffer flagAck(String path, bool accepted) {
+        return(flagAckReason(path, accepted, ""))
+    }
+
+    /*
+     * Build an ack body with an optional reject reason string.
+     *
+     * Purpose: PUT /order surfaces why a dispatch failed (missing
+     * fleet, lock, bad dest, peel). Older clients that only read
+     * the accepted u8 still work; trailing reason is ignored.
+     *
+     * Parameters:
+     *   path — response path echo.
+     *   accepted — success flag.
+     *   reason — reject detail when accepted is false (may be "").
+     *
+     * Returns: envelope bytes.
+     */
+    buffer flagAckReason(String path, bool accepted, String reason) {
         WireBytes w = WireBytes()
         if (accepted) {
             w.writeU8(1)
@@ -513,6 +532,9 @@ class ServerHandler {
             w.writeU8(1)
         } else {
             w.writeU8(0)
+        }
+        if (not accepted and reason.length > 0) {
+            w.writeString(reason)
         }
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, path, w.bytes)

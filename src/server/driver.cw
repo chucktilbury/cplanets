@@ -23,6 +23,8 @@
  *   2026-11-07  Budget allocationPct applied in production tick.
  *   2026-11-07  Verbosity lines for design / build / reclaim.
  *   2026-11-07  issueOwnedOrder accepts optional hull peel count.
+ *   2026-11-07  lastOrderError + pre-peel validation for clear
+ *               PUT /order reject reasons (fleet missing / locked).
  */
 
 include "clock.cw"
@@ -57,6 +59,7 @@ class GameDriver {
     bool storeEnabled
     int64 fireCount
     ServerVerboseLog verbose
+    String lastOrderError
 
     /*
      * Construct a driver around a started State.
@@ -105,6 +108,7 @@ class GameDriver {
         inbox = []
         paused = false
         fireCount = 0
+        lastOrderError = ""
         verbose = ServerVerboseLog()
         verbose.setLevel(game.scenario.verbosity)
         publishedState = publisher.encodeState(
@@ -288,7 +292,9 @@ class GameDriver {
      * (TUNING-PLAYABLE B). Ownership-checked; mid-dispatch lock
      * still enforced inside State helpers (RULES §5). Optional
      * hulls peels a subset from a multi-hull sitting stack so the
-     * remainder can go to other destinations.
+     * remainder can go to other destinations. Validates sitting /
+     * dest / hulls before peel so a failed order never orphans a
+     * peeled stack. Sets lastOrderError on reject for the ack wire.
      *
      * Parameters:
      *   playerId — requesting seat (must own the fleet).
@@ -305,15 +311,76 @@ class GameDriver {
         String order,
         int64 destPlanetId,
         int64 hulls) {
+        lastOrderError = ""
         if (game.ended) {
+            lastOrderError = "game ended"
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
             return(false)
         }
         Fleet fleet = game.findFleet(fleetId)
-        if (fleet.id < 0 or fleet.ownerId != playerId) {
+        if (fleet.id < 0) {
+            lastOrderError = format(
+                "fleet {} does not exist", fleetId)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
+            return(false)
+        }
+        if (fleet.ownerId != playerId) {
+            lastOrderError = format(
+                "fleet {} not owned by player {}", fleetId, playerId)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
+            return(false)
+        }
+        if (not fleet.sitting
+            or fleet.pendingDeparture
+            or fleet.departed
+            or fleet.stranded
+            or fleet.engagementId >= 0) {
+            lastOrderError = format(
+                "fleet {} not sitting (locked or in flight)", fleetId)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
+            return(false)
+        }
+        if (fleet.hullCount < 1) {
+            lastOrderError = format(
+                "fleet {} has no hulls", fleetId)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
+            return(false)
+        }
+        if (hulls > fleet.hullCount) {
+            lastOrderError = format(
+                "hulls {} > fleet {} stack {}",
+                hulls, fleetId, fleet.hullCount)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
+            return(false)
+        }
+        if (destPlanetId < 0
+            or destPlanetId >= game.galaxy.planets.length) {
+            lastOrderError = format(
+                "dest planet {} invalid", destPlanetId)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
             return(false)
         }
         int64 orderId = game.peelSittingHulls(fleetId, hulls)
         if (orderId < 0) {
+            lastOrderError = format(
+                "fleet {} peel refused", fleetId)
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
             return(false)
         }
         bool ok = false
@@ -326,8 +393,16 @@ class GameDriver {
         }
         if (ok) {
             republishWithoutTick()
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, true, "")
+            return(true)
         }
-        return(ok)
+        lastOrderError = format(
+            "fleet {} order '{}' refused", orderId, order)
+        verbose.logOrder(
+            playerId, fleetId, order, destPlanetId, hulls, false,
+            lastOrderError)
+        return(false)
     }
 
     /*

@@ -18,6 +18,7 @@
  *   2026-11-07  Initial ServerVerboseLog (settings + combat).
  *   2026-11-07  Remap to 0–10 scale; clamp; provisional thresholds.
  *   2026-11-07  Ship-create PUT /design /build /reclaim-hulls lines.
+ *   2026-11-07  PUT /order accept/reject reason lines.
  */
 
 include "../lib/engagement.cw"
@@ -266,6 +267,45 @@ class ServerVerboseLog {
         emit(format(
             "verbosity: design player={} id={} name={} queued\n",
             playerId, designId, name))
+    }
+
+    /*
+     * Log a PUT /order dispatch result.
+     *
+     * Purpose: operator-visible accept/reject with the same reason
+     * string the client surfaces (missing fleet, lock, peel, …).
+     *
+     * Parameters:
+     *   playerId — requesting seat.
+     *   fleetId — fleet Entry id.
+     *   order — order string.
+     *   destPlanetId — destination rock.
+     *   hulls — peel count (0 = whole stack).
+     *   accepted — true when the order was queued.
+     *   reason — reject detail when accepted is false.
+     *
+     * Returns: nothing.
+     */
+    void logOrder(
+        int64 playerId,
+        int64 fleetId,
+        String order,
+        int64 destPlanetId,
+        int64 hulls,
+        bool accepted,
+        String reason) {
+        if (not settingsEnabled()) {
+            return()
+        }
+        if (accepted) {
+            emit(format(
+                "verbosity: order player={} fleet={} {} dest={} hulls={} queued\n",
+                playerId, fleetId, order, destPlanetId, hulls))
+            return()
+        }
+        emit(format(
+            "verbosity: order player={} fleet={} {} dest={} hulls={} rejected ({})\n",
+            playerId, fleetId, order, destPlanetId, hulls, reason))
     }
 
     /*

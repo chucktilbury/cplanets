@@ -4,14 +4,14 @@
  * --config PATH is mandatory (process/network defaults; not the
  * scenario). Missing or empty path prints help and exits 2.
  * --serve [--host ADDR] [--port N] [--players N] [--seed N]
- * [--setup PATH] [--verbosity N] [--injectable] [--cycles N]:
- * bind TCP, load scenario from setup path or closed builtins, run
- * accept + cadence loop (sole writer). Verbosity is 0–10 (clamped;
- * stdout). Stand-alone and online share this driver (RULES §2 /
- * PLAN §4.F). Knob edits take effect on process restart (no
- * mid-game retune). User-facing argv uses stdlib `cli`
- * (including --help / -h). With serve=false from file/argv, prints
- * smoke identity (name + lib).
+ * [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
+ * [--menu]: bind TCP and/or open the read-only in-process status
+ * console on the same State (sole writer). Verbosity is 0–10
+ * (clamped; stdout). Stand-alone and online share this driver
+ * (RULES §2 / PLAN §4.F). Knob edits take effect on process restart
+ * (no mid-game retune). User-facing argv uses stdlib `cli`
+ * (including --help / -h). With serve=false and menu=false from
+ * file/argv, prints smoke identity (name + lib).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -29,6 +29,7 @@
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
  *   2026-11-07  handshake_miss_ms / accept_poll_ms from server cfg.
  *   2026-11-07  CLI port help default 7700 (0 still ephemeral).
+ *   2026-11-08  --menu read-only status console (pause-and-inspect).
  */
 
 import cli as Cli
@@ -42,6 +43,7 @@ include "server/configParse.cw"
 include "server/driver.cw"
 include "server/handler.cw"
 include "server/listen.cw"
+include "server/statusMenu.cw"
 
 /*
  * ServerMain parses argv via Cli and runs smoke or serve mode.
@@ -113,6 +115,13 @@ class ServerMain {
         serve.description = "bind TCP and run accept + cadence loop"
         serve.valueType = Cli.ValueType().FLAG
         commandLine.addOption(serve)
+        Cli.Option menu = Cli.Option()
+        menu.longName = "menu"
+        menu.name = "menu"
+        menu.description = (
+            "read-only status console (same State as serve)")
+        menu.valueType = Cli.ValueType().FLAG
+        commandLine.addOption(menu)
         Cli.Option host = Cli.Option()
         host.longName = "host"
         host.name = "host"
@@ -252,7 +261,7 @@ class ServerMain {
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
-     *   name — option name (serve / injectable).
+     *   name — option name (serve / injectable / menu).
      *   fromFile — value from ServerConfig.
      *
      * Returns: switchValue when wasProvided, else fromFile.
@@ -314,54 +323,93 @@ class ServerMain {
         cfg.serve = resolveFlag(commandLine, "serve", cfg.serve)
         cfg.injectable = resolveFlag(
             commandLine, "injectable", cfg.injectable)
+        cfg.menu = resolveFlag(commandLine, "menu", cfg.menu)
         cfg.clampAll()
         return(cfg)
     }
 
     /*
-     * Run the TCP server loop with resolved options.
+     * Load scenario text and start a State for menu and/or serve.
      *
-     * Purpose: Phase F driver under serve (CLI or config). Optional
-     * setup PATH loads §14 knobs (restart to retune). Prints
-     * HOST= / PORT= / SETUP= / SEED= / PLAYERS= / CYCLES= /
-     * VERBOSITY= / INJECTABLE= for operators and Python tests.
+     * Purpose: one authoritative world bootstrap shared by --menu
+     * and --serve (no second galaxy).
+     *
+     * Parameters:
+     *   cfg — clamped ServerConfig (setup / seed / players /
+     *         verbosity already overlaid).
+     *
+     * Returns: started State, or null when setup parse failed
+     * (error already printed).
+     */
+    State startGame(ServerConfig cfg) {
+        String setupPath = cfg.setup
+        Scenario loaded = Scenario()
+        bool haveSetup = false
+        if (setupPath.length > 0) {
+            SetupParse parser = SetupParse()
+            Sys.File input = Sys.File(setupPath, "r")
+            String text = input.readAll()
+            input.close()
+            loaded = parser.parseText(text)
+            if (not parser.ok) {
+                print("cplanets-server: setup error: ")
+                print(parser.lastError)
+                print("\n")
+                return(null)
+            }
+            haveSetup = true
+        }
+
+        State game = State()
+        if (haveSetup) {
+            game.startFromScenario(
+                loaded, uint64(cfg.seed), cfg.players)
+        } else {
+            game.startClosed(uint64(cfg.seed), cfg.players)
+        }
+        # Verbosity is a process key: apply after scenario load so a
+        # leftover scenario.verbosity from older fixtures cannot win.
+        game.scenario.verbosity = cfg.verbosity
+        game.scenario.clampVerbosity()
+        return(game)
+    }
+
+    /*
+     * Run the TCP server loop on an existing GameDriver.
+     *
+     * Purpose: Phase F listen path after --menu inspect (same State)
+     * or as the sole serve entry. Prints HOST= / PORT= / SETUP= /
+     * SEED= / PLAYERS= / CYCLES= / VERBOSITY= / INJECTABLE= for
+     * operators and Python tests.
      *
      * Parameters:
      *   setupPath — path used for SETUP= (may be empty → builtin).
-     *   game — State with startClosed / startFromScenario done.
+     *   driver — sole writer already wrapping the live State.
      *   host — listen bind address.
      *   port — listen port (0 = ephemeral).
      *   players — seat count (banner only; already applied).
      *   seedRaw — PRNG seed for banner.
      *   cycles — accept/serve iteration cap.
-     *   injectable — test clock.
-     *   handshakeMissMs — presence drop window (server config).
+     *   injectable — test clock (banner only).
      *   acceptPollMs — accept/recv poll timeout (server config).
      *
      * Returns: process exit code (0 ok, 1 bind failure).
      */
-    int64 runServe(
+    int64 runServeDriver(
         String setupPath,
-        State game,
+        GameDriver driver,
         String host,
         int64 port,
         int64 players,
         int64 seedRaw,
         int64 cycles,
         bool injectable,
-        int64 handshakeMissMs,
         int64 acceptPollMs) {
         String setupLabel = "builtin"
         if (setupPath.length > 0) {
             setupLabel = setupPath
         }
 
-        GameDriver driver = GameDriver(
-            game,
-            injectable,
-            "",
-            true,
-            uint64(handshakeMissMs))
         ServerHandler handler = ServerHandler(driver)
         ServerListen listener = ServerListen(
             handler, driver, acceptPollMs, cycles)
@@ -378,7 +426,7 @@ class ServerMain {
         print(format("PLAYERS={}\n", players))
         print(format("CYCLES={}\n", cycles))
         print(format(
-            "VERBOSITY={}\n", game.scenario.verbosity))
+            "VERBOSITY={}\n", driver.game.scenario.verbosity))
         if (injectable) {
             print("INJECTABLE=1\n")
         } else {
@@ -393,66 +441,61 @@ class ServerMain {
     }
 
     /*
-     * Dispatch smoke or serve: load server config, then scenario.
+     * Dispatch smoke, menu, and/or serve from resolved config.
      *
      * Purpose: every CLI flag except --config may come from the
      * server config file; flags present on argv override silently.
-     * Scenario/setup holds §14 galaxy knobs only. With serve false
-     * from file/argv, print smoke identity.
+     * Scenario/setup holds §14 galaxy knobs only. --menu opens the
+     * read-only status console on the same State --serve would use.
+     * With both flags, explore first; Quit starts TCP. With neither,
+     * print smoke identity.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
      *
-     * Returns: process exit code (0 for smoke / serve ok).
+     * Returns: process exit code (0 for smoke / menu / serve ok).
      */
     int64 run(Cli.CommandLine commandLine) {
         ServerConfig cfg = loadConfig(commandLine)
 
-        if (not cfg.serve) {
+        if (not cfg.serve and not cfg.menu) {
             printSmoke()
             return(0)
         }
 
-        String setupPath = cfg.setup
-        Scenario loaded = Scenario()
-        bool haveSetup = false
-        if (setupPath.length > 0) {
-            SetupParse parser = SetupParse()
-            Sys.File input = Sys.File(setupPath, "r")
-            String text = input.readAll()
-            input.close()
-            loaded = parser.parseText(text)
-            if (not parser.ok) {
-                print("cplanets-server: setup error: ")
-                print(parser.lastError)
-                print("\n")
-                return(1)
-            }
-            haveSetup = true
+        State game = startGame(cfg)
+        if (game == null) {
+            return(1)
         }
 
-        State game = State()
-        if (haveSetup) {
-            game.startFromScenario(
-                loaded, uint64(cfg.seed), cfg.players)
-        } else {
-            game.startClosed(uint64(cfg.seed), cfg.players)
-        }
-        # Verbosity is a process key: apply after scenario load so a
-        # leftover scenario.verbosity from older fixtures cannot win.
-        game.scenario.verbosity = cfg.verbosity
-        game.scenario.clampVerbosity()
-
-        return(runServe(
-            setupPath,
+        # Enable SQLite store when serving; menu-only skips the DB.
+        bool enableStore = cfg.serve
+        GameDriver driver = GameDriver(
             game,
+            cfg.injectable,
+            "",
+            enableStore,
+            uint64(cfg.handshakeMissMs))
+
+        if (cfg.menu) {
+            StatusViews views = StatusViews(driver, cfg)
+            StatusMenu menu = StatusMenu(views, cfg.serve)
+            int64 proceed = menu.runInteractive()
+            if (proceed == 0 or not cfg.serve) {
+                driver.close()
+                return(0)
+            }
+        }
+
+        return(runServeDriver(
+            cfg.setup,
+            driver,
             cfg.host,
             cfg.port,
             cfg.players,
             cfg.seed,
             cfg.cycles,
             cfg.injectable,
-            cfg.handshakeMissMs,
             cfg.acceptPollMs))
     }
 }

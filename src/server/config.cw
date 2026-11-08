@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-07  Initial ServerConfig (split from setup process keys).
  *   2026-11-07  handshake_miss_ms + accept_poll_ms (former literals).
+ *   2026-11-08  menu flag for read-only operator status console.
  */
 
 /*
@@ -30,6 +31,9 @@ class ServerConfig {
     int64 cycles
     bool serve
     bool injectable
+    # Read-only interactive status console (--menu). When serve is
+    # also set, explore first then Quit starts TCP on the same State.
+    bool menu
     # Stdout log level 0–10 (clamped). Copied onto Scenario.verbosity
     # after galaxy start so driver / verboseLog keep reading scenario.
     int64 verbosity
@@ -57,6 +61,7 @@ class ServerConfig {
         cycles = 0
         serve = false
         injectable = false
+        menu = false
         verbosity = 0
         handshakeMissMs = 5000
         acceptPollMs = 50

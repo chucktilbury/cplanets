@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-07  Initial server config unit program.
  *   2026-11-07  Assert handshake_miss_ms / accept_poll_ms.
+ *   2026-11-08  Assert menu key.
  */
 
 include "server/configParse.cw"
@@ -24,6 +25,7 @@ start {
     text.append("cycles = 12\n")
     text.append("serve = true\n")
     text.append("injectable = true\n")
+    text.append("menu = true\n")
     text.append("verbosity = 2\n")
     text.append("handshake_miss_ms = 7500\n")
     text.append("accept_poll_ms = 25\n")
@@ -55,6 +57,9 @@ start {
         ok = false
     }
     if (not cfg.injectable) {
+        ok = false
+    }
+    if (not cfg.menu) {
         ok = false
     }
     if (cfg.verbosity != 2) {

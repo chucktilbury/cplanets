@@ -14,6 +14,7 @@
  *   2026-11-07  Verbosity 0–10 scale; clamp in clampAll.
  *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
  *   2026-11-08  cycles 0 = serve until eliminated/ended/stop.
+ *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
  */
 
 /*
@@ -68,7 +69,7 @@ class AiConfig {
         reactionLagSeconds = 2.0
         surpriseRate = 0.05
         seed = 1u
-        playerId = 0
+        playerId = -1
         host = "127.0.0.1"
         port = 0
         verbosity = 0
@@ -81,7 +82,8 @@ class AiConfig {
      * Clamp every axis into its legal band.
      *
      * Purpose: harden after text load so brain math never sees
-     * out-of-range surprise or negative lag.
+     * out-of-range surprise or negative lag. Seat -1 means
+     * unassigned until the server returns playerId on handshake.
      *
      * Parameters: none (mutates this config).
      *
@@ -104,8 +106,8 @@ class AiConfig {
         if (seed == 0u) {
             seed = 1u
         }
-        if (playerId < 0) {
-            playerId = 0
+        if (playerId < -1) {
+            playerId = -1
         }
         if (port < 0) {
             port = 0
@@ -118,6 +120,22 @@ class AiConfig {
         # 0 = unlimited serve-loop (until eliminated / ended / stop).
         if (cycles < 0) {
             cycles = 0
+        }
+    }
+
+    /*
+     * Pin seat 0 when still unassigned for offline --once.
+     *
+     * Purpose: local policy shape print needs an empire index; TCP
+     * serve-loop leaves -1 until handshake returns the assigned id.
+     *
+     * Parameters: none (mutates this config).
+     *
+     * Returns: nothing.
+     */
+    void ensureOfflineSeat() {
+        if (playerId < 0) {
+            playerId = 0
         }
     }
 

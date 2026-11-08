@@ -70,7 +70,6 @@ def write_ai_config(path: Path, port: int) -> None:
                 "aggression = 0.85",
                 "surprise_rate = 0.0",
                 "seed = 42",
-                "player_id = 1",
                 "host = 127.0.0.1",
                 f"port = {port}",
                 "verbosity = 0",

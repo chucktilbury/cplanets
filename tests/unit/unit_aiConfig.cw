@@ -14,6 +14,7 @@
  *   2026-11-07  Assert verbosity config key.
  *   2026-11-07  Assert cycles / once / serve_loop keys.
  *   2026-11-08  cycles 0 default; negative clamps to 0.
+ *   2026-11-08  Default playerId -1 (server assigns on handshake).
  */
 
 include "ai/configParse.cw"
@@ -21,6 +22,9 @@ include "ai/configParse.cw"
 start {
     AiConfig baseline = AiConfig()
     bool ok = true
+    if (baseline.playerId != -1) {
+        ok = false
+    }
     if (baseline.cycles != 0) {
         ok = false
     }

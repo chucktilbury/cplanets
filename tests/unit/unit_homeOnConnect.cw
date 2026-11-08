@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial home-on-connect unit program.
+ *   2026-11-08  Server allocate: first free seat; drop frees seat.
  */
 
 include "lib/state.cw"
@@ -90,13 +91,14 @@ start {
 
     # --- GameDriver handshake seats a home ---
     State live = State()
-    live.startClosed(11u, 1)
+    live.startClosed(11u, 2)
     Planet before = live.galaxy.planets[0]
     if (before.ownerId >= 0) {
         ok = false
     }
     GameDriver drv = GameDriver(live, true, "", false, 5000u)
-    if (not drv.handshake(0)) {
+    int64 seat0 = drv.handshakeAllocate()
+    if (seat0 != 0) {
         ok = false
     }
     Planet after = drv.game.galaxy.planets[0]
@@ -107,7 +109,19 @@ start {
     if (drv.game.fleets.length < 1) {
         ok = false
     }
-    # Drop leaves the home in place.
+    # Second allocate takes the next free seat.
+    int64 seat1 = drv.handshakeAllocate()
+    if (seat1 != 1) {
+        ok = false
+    }
+    if (drv.handshakeAllocate() >= 0) {
+        ok = false
+    }
+    # Keep-alive works only while connected.
+    if (drv.handshakeKeepAlive(0) != 0) {
+        ok = false
+    }
+    # Drop leaves the home in place and frees the seat.
     if (not drv.dropPlayer(0)) {
         ok = false
     }
@@ -117,6 +131,18 @@ start {
         ok = false
     }
     if (not dropped.dropped) {
+        ok = false
+    }
+    if (drv.handshakeKeepAlive(0) >= 0) {
+        ok = false
+    }
+    # New connect reuses the free dropped seat (no identity reclaim).
+    int64 reseat = drv.handshakeAllocate()
+    if (reseat != 0) {
+        ok = false
+    }
+    Player reseated = drv.game.players[0]
+    if (reseated.dropped or not reseated.present) {
         ok = false
     }
 

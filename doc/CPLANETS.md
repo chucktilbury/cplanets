@@ -181,7 +181,7 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | `--config PATH` | *(required; path only)* | Human settings file (not the AI config) |
 | `--host HOST` | `host` | Dial host |
 | `--port N` | `port` | Dial port (`> 0` for TCP) |
-| `--player N` | `player_id` | Seat id |
+| `--player N` | `player_id` | Offline seat id only (`--once` / `port 0`); TCP seats are server-assigned on handshake |
 | `--once` | `once` | In-process closed galaxy; print list summary (no TCP, no GTK) |
 | `--pull` | `pull` | TCP GET state + digest summary (needs `port > 0`) |
 | `--gui` | `gui` | GTK notebook debugger |
@@ -251,7 +251,8 @@ Category thresholds are **provisional**:
 | `10` | Full decision dumps / statistics (gate only; no extra spam yet) |
 
 Same keys in the AI config file (`verbosity`, `cycles`, `once`,
-`serve_loop`, dial / seat). CLI flags present on argv overlay
+`serve_loop`, dial). TCP `player_id` is not seating authority —
+the server assigns on handshake. CLI flags present on argv overlay
 silently. `--once` / `--serve-loop` print `VERBOSITY=<n>` with the
 summary.
 
@@ -302,10 +303,12 @@ build
 bin/cplanets-server --config config/server-default.cfg --serve \
   --setup scenarios/closed-default.setup
 
-# 2) Human list debugger (seat 0) — sample dials 127.0.0.1:7700
+# 2) Human list debugger — sample dials 127.0.0.1:7700
+#    Server assigns the first free seat on handshake (usually 0).
 bin/cplanets --config config/human-default.cfg --gui
 
-# 3) AI client (seat 1 presets: config/ai-mid.cfg etc.)
+# 3) AI client (aggression presets: config/ai-mid.cfg etc.)
+#    Server assigns the next free seat (usually 1 after a human).
 #    Continuous until eliminated / game ended / Ctrl-C.
 #    While looping: type m then Enter for the AI status menu.
 #    Finite smoke: add --cycles N (N > 0).
@@ -366,13 +369,13 @@ attaches separately):
 Then in another terminal:
 
 ```sh
-# GTK list debugger
+# GTK list debugger (seat assigned on handshake)
 bin/cplanets --config config/human-default.cfg \
-  --host 127.0.0.1 --port 7700 --player 0 --gui
+  --host 127.0.0.1 --port 7700 --gui
 
 # or headless smoke (no display)
 bin/cplanets --config config/human-default.cfg \
-  --host 127.0.0.1 --port 7700 --player 0 --pull
+  --host 127.0.0.1 --port 7700 --pull
 ```
 
 **Seed reproducibility:** keep `--seed` fixed (banner prints
@@ -390,14 +393,14 @@ independent of the galaxy seed.
 | `scenarios/tuning-trade.setup` | Trade-leaning A/B |
 | `scenarios/closed-default.setup` | Full closed baseline (24 worlds) |
 
-**AI presets** (seat `player_id = 1` for human+AI):
+**AI presets** (server assigns seats; no `player_id` in samples):
 
 | Path | Band |
 | --- | --- |
 | `config/ai-soft.cfg` | Soft aggression / slower lag |
 | `config/ai-mid.cfg` | Mid (default harness) |
 | `config/ai-hard.cfg` | Hard aggression / snappier lag |
-| `config/ai-default.cfg` | Legacy dial defaults (`player_id = 0`) |
+| `config/ai-default.cfg` | Legacy dial defaults |
 
 CI / headless proof (no GTK): CTest `functional_session_harness`
 spawns injectable server + AI `--serve-loop` + human `--pull`,
@@ -432,7 +435,7 @@ textfile; selective human GUI setters come later.
 | Path | What |
 | --- | --- |
 | `config/server-default.cfg` | Server process/network (`host`, `port`, `serve`, `setup`, …) |
-| `config/human-default.cfg` | Human dial defaults (`player_id`, `host`, `port`) |
+| `config/human-default.cfg` | Human dial defaults (`host`, `port`; TCP seat from handshake) |
 | `config/ai-default.cfg` | AI axes (aggression, lag, surprise, …) plus dial |
 | `config/ai-{soft,mid,hard}.cfg` | Aggression-band presets (seat 1) |
 | `scenarios/closed-default.setup` | Closed-scenario §14 tuning surface |

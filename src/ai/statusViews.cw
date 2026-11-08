@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial AI client status formatters.
+ *   2026-11-08  Summary line includes suspended flag.
  */
 
 include "../client/designRow.cw"
@@ -63,6 +64,10 @@ class AiStatusViews {
         if (state.decisionPaused) {
             paused = "true"
         }
+        String suspended = "false"
+        if (state.suspended) {
+            suspended = "true"
+        }
         String snap = "false"
         if (state.hasSnapshot) {
             snap = "true"
@@ -72,13 +77,14 @@ class AiStatusViews {
             err = state.lastError
         }
         return(format(
-            "seat={} tick={} dial={} handshake={} snapshot={} paused={} cycles={} lastError={}",
+            "seat={} tick={} dial={} handshake={} snapshot={} paused={} suspended={} cycles={} lastError={}",
             state.config.playerId,
             state.view.publishedTick,
             dial,
             handshake,
             snap,
             paused,
+            suspended,
             state.cyclesDone,
             err))
     }

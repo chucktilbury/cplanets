@@ -21,6 +21,7 @@
  *               keep status ack after refresh; fail via AlertDialog.
  *   2026-11-07  Split-dispatch: hulls Entry + clear reject status.
  *   2026-11-07  Dispatch preflight: missing fleet id + server reason.
+ *   2026-11-08  AFK CheckButton → PUT /suspended.
  */
 
 include "appCore.cw"
@@ -40,12 +41,14 @@ include "planetRow.cw"
  *
  * Policy Apply PUTs standing policy with no dumb-order warnings.
  * Pause CheckButton is sensitive only when pauseOffered().
+ * AFK CheckButton sends PUT /suspended (handshake_miss hold).
  */
 class GuiMain {
     AppCore core
     Gtk.Window window
     Gtk.Label status
     Gtk.CheckButton pauseBtn
+    Gtk.CheckButton afkBtn
     GuiPlanetDialog planetDialog
     GuiPlanetPage planetPage
     GuiFleetPage fleetPage
@@ -56,6 +59,8 @@ class GuiMain {
     Gtk.Notebook notebook
     ExploredTrack explored
     bool suppressPauseToggle
+    bool suppressAfkToggle
+    bool localSuspended
     void<> activateAction
     void<> refreshAction
     void<> applyAction
@@ -71,6 +76,7 @@ class GuiMain {
     void<> budgetAction
     void<> sendAction
     void<bool> pauseAction
+    void<bool> afkAction
     void<> testAction
     void<int64> mapPickAction
     void<> mapDispatchAction
@@ -94,6 +100,7 @@ class GuiMain {
         window = null
         status = null
         pauseBtn = null
+        afkBtn = null
         planetDialog = GuiPlanetDialog()
         planetPage = GuiPlanetPage(appCore)
         fleetPage = GuiFleetPage(appCore)
@@ -104,6 +111,8 @@ class GuiMain {
         notebook = null
         explored = ExploredTrack()
         suppressPauseToggle = false
+        suppressAfkToggle = false
+        localSuspended = false
         activateAction = null
         refreshAction = null
         applyAction = null
@@ -119,6 +128,7 @@ class GuiMain {
         budgetAction = null
         sendAction = null
         pauseAction = null
+        afkAction = null
         testAction = null
         mapPickAction = null
         mapDispatchAction = null
@@ -196,6 +206,11 @@ class GuiMain {
             pauseBtn.onToggled(pauseAction)
         }
         top.append(pauseBtn)
+        afkBtn = Gtk.CheckButton("AFK")
+        if (afkAction != null) {
+            afkBtn.onToggled(afkAction)
+        }
+        top.append(afkBtn)
         root.append(top)
         Gtk.Paned split = Gtk.Paned(Gtk.Paned.HORIZONTAL)
         split.setHExpand(true)
@@ -272,6 +287,9 @@ class GuiMain {
             if (core.view.paused) {
                 pauseBit = " paused"
             }
+            if (localSuspended) {
+                pauseBit.append(" AFK")
+            }
             status.setText(format(
                 "tick={} planets={} fleets={} humans={}{}",
                 core.view.tick,
@@ -281,6 +299,7 @@ class GuiMain {
                 pauseBit))
         }
         syncPauseChrome()
+        syncAfkChrome()
         autoPresentExplored()
     }
 
@@ -303,6 +322,25 @@ class GuiMain {
         suppressPauseToggle = true
         pauseBtn.setActive(core.view.paused and offered)
         suppressPauseToggle = false
+    }
+
+    /*
+     * Sync the AFK CheckButton from local suspended state.
+     *
+     * Purpose: keep the chrome aligned after refresh / reject without
+     * re-firing onToggled. Suspended is not yet in GET /state.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncAfkChrome() {
+        if (afkBtn == null) {
+            return()
+        }
+        suppressAfkToggle = true
+        afkBtn.setActive(localSuspended)
+        suppressAfkToggle = false
     }
 
     /*
@@ -577,6 +615,44 @@ class GuiMain {
         } else {
             status.setText("pause rejected")
             syncPauseChrome()
+        }
+    }
+
+    /*
+     * AFK CheckButton toggle handler.
+     *
+     * Purpose: PUT /suspended so handshake_miss does not drop the
+     * seat while the human marks AFK. Revert chrome on reject.
+     *
+     * Parameters:
+     *   active — desired CheckButton state.
+     *
+     * Returns: nothing.
+     */
+    void onAfkToggled(bool active) {
+        if (suppressAfkToggle) {
+            return()
+        }
+        if (core.config.port < 1) {
+            localSuspended = active
+            if (active) {
+                status.setText("AFK draft (offline)")
+            } else {
+                status.setText("AFK cleared (offline)")
+            }
+            return()
+        }
+        if (core.putSuspendedRemote(active)) {
+            localSuspended = active
+            if (active) {
+                status.setText("AFK=on (suspended)")
+            } else {
+                status.setText("AFK=off")
+            }
+            refreshLists()
+        } else {
+            status.setText("AFK rejected")
+            syncAfkChrome()
         }
     }
 

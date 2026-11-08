@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial AI explore state for status menu.
+ *   2026-11-08  Track suspended (PUT /suspended) for menu hold.
  */
 
 include "../client/stateView.cw"
@@ -40,6 +41,7 @@ class AiExploreState {
     bool handshakeOk
     bool connectedHint
     bool decisionPaused
+    bool suspended
     int64 cyclesDone
     int64 lastCycleIndex
     String lastCycleAction
@@ -75,6 +77,7 @@ class AiExploreState {
         handshakeOk = false
         connectedHint = false
         decisionPaused = false
+        suspended = false
         cyclesDone = 0
         lastCycleIndex = -1
         lastCycleAction = ""
@@ -114,6 +117,29 @@ class AiExploreState {
         handshakeOk = ok
         if (not ok) {
             lastError = "handshake_failed"
+        }
+    }
+
+    /*
+     * Record intentional suspended / AFK flag outcome.
+     *
+     * Purpose: menu-open hold so handshake_miss does not drop the
+     * seat; explore summary shows whether the flag is live.
+     *
+     * Parameters:
+     *   want — requested suspended state.
+     *   ok — true when PUT /suspended got a non-empty response.
+     *
+     * Returns: nothing.
+     */
+    void noteSuspended(bool want, bool ok) {
+        if (ok) {
+            suspended = want
+            if (lastError.equals("suspended_failed")) {
+                lastError = ""
+            }
+        } else {
+            lastError = "suspended_failed"
         }
     }
 

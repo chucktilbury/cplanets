@@ -3,8 +3,8 @@
  *
  * Decodes one envelope request and returns one envelope response
  * against a GameDriver. Paths: GET /state, PUT /policy, GET
- * /digest|/events, PUT /handshake, PUT /quit, PUT /pause,
- * PUT /order, PUT /recall, PUT /design, PUT /build,
+ * /digest|/events, PUT /handshake, PUT /suspended, PUT /quit,
+ * PUT /pause, PUT /order, PUT /recall, PUT /design, PUT /build,
  * PUT /reclaim-hulls, PUT /budget, PUT /message,
  * PUT /admin/advance. No ready-barrier verb (PLAN §4.F).
  *
@@ -19,6 +19,7 @@
  *   2026-11-07  Planet budget + private/broadcast compose.
  *   2026-11-07  PUT /order optional trailing hulls peel count.
  *   2026-11-07  Rejected /order ack carries lastOrderError string.
+ *   2026-11-08  PUT /suspended intentional AFK presence flag.
  */
 
 include "driver.cw"
@@ -91,6 +92,10 @@ class ServerHandler {
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/handshake")) {
             return(handleHandshake(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/suspended")) {
+            return(handleSuspended(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/quit")) {
@@ -223,6 +228,30 @@ class ServerHandler {
         }
         bool ok = driver.handshake(player)
         return(flagAck("/handshake", ok))
+    }
+
+    /*
+     * Serve PUT /suspended body (playerId u32, flag u8).
+     *
+     * Purpose: intentional AFK / menu-open presence. flag 1 holds
+     * the seat past handshake_miss; flag 0 clears and resumes
+     * normal miss drop. Distinct from policy idle AFK shrink.
+     *
+     * Parameters:
+     *   body — uncompressed request body.
+     *
+     * Returns: ack envelope on /suspended.
+     */
+    buffer handleSuspended(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 flag = r.readU8()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_suspended"))
+        }
+        bool ok = driver.setSuspended(player, flag == 1)
+        return(flagAck("/suspended", ok))
     }
 
     /*

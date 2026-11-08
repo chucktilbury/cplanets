@@ -24,6 +24,7 @@
  *   2026-11-07  Config defaults for every CLI flag but --config.
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
  *   2026-11-08  On-demand status menu via stdin m during serve-loop.
+ *   2026-11-08  Menu gate wires client for PUT /suspended hold.
  */
 
 import cli as Cli
@@ -314,7 +315,7 @@ class AiMain {
     void runLoop(AiConfig cfg, int64 cycles) {
         AiClient client = AiClient(cfg)
         AiMenuGate gate = AiMenuGate()
-        gate.enable(client.explore)
+        gate.enable(client.explore, client)
         if (not client.dial()) {
             print("cplanets-ai\n")
             print(format("VERBOSITY={}\n", cfg.verbosity))

@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-08  Initial read-only status formatters.
  *   2026-11-08  Drop menu= from server config dump.
+ *   2026-11-08  Player detail: connected / suspended presence.
  */
 
 include "config.cw"
@@ -272,6 +273,18 @@ class StatusViews {
             seat.dropped,
             seat.eliminated,
             seat.partitionId))
+        String connected = "false"
+        String suspended = "false"
+        if (driver.presence.isConnected(seat.id)) {
+            connected = "true"
+        }
+        if (driver.presence.isSuspended(seat.id)) {
+            suspended = "true"
+        }
+        text.append(format(
+            "  connected={} suspended={} (AFK hold; no handshake_miss drop)\n",
+            connected,
+            suspended))
         text.append(format(
             "  owned planets={} fleets={} ships={}\n",
             countOwnedPlanets(seat.id),

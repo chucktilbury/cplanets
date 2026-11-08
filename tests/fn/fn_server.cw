@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial server function program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-08  Suspended hold past handshake_miss; clear resumes.
  */
 
 include "lib/envelope.cw"
@@ -137,11 +138,31 @@ start {
     }
     soloDrv.close()
 
-    # --- handshake vs drop ---
+    # --- suspended holds past handshake_miss; clear resumes drop ---
     if (ok and not driver.handshake(0)) {
         ok = false
     }
     if (ok and not driver.presence.isConnected(0)) {
+        ok = false
+    }
+    if (ok and not driver.setSuspended(0, true)) {
+        ok = false
+    }
+    if (ok and not driver.presence.isSuspended(0)) {
+        ok = false
+    }
+    driver.clock.advanceMs(20000u)
+    driver.scanPresenceDrops()
+    if (ok and not driver.presence.isConnected(0)) {
+        ok = false
+    }
+    if (ok and not driver.presence.isSuspended(0)) {
+        ok = false
+    }
+    if (ok and not driver.setSuspended(0, false)) {
+        ok = false
+    }
+    if (ok and driver.presence.isSuspended(0)) {
         ok = false
     }
     driver.clock.advanceMs(20000u)

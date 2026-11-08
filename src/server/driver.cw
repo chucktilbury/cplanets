@@ -26,6 +26,7 @@
  *   2026-11-07  lastOrderError + pre-peel validation for clear
  *               PUT /order reject reasons (fleet missing / locked).
  *   2026-11-08  Handshake grants seat home yard + starter fleet.
+ *   2026-11-08  PUT /suspended intentional AFK skips handshake_miss.
  */
 
 include "clock.cw"
@@ -550,6 +551,36 @@ class GameDriver {
             return(false)
         }
         if (not presence.handshake(playerId, clock.now())) {
+            return(false)
+        }
+        if (not game.ensureHomeForSeat(playerId)) {
+            return(false)
+        }
+        republishWithoutTick()
+        return(true)
+    }
+
+    /*
+     * Mark a seat intentionally suspended (AFK) or clear it.
+     *
+     * Purpose: client menu-open / human AFK flag. While suspended,
+     * handshake_miss does not drop the seat; last policy and AFK
+     * production shrink still apply (RULES §2 Presence). First
+     * successful suspend also grants the seat home like handshake.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *   wantSuspended — true to hold past handshake_miss.
+     *
+     * Returns: true when presence was updated and the seat home
+     * is granted (or was already granted).
+     */
+    bool setSuspended(int64 playerId, bool wantSuspended) {
+        if (game.ended) {
+            return(false)
+        }
+        if (not presence.setSuspended(
+            playerId, wantSuspended, clock.now())) {
             return(false)
         }
         if (not game.ensureHomeForSeat(playerId)) {

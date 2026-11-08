@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Suspended / AFK presence flag:** `PUT /suspended` (body:
+  `playerId` u32 + `flag` u8). While `suspended=1`, the seat stays
+  connected and **handshake_miss does not drop** it; normal AFK
+  rules still apply (last policy held; production shrink after
+  timeout). Clear with `flag=0` to resume miss drop. AI status menu
+  sets suspended on open and clears on close; human GUI has an
+  **AFK** CheckButton. Server status player detail shows
+  `connected` / `suspended`. Docs: [RULES.md](RULES.md). Tests:
+  `unit_serverPresence`, `fn_server`.
+
 - **Home yards on connect:** the server no longer pre-seeds player
   home planets at scenario start. `PUT /handshake` (human or AI)
   grants that seat's home yard + the primary seat's starter scout

@@ -16,6 +16,7 @@
  *   2026-11-08  putSuspended for menu-open AFK hold.
  *   2026-11-08  Handshake empty-body allocate; adopt returned
  *               playerId for all subsequent traffic.
+ *   2026-11-08  Store/send reconnect token; reclaim after drop.
  */
 
 import networking as Networking
@@ -164,36 +165,58 @@ class AiClient {
     }
 
     /*
-     * PUT /handshake; adopt the server-assigned seat.
+     * PUT /handshake; adopt the server-assigned seat + token.
      *
-     * Purpose: presence keep-alive (AFK ≠ drop). Unassigned
-     * playerId (-1) sends an empty body so the server allocates.
-     * Assigned seats send keep-alive. On success, store the
-     * returned playerId for policy / suspended / GET traffic.
+     * Purpose: presence keep-alive (AFK ≠ drop) and reconnect.
+     * Prefer the stored reconnect token; else playerId keep-alive;
+     * else empty allocate. On success, store playerId + token.
      *
      * Parameters: none.
      *
      * Returns: true when accepted and a seat id was returned.
      */
     bool handshake() {
-        WireBytes w = WireBytes()
-        if (config.playerId >= 0) {
-            w.writeU32(config.playerId)
+        bool ok = false
+        if (config.reconnectToken.length == 16) {
+            WireBytes tok = WireBytes()
+            tok.writeBytes(config.reconnectToken)
+            Envelope env = Envelope().make(
+                Envelope.VERB_PUT, "/handshake", tok.bytes)
+            buffer resp = exchange(EnvelopeCodec().encode(env))
+            ok = adoptHandshakeSeat(resp)
+            if (not ok) {
+                config.reconnectToken = buffer[]
+            }
         }
-        Envelope env = Envelope().make(
-            Envelope.VERB_PUT, "/handshake", w.bytes)
-        buffer resp = exchange(EnvelopeCodec().encode(env))
-        bool ok = adoptHandshakeSeat(resp)
+        if (not ok and config.playerId >= 0) {
+            WireBytes keep = WireBytes()
+            keep.writeU32(config.playerId)
+            Envelope keepEnv = Envelope().make(
+                Envelope.VERB_PUT, "/handshake", keep.bytes)
+            buffer keepResp = exchange(
+                EnvelopeCodec().encode(keepEnv))
+            ok = adoptHandshakeSeat(keepResp)
+            if (not ok) {
+                config.playerId = -1
+            }
+        }
+        if (not ok) {
+            Envelope alloc = Envelope().make(
+                Envelope.VERB_PUT, "/handshake", buffer[])
+            buffer resp = exchange(EnvelopeCodec().encode(alloc))
+            ok = adoptHandshakeSeat(resp)
+        }
         explore.noteHandshake(ok)
         verbose.logSeat(config.playerId, ok)
         return(ok)
     }
 
     /*
-     * Decode a handshake ack and store the assigned seat.
+     * Decode a handshake ack and store seat + reconnect token.
      *
      * Purpose: server seating is authoritative — body shape is
-     * u8 accepted, u32 tick, u8 ended, u32 playerId.
+     * u8 accepted, u32 tick, u8 ended, u32 playerId,
+     * TOKEN_BYTES (16) opaque token.
      *
      * Parameters:
      *   resp — raw response envelope bytes.
@@ -214,10 +237,15 @@ class AiClient {
         r.readU32()
         r.readU8()
         int64 seat = r.readU32()
+        buffer token = r.readBytes(16)
         if (not r.ok() or accepted != 1 or seat == 0xffffffff) {
             return(false)
         }
+        if (token.length != 16) {
+            return(false)
+        }
         config.playerId = seat
+        config.reconnectToken = token
         explore.config.playerId = seat
         explore.view.playerId = seat
         return(true)

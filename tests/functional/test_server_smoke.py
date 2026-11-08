@@ -11,7 +11,13 @@ import sys
 import time
 from pathlib import Path
 
-from wire import admin_advance, decode_envelope, get_state, put_policy
+from wire import (
+    admin_advance,
+    admin_go,
+    decode_envelope,
+    get_state,
+    put_policy,
+)
 
 
 def exchange(host: str, port: int, frame: bytes, timeout: float = 2.0) -> bytes:
@@ -99,7 +105,13 @@ def main() -> int:
             print(f"bad policy ack verb={verb} path={path} body={body!r}")
             return 1
 
-        # Admin advance 2 ticks on injectable clock.
+        # Leave lobby, then admin advance 2 ticks on injectable clock.
+        resp = exchange("127.0.0.1", port, admin_go())
+        _, verb, path, body = decode_envelope(resp)
+        if path != "/admin/go" or body[0] != 1:
+            print(f"bad go ack path={path} body={body!r}")
+            return 1
+
         resp = exchange("127.0.0.1", port, admin_advance(2))
         _, verb, path, body = decode_envelope(resp)
         if path != "/admin/advance" or body[0] != 1:

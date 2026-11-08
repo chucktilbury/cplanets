@@ -251,6 +251,7 @@ if(BUILD_TESTING)
         unit_setupLoad
         unit_galaxyStart
         unit_homeOnConnect
+        unit_lobbyReconnect
         unit_empirePools
         unit_travel
         unit_production

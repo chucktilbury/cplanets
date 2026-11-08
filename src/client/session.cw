@@ -21,6 +21,7 @@
  *   2026-11-07  lastRejectReason from optional /order ack trailer.
  *   2026-11-08  Handshake empty-body allocate; adopt returned
  *               playerId for all subsequent traffic.
+ *   2026-11-08  Store/send reconnect token; reclaim after drop.
  */
 
 import networking as Networking
@@ -136,34 +137,56 @@ class HumanSession {
     }
 
     /*
-     * PUT /handshake; adopt the server-assigned seat.
+     * PUT /handshake; adopt the server-assigned seat + token.
      *
-     * Purpose: presence keep-alive (AFK ≠ drop). When playerId is
-     * still -1 (unassigned), send an empty body so the server
-     * allocates the first free seat. When already assigned, send
-     * that id as keep-alive. On success, store the returned
-     * playerId and use it for all later verbs.
+     * Purpose: presence keep-alive (AFK ≠ drop) and reconnect.
+     * Prefer sending the stored reconnect token (reclaim or
+     * keep-alive). Else when playerId is assigned, send that id
+     * as keep-alive. Else empty body for a new allocate. On
+     * success, store returned playerId and TOKEN_BYTES token.
      *
      * Parameters: none.
      *
      * Returns: true when accepted and a seat id was returned.
      */
     bool handshake() {
-        WireBytes w = WireBytes()
-        if (config.playerId >= 0) {
-            w.writeU32(config.playerId)
+        if (config.reconnectToken.length == 16) {
+            WireBytes tok = WireBytes()
+            tok.writeBytes(config.reconnectToken)
+            Envelope env = Envelope().make(
+                Envelope.VERB_PUT, "/handshake", tok.bytes)
+            buffer resp = exchange(EnvelopeCodec().encode(env))
+            if (adoptHandshakeSeat(resp)) {
+                return(true)
+            }
+            # Stale token — clear and fall through to allocate.
+            config.reconnectToken = buffer[]
         }
-        Envelope env = Envelope().make(
-            Envelope.VERB_PUT, "/handshake", w.bytes)
-        buffer resp = exchange(EnvelopeCodec().encode(env))
+        if (config.playerId >= 0) {
+            WireBytes keep = WireBytes()
+            keep.writeU32(config.playerId)
+            Envelope keepEnv = Envelope().make(
+                Envelope.VERB_PUT, "/handshake", keep.bytes)
+            buffer keepResp = exchange(
+                EnvelopeCodec().encode(keepEnv))
+            if (adoptHandshakeSeat(keepResp)) {
+                return(true)
+            }
+            # Not connected / stale config id — allocate fresh.
+            config.playerId = -1
+        }
+        Envelope alloc = Envelope().make(
+            Envelope.VERB_PUT, "/handshake", buffer[])
+        buffer resp = exchange(EnvelopeCodec().encode(alloc))
         return(adoptHandshakeSeat(resp))
     }
 
     /*
-     * Decode a handshake ack and store the assigned seat.
+     * Decode a handshake ack and store seat + reconnect token.
      *
      * Purpose: server seating is authoritative — body shape is
-     * u8 accepted, u32 tick, u8 ended, u32 playerId.
+     * u8 accepted, u32 tick, u8 ended, u32 playerId,
+     * TOKEN_BYTES (16) opaque token.
      *
      * Parameters:
      *   resp — raw response envelope bytes.
@@ -184,10 +207,15 @@ class HumanSession {
         r.readU32()
         r.readU8()
         int64 seat = r.readU32()
+        buffer token = r.readBytes(16)
         if (not r.ok() or accepted != 1 or seat == 0xffffffff) {
             return(false)
         }
+        if (token.length != 16) {
+            return(false)
+        }
         config.playerId = seat
+        config.reconnectToken = token
         return(true)
     }
 

@@ -15,6 +15,7 @@
  *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
  *   2026-11-08  cycles 0 = serve until eliminated/ended/stop.
  *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
+ *   2026-11-08  reconnectToken from handshake ack for reclaim.
  */
 
 /*
@@ -35,6 +36,9 @@ class AiConfig {
     fp64 surpriseRate
     uint64 seed
     int64 playerId
+    # Opaque TOKEN_BYTES from handshake ack (process-local; not
+    # a config-file key). Prefer this body on reconnect.
+    buffer reconnectToken
     String host
     int64 port
     # Stdout decision log level. Scale 0–10 (clamped). CLI
@@ -56,7 +60,8 @@ class AiConfig {
      *
      * Parameters: none.
      *
-     * Returns: AiConfig with mid axes, lag 1 tick / 2.0s, seed 1.
+     * Returns: AiConfig with mid axes, lag 1 tick / 2.0s, seed 1,
+     * unassigned seat, empty reconnect token.
      */
     AiConfig() {
         aggression = 0.5
@@ -70,6 +75,7 @@ class AiConfig {
         surpriseRate = 0.05
         seed = 1u
         playerId = -1
+        reconnectToken = buffer[]
         host = "127.0.0.1"
         port = 0
         verbosity = 0

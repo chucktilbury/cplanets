@@ -29,7 +29,10 @@ start {
     StatusViews views = StatusViews(driver, cfg)
 
     String summary = views.summaryLine()
-    if (not summary.startsWith("tick=0")) {
+    if (not summary.startsWith("phase=lobby")) {
+        ok = false
+    }
+    if (not summary.contains("tick=0")) {
         ok = false
     }
     if (not summary.contains("players=2")) {

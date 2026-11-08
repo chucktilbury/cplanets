@@ -82,9 +82,12 @@ def main() -> int:
     needles = [
         "PORT=",
         "MENU_KEY=m",
+        "GO_KEY=g",
+        "PHASE=lobby",
         "MENU_OPEN=1",
         "MENU=1",
         "=== CPlanets status (read-only) ===",
+        "phase=lobby",
         "tick=0",
         "paused=true",
         "Players:",

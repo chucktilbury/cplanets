@@ -12,6 +12,7 @@
  *   2026-11-08  Initial read-only status formatters.
  *   2026-11-08  Drop menu= from server config dump.
  *   2026-11-08  Player detail: connected / suspended presence.
+ *   2026-11-08  Summary shows phase=lobby|running.
  */
 
 include "config.cw"
@@ -56,6 +57,10 @@ class StatusViews {
      */
     String summaryLine() {
         State game = driver.game
+        String phase = "running"
+        if (driver.inLobby()) {
+            phase = "lobby"
+        }
         String paused = "false"
         if (driver.paused) {
             paused = "true"
@@ -65,7 +70,8 @@ class StatusViews {
             ended = "true"
         }
         return(format(
-            "tick={} paused={} ended={} players={} planets={} fleets={} builds={} designs={}",
+            "phase={} tick={} paused={} ended={} players={} planets={} fleets={} builds={} designs={}",
+            phase,
             game.tickCount,
             paused,
             ended,

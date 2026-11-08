@@ -29,6 +29,8 @@
  *   2026-11-08  PUT /suspended intentional AFK skips handshake_miss.
  *   2026-11-08  Server allocates free seats on handshake; clients
  *               do not claim playerId. Keep-alive only when connected.
+ *   2026-11-08  Lobby until operator go; reconnect tokens on allocate;
+ *               reclaim by token; ticks blocked in lobby (incl. admin).
  */
 
 include "clock.cw"
@@ -60,6 +62,7 @@ class GameDriver {
     list lastSnapshot
     list inbox
     bool paused
+    bool running
     bool storeEnabled
     int64 fireCount
     ServerVerboseLog verbose
@@ -69,7 +72,9 @@ class GameDriver {
      * Construct a driver around a started State.
      *
      * Purpose: wire clock, empty policies/presence, and optional
-     * SQLite store for one stand-alone live game.
+     * SQLite store for one stand-alone live game. Starts in
+     * **lobby** (running=false): TCP accept, seating, and status
+     * work, but wall / injectable ticks do not fire until go().
      *
      * Parameters:
      *   started — State already startClosed / loaded.
@@ -80,7 +85,8 @@ class GameDriver {
      *                 only need cadence + publish blobs).
      *   handshakeMissMs — presence drop window.
      *
-     * Returns: GameDriver ready for putPolicy / advanceTicks.
+     * Returns: GameDriver in lobby, ready for handshake / go /
+     * putPolicy / advanceTicks (after go).
      */
     GameDriver(
         State started,
@@ -111,6 +117,7 @@ class GameDriver {
         lastSnapshot = []
         inbox = []
         paused = false
+        running = false
         fireCount = 0
         lastOrderError = ""
         verbose = ServerVerboseLog()
@@ -119,6 +126,59 @@ class GameDriver {
             game, policies, paused)
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
+    }
+
+    /*
+     * True while the session is still in lobby (pre-go).
+     *
+     * Purpose: status banner, menu Go affordance, and tick gates.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when running is false.
+     */
+    bool inLobby() {
+        return(not running)
+    }
+
+    /*
+     * Leave lobby and allow wall / injectable ticks.
+     *
+     * Purpose: operator console `g` / status-menu Go / harness
+     * PUT /admin/go. Idempotent. Does not itself fire a tick.
+     * Later “all humans ready” can call this same path
+     * (tryAutoGoAllHumansReady is the stub hook).
+     *
+     * Parameters: none.
+     *
+     * Returns: true when this call transitioned lobby→running;
+     * false when already running or the game has ended.
+     */
+    bool go() {
+        if (game.ended) {
+            return(false)
+        }
+        if (running) {
+            return(false)
+        }
+        running = true
+        republishWithoutTick()
+        return(true)
+    }
+
+    /*
+     * Stub: auto-go when every human seat is ready (v1 unused).
+     *
+     * Purpose: keep a single go() path for a future “all humans
+     * agree” UI. v1 never marks ready and always returns false.
+     *
+     * Parameters: none.
+     *
+     * Returns: false (operator go only in v1).
+     */
+    bool tryAutoGoAllHumansReady() {
+        # v1: no per-seat ready flags / UI yet.
+        return(false)
     }
 
     /*
@@ -534,18 +594,19 @@ class GameDriver {
     }
 
     /*
-     * Pick the first free seat for a new connect.
+     * Pick the first free seat for a new empty-body connect.
      *
      * Purpose: server-side seating — clients cannot know a free
      * seat without being told (RULES §2). Walks 0..players-1 and
-     * returns the first seat that is not connected and not quit.
-     * Never-seated and free dropped seats both qualify; quit
-     * seats stay closed for the live game.
+     * returns the first seat that is not connected, not quit, and
+     * has **no** outstanding reconnect token. Token-held dropped
+     * seats are reclaimable only with the token (cannot steal).
+     * Quit seats stay closed for the live game.
      *
      * Parameters: none.
      *
      * Returns: seat id, or -1 when the game ended or every seat
-     * is taken / quit.
+     * is taken / token-held / quit.
      */
     int64 findFreeSeat() {
         if (game.ended) {
@@ -555,7 +616,9 @@ class GameDriver {
         int64 index = 0
         while (index < game.players.length) {
             Player seat = game.players[index]
-            if (not seat.quit and not presence.isConnected(index)) {
+            if (not seat.quit
+                and not presence.isConnected(index)
+                and not presence.hasReconnectToken(index)) {
                 return(index)
             }
             index = index + 1
@@ -605,12 +668,11 @@ class GameDriver {
     }
 
     /*
-     * Allocate the first free seat and mark it connected.
+     * Allocate the first free seat, mint a token, mark connected.
      *
      * Purpose: PUT /handshake with an empty body (new connect).
-     * Server picks the seat; response carries the assigned
-     * playerId. Prefer never-seated then free dropped in id
-     * order via findFreeSeat.
+     * Server picks the seat; response carries playerId + opaque
+     * reconnect token. Never steals a token-held dropped seat.
      *
      * Parameters: none.
      *
@@ -621,7 +683,12 @@ class GameDriver {
         if (playerId < 0) {
             return(-1)
         }
+        buffer token = presence.mintToken()
+        if (not presence.setReconnectToken(playerId, token)) {
+            return(-1)
+        }
         if (not seatConnected(playerId)) {
+            presence.clearReconnectToken(playerId)
             return(-1)
         }
         return(playerId)
@@ -631,9 +698,9 @@ class GameDriver {
      * Refresh presence for a seat that is already connected.
      *
      * Purpose: PUT /handshake keep-alive after the client was
-     * told its playerId. Does not honor a client seat claim for
-     * a free / dropped / never-seated id — callers fall through
-     * to handshakeAllocate when this returns -1.
+     * told its playerId. Body is exactly playerId u32. Does not
+     * reclaim a dropped seat (no token → cannot steal); callers
+     * must send the opaque token for reclaim.
      *
      * Parameters:
      *   playerId — previously assigned empire id.
@@ -648,6 +715,37 @@ class GameDriver {
             return(-1)
         }
         if (not presence.isConnected(playerId)) {
+            return(-1)
+        }
+        if (not seatConnected(playerId)) {
+            return(-1)
+        }
+        return(playerId)
+    }
+
+    /*
+     * Reclaim (or keep-alive) a seat by opaque reconnect token.
+     *
+     * Purpose: PUT /handshake body of TOKEN_BYTES. Restores the
+     * same seat after drop; while still connected, refreshes
+     * presence. Tokens remain valid until quit or game end
+     * (lobby and running). Unknown / wrong-length tokens fail.
+     *
+     * Parameters:
+     *   token — opaque PresenceBook.TOKEN_BYTES from allocate ack.
+     *
+     * Returns: seat id on success, or -1 on failure.
+     */
+    int64 handshakeReclaim(buffer token) {
+        if (game.ended) {
+            return(-1)
+        }
+        int64 playerId = presence.findSeatByToken(token)
+        if (playerId < 0) {
+            return(-1)
+        }
+        Player seat = game.players[playerId]
+        if (seat.quit) {
             return(-1)
         }
         if (not seatConnected(playerId)) {
@@ -720,6 +818,7 @@ class GameDriver {
         seat.markQuit()
         game.players[playerId] = seat
         presence.markDrop(playerId)
+        presence.clearReconnectToken(playerId)
         game.refreshEndStatus()
         republishWithoutTick()
         return(true)
@@ -786,20 +885,22 @@ class GameDriver {
     }
 
     /*
-     * Fire one cadence step if due and not paused/ended.
+     * Fire one cadence step if due and not lobby/paused/ended.
      *
      * Purpose: snapshot → tick → persist → publish (PLAN §4.F).
+     * Lobby blocks wall ticks until operator / admin go().
      *
      * Parameters: none.
      *
      * Returns: true when a tick actually fired.
      */
     bool maybeTick() {
-        if (game.ended or paused) {
+        if (game.ended) {
             return(false)
         }
+        # Presence still ages in lobby; only cadence fire waits on go.
         scanPresenceDrops()
-        if (game.ended) {
+        if (game.ended or paused or not running) {
             return(false)
         }
         if (not clock.due()) {
@@ -813,6 +914,8 @@ class GameDriver {
      *
      * Purpose: CI without wall sleep. Forces period elapsed N
      * times, firing each due tick. Wall clocks reject this.
+     * Lobby also blocks injectable advance until go() — harness
+     * must PUT /admin/go (or call go()) first.
      *
      * Parameters:
      *   count — number of ticks to fire (clamped >= 0).
@@ -821,6 +924,9 @@ class GameDriver {
      */
     int64 advanceTicks(int64 count) {
         if (not clock.injectable) {
+            return(0)
+        }
+        if (not running) {
             return(0)
         }
         if (count < 0) {

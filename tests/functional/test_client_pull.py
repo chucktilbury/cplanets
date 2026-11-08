@@ -63,6 +63,7 @@ def main() -> int:
 
     proc = subprocess.Popen(
         cmd,
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -70,6 +71,7 @@ def main() -> int:
         bufsize=1,
     )
     assert proc.stdout is not None
+    assert proc.stdin is not None
     port = None
     deadline = time.time() + 5.0
     while time.time() < deadline:
@@ -90,14 +92,15 @@ def main() -> int:
         "w", suffix=".cfg", delete=False, encoding="utf-8"
     )
     try:
-        cfg.write(
-            f"player_id = 0\nhost = 127.0.0.1\nport = {port}\n"
-        )
+        # No player_id — TCP seat comes from handshake allocate.
+        cfg.write(f"host = 127.0.0.1\nport = {port}\n")
         cfg.close()
 
-        # Give the wall clock at least one cadence fire (first is
-        # immediate on serve; short sleep still covers slow boxes).
-        time.sleep(0.4)
+        # Leave lobby so wall ticks may fire (operator go).
+        proc.stdin.write("g\n")
+        proc.stdin.flush()
+        # Default tick period is 5s; wait past one period after go.
+        time.sleep(5.5)
 
         pull = subprocess.run(
             [

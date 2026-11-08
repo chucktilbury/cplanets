@@ -35,8 +35,8 @@ Context: `design-decisions.md`, `project-context.md`,
 | **Main window** | Always-on client shell; never ticks | Title; File menu; status line (tick / counts) | **Exists (Phase G)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
 | **Planets notebook page** | Visibility-limited planet list + budget | Scrolled labels; “Show first explored”; owned-planet allocation **Scale** → PUT `/budget` (tick scales empire-pool production) | **Exists** — list + live allocation |
-| **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; design/build progress label | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B)** |
-| **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; progress + owned yards | **Exists** (ship create chrome) |
+| **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; develop/build **ProgressBars** + detail | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B + CPL-72)** |
+| **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; develop/build **ProgressBars** + owned yards | **Exists** (ship create chrome + CPL-72 bars) |
 | **Digest notebook page** | Newspaper + compose | Digest text; known-competitors list; private/broadcast compose → PUT `/message` | **Exists** — list + compose |
 | **Policy notebook page** | Standing policy editor | Role Entry; expansion / escort / agreement `S` / tech bias **Scales**; Apply (PUT `/policy`); no dumb-order warnings | **Exists** — Scales for policy % |
 | **Map canvas panel** | Galaxy graphic in the client layout (Paned beside notebook) | Hot spots; status colors; dotted ETA paths; pan/zoom; pick→fleet dest; ContextMenu status + zoom-to-known + dispatch/budget | **Exists (Phase I + pick-to-dispatch)** |
@@ -206,10 +206,13 @@ ticks) — not instant.
 | --- | --- | --- |
 | **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks | **Exists** Ships tab Entries → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in) |
 | **Yard / build queue** | Produce hulls (resources) at productive shipyard; show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships tab → `PUT /build` / `PUT /reclaim-hulls` |
-| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets progress labels from chrome trailer |
+| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets `Gtk.ProgressBar` footer (fraction from ticksLeft / setup total; pulse if indeterminate) + detail Label from chrome trailer |
 
-List stand-ins only (no Scale / map). Timed develop/build use existing
-`State.queueDesignDevelop` / `queueYardBuild` / `queueReclaim`.
+List stand-ins for editor fields (Entries). ProgressBars live in a
+vertical footer Box so they can move into a dialog header/footer
+when Notebook tabs become menubar + non-modal dialogs. Timed
+develop/build use existing `State.queueDesignDevelop` /
+`queueYardBuild` / `queueReclaim`.
 
 ---
 
@@ -314,7 +317,9 @@ v1. File/scenario edit remains the v1 path.
 - Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
   with in-flight lock labels (**B**); hulls peel for split-
   dispatch of sitting stacks; map pick-to-dispatch
-- Design/build/reclaim progress label from chrome trailer (**B**)
+- Design/build **ProgressBars** + reclaim detail from chrome trailer
+  (**B** + **CPL-72**); footer Box is dialog-ready (no Notebook-only
+  host)
 - Ships tab design develop / yard build / reclaim + design catalog
   (`PUT /design`, `/build`, `/reclaim-hulls`)
 

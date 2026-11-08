@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **AI continuous serve-loop:** `--serve-loop` with `cycles = 0`
+  (default) keeps `cplanets-ai` deciding until the seat is
+  eliminated, the game ends, or the process is stopped. `--cycles N`
+  (`N > 0`) remains the finite smoke/harness cap; `--once` stays the
+  local one-shot. Config samples and `scripts/tuning-session` updated.
+  Docs: [CPLANETS.md](CPLANETS.md). Unit: `unit_aiConfig`,
+  `unit_aiExploreStop`.
+
 - **Suspended / AFK presence flag:** `PUT /suspended` (body:
   `playerId` u32 + `flag` u8). While `suspended=1`, the seat stays
   connected and **handshake_miss does not drop** it; normal AFK

@@ -14,6 +14,7 @@
  *   2026-11-06  Fail loud on unknown keys (TUNING A2).
  *   2026-11-07  verbosity key (AI stdout decision logging).
  *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
+ *   2026-11-08  cycles 0 kept (continuous serve-loop default).
  */
 
 include "config.cw"

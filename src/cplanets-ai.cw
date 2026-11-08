@@ -5,7 +5,9 @@
  * Missing or empty path prints help and exits 2.
  * Optional --host / --port / --verbosity override; --once prints
  * one policy shape without TCP. --serve-loop dials and runs
- * maybePutPolicy for --cycles N. Never ticks; never opens the
+ * maybePutPolicy until the seat is eliminated, the game ends, the
+ * process is stopped, or --cycles N (>0) caps attempts. cycles 0
+ * (default) means continuous. Never ticks; never opens the
  * universe DB (RULES §2 / PLAN §4.H).
  * User-facing argv uses stdlib `cli` (including --help / -h).
  * With all modes false from file/argv, prints smoke identity.
@@ -25,10 +27,12 @@
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
  *   2026-11-08  On-demand status menu via stdin m during serve-loop.
  *   2026-11-08  Menu gate wires client for PUT /suspended hold.
+ *   2026-11-08  cycles 0 = play until eliminated/ended; wall clock.
  */
 
 import cli as Cli
 import system as Sys
+import time as Time
 
 include "lib/machine.cw"
 include "ai/brain.cw"
@@ -125,16 +129,18 @@ class AiMain {
         Cli.Option serveLoop = Cli.Option()
         serveLoop.longName = "serve-loop"
         serveLoop.name = "serve-loop"
-        serveLoop.description = "dial and PUT policy for --cycles N"
+        serveLoop.description = (
+            "dial and PUT until eliminated/ended (or --cycles N)")
         serveLoop.valueType = Cli.ValueType().FLAG
         commandLine.addOption(serveLoop)
         Cli.Option cycles = Cli.Option()
         cycles.longName = "cycles"
         cycles.name = "cycles"
-        cycles.description = "loop attempts (config key cycles)"
+        cycles.description = (
+            "loop attempts (0=until eliminated/ended; config cycles)")
         cycles.valueType = Cli.ValueType().NUMBER
         cycles.hasDefault = true
-        cycles.defaultValue = "1"
+        cycles.defaultValue = "0"
         commandLine.addOption(cycles)
         Cli.Option verbosity = Cli.Option()
         verbosity.longName = "verbosity"
@@ -299,16 +305,18 @@ class AiMain {
     }
 
     /*
-     * Dial the server and run a short PUT loop.
+     * Dial the server and run the PUT / decide loop.
      *
-     * Purpose: same-protocol exercise; cycles clamped to at least
-     * one handshake + policy attempt. Between cycles, stdin line
-     * `m` opens the read-only status menu (decisions pause while
-     * open; `q` resumes). Banner prints MENU_KEY=m.
+     * Purpose: operator play path. cycles == 0 runs until the seat
+     * is eliminated, the published game ends, or the process is
+     * stopped; cycles > 0 caps attempts (smoke / harness). Between
+     * cycles, stdin line `m` opens the read-only status menu
+     * (decisions pause while open; `q` resumes). Banner prints
+     * MENU_KEY=m and CYCLES= (0 means continuous).
      *
      * Parameters:
      *   cfg — loaded AI config with host/port.
-     *   cycles — number of maybePutPolicy attempts (min 1).
+     *   cycles — 0 = until stop reason; N > 0 = attempt cap.
      *
      * Returns: nothing.
      */
@@ -316,6 +324,7 @@ class AiMain {
         AiClient client = AiClient(cfg)
         AiMenuGate gate = AiMenuGate()
         gate.enable(client.explore, client)
+        Time.Clock wall = Time.Clock()
         if (not client.dial()) {
             print("cplanets-ai\n")
             print(format("VERBOSITY={}\n", cfg.verbosity))
@@ -330,33 +339,57 @@ class AiMain {
         print(format("CYCLES={}\n", cycles))
         print(format("VERBOSITY={}\n", cfg.verbosity))
         print("MENU_KEY=m\n")
+        if (cycles < 1) {
+            print(
+                "Continuous serve-loop: until eliminated, ")
+            print("game ended, or process stop.\n")
+        }
         print(
             "Status menu: type m then Enter on this console ")
         print(
             "(AI decisions pause while open; q resumes).\n")
         Sys.StandardIO().flush()
-        int64 limit = cycles
-        if (limit < 1) {
-            limit = 1
-        }
+        bool unlimited = cycles < 1
         int64 index = 0
-        while (index < limit) {
+        String stopReason = ""
+        while (true) {
+            if (not unlimited and index >= cycles) {
+                break
+            }
             # Pull / decide first so a buffered stdin `m` opens the
             # menu against a decoded snapshot, not an empty bag.
             int64 tick = client.pullStateTick()
             if (tick < 0) {
                 tick = 0
             }
+            stopReason = client.explore.serveStopReason()
+            if (stopReason.length > 0) {
+                break
+            }
             AiView view = client.explore.view
             view.publishedTick = tick
-            client.maybePutPolicyAt(
-                view, uint64(index * 1000), index)
+            uint64 nowMs = wall.monotonicMilliseconds()
+            client.maybePutPolicyAt(view, nowMs, index)
             gate.pollOnce()
             index = index + 1
+            stopReason = client.explore.serveStopReason()
+            if (stopReason.length > 0) {
+                break
+            }
+            # Pace continuous play; finite smoke stays snappy.
+            if (unlimited) {
+                wall.sleepMilliseconds(100u)
+            }
         }
         client.close()
         print(format("VERBOSITY={}\n", cfg.verbosity))
-        print("ok\n")
+        print(format("CYCLES_DONE={}\n", index))
+        if (stopReason.length > 0) {
+            print(stopReason)
+            print("\n")
+        } else {
+            print("ok\n")
+        }
     }
 
     /*
@@ -366,7 +399,8 @@ class AiMain {
      * upstream. Mode and cycles defaults come from the config file;
      * argv overrides silently when provided. serve-loop needs a
      * positive port; once (or loop with port 0) prints one local
-     * policy; all modes false → smoke identity.
+     * policy; all modes false → smoke identity. Continuous play is
+     * --serve-loop with cycles 0 (default); --once stays one-shot.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.

@@ -277,6 +277,7 @@ if(BUILD_TESTING)
         unit_serverConfig
         unit_statusMenu
         unit_aiConfig
+        unit_aiExploreStop
         unit_aiVerbose
         unit_aiTickSuggest
         unit_aiReaction

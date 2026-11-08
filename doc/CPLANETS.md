@@ -234,9 +234,9 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | `--config PATH` | *(required; path only)* | AI config (not human settings) |
 | `--host HOST` / `--port N` | `host` / `port` | Dial |
 | `--verbosity N` | `verbosity` | stdout log level 0–10 (clamped) |
-| `--once` | `once` | Print one local policy shape (no TCP) |
-| `--serve-loop` | `serve_loop` | Dial and PUT policy for `cycles` (needs `port > 0`) |
-| `--cycles N` | `cycles` | Loop attempts (default `1`, min `1`) |
+| `--once` | `once` | Print one local policy shape (no TCP; one-shot) |
+| `--serve-loop` | `serve_loop` | Dial and PUT policy until eliminated / ended (needs `port > 0`) |
+| `--cycles N` | `cycles` | Loop attempts (`0` = until eliminated/ended/stop; `N>0` caps for smoke) |
 
 **Verbosity** (headless stdout, not a GUI): scale **0–10**
 (default `0`). Out-of-range values **clamp** into `0..10`.
@@ -306,10 +306,18 @@ bin/cplanets-server --config config/server-default.cfg --serve \
 bin/cplanets --config config/human-default.cfg --gui
 
 # 3) AI client (seat 1 presets: config/ai-mid.cfg etc.)
+#    Continuous until eliminated / game ended / Ctrl-C.
 #    While looping: type m then Enter for the AI status menu.
-bin/cplanets-ai --config config/ai-mid.cfg \
-  --serve-loop --cycles 20
+#    Finite smoke: add --cycles N (N > 0).
+bin/cplanets-ai --config config/ai-mid.cfg --serve-loop
 ```
+
+**Continuous AI play:** `--serve-loop` with `cycles = 0` (config /
+CLI default) keeps the client connected and deciding until the seat
+is eliminated (no owned planets after a home was seen), the published
+game ends, or the process is stopped. Pass `--cycles N` (`N > 0`) for
+a short smoke/harness run. `--once` remains the local one-shot (no
+TCP).
 
 **Solo human (no AI):** use `--players 1` so pause is offered, or keep
 `--players 2` and leave seat 1 idle (last policy / empty). Wall ticks

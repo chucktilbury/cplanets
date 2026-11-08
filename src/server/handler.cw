@@ -24,6 +24,7 @@
  *               assigned playerId (clients do not claim seats).
  *   2026-11-08  Lobby + reconnect tokens: handshake ack trails
  *               TOKEN_BYTES; reclaim by token; PUT /admin/go.
+ *   2026-11-08  Handshake 1-byte kind: 0 human / 1 AI allocate.
  */
 
 include "driver.cw"
@@ -225,8 +226,10 @@ class ServerHandler {
      * as seating authority.
      *
      * Request body shapes:
-     *   empty — new connect; first never-seated free seat; issues
-     *           a TOKEN_BYTES opaque reconnect token.
+     *   empty — new **human** connect; first never-seated free
+     *           seat (or grow); issues a TOKEN_BYTES token.
+     *   exactly 1 byte (kind u8) — new connect with client kind:
+     *           0 = human (same as empty), 1 = AI (markAi).
      *   exactly 4 bytes (playerId u32) — keep-alive only when that
      *           seat is already connected; otherwise reject (no
      *           steal of a dropped / token-held seat).
@@ -241,7 +244,18 @@ class ServerHandler {
     buffer handleHandshake(buffer body) {
         int64 player = -1
         if (body.length == 0) {
-            player = driver.handshakeAllocate()
+            player = driver.handshakeAllocateAs(false)
+        } else (body.length == 1) {
+            WireBytes kind = WireBytes()
+            kind.setRead(body)
+            int64 clientKind = kind.readU8()
+            if (not kind.ok() or kind.offset != body.length) {
+                return(errorFrame("bad_handshake"))
+            }
+            if (clientKind != 0 and clientKind != 1) {
+                return(errorFrame("bad_handshake"))
+            }
+            player = driver.handshakeAllocateAs(clientKind == 1)
         } else (body.length == 4) {
             WireBytes r = WireBytes()
             r.setRead(body)

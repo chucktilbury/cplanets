@@ -116,16 +116,26 @@ unset = unlimited within a practical absolute bound). Soft max also
 acts as an **expected-ceiling hint** in the status banner; it does
 **not** pre-create seats and does **not** delay operator `go`.
 `PUT /handshake` body shapes:
-- **empty** — new connect; first **allocated** seat that is not
-  connected, not quit, and has **no** outstanding reconnect token;
-  otherwise **grow** a new seat when under soft max. Issues a fresh
-  opaque **16-byte** token. Rejects only when soft max is set and
-  full (or the practical bound is hit).
+- **empty** — new **human** connect; first **allocated** seat that
+  is not connected, not quit, and has **no** outstanding reconnect
+  token; otherwise **grow** a new seat when under soft max. Issues
+  a fresh opaque **16-byte** token. Rejects only when soft max is
+  set and full (or the practical bound is hit).
+- **exactly 1 byte (`kind` u8)** — new connect with client kind:
+  `0` = human (same as empty), `1` = **AI** (seat marked
+  non-human so all-humans-quit ignores it). Same grow / token
+  rules as empty allocate.
 - **exactly 4 bytes (`playerId` u32)** — **keep-alive only** when
   that seat is already connected; otherwise **reject** (cannot
   steal a dropped / token-held seat).
 - **exactly 16 bytes** — **reclaim** (or keep-alive) the seat that
   owns that opaque token.
+
+**Lobby end-status.** In lobby the server may age presence
+(handshake_miss drop / reclaim tokens) but **must not** run
+eliminate-all or all-humans-quit until after operator `go`. A
+connecting AI (or a temporary miss-drop while seating) must not
+end the process before the session is running.
 
 Handshake **response** shape: `u8 accepted`, `u32 tick`, `u8 ended`,
 `u32 playerId`, **16-byte token**. Human and AI clients store the

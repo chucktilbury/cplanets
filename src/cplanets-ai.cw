@@ -30,6 +30,7 @@
  *   2026-11-08  cycles 0 = play until eliminated/ended; wall clock.
  *   2026-11-08  CLI --serve-loop without --cycles forces continuous.
  *   2026-11-08  TCP seats from handshake; offline --once pins seat 0.
+ *   2026-11-08  Serve-loop re-handshakes each cycle (presence).
  */
 
 import cli as Cli
@@ -359,8 +360,11 @@ class AiMain {
             if (not unlimited and index >= cycles) {
                 break
             }
-            # Pull / decide first so a buffered stdin `m` opens the
-            # menu against a decoded snapshot, not an empty bag.
+            # Keep-alive before pull so handshake_miss cannot drop
+            # the seat while the serve-loop is still alive (lobby
+            # and running). Then pull / decide so a buffered stdin
+            # `m` opens the menu against a decoded snapshot.
+            client.handshake()
             int64 tick = client.pullStateTick()
             if (tick < 0) {
                 tick = 0

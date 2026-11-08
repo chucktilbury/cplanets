@@ -60,18 +60,24 @@ def admin_go() -> bytes:
 
 
 def handshake(
-    player_id: int | None = None, *, token: bytes | None = None
+    player_id: int | None = None,
+    *,
+    token: bytes | None = None,
+    ai: bool = False,
 ) -> bytes:
     """PUT /handshake.
 
-    Omit both args for server allocate. Pass player_id for keep-alive
-    (4 bytes). Pass token=TOKEN_BYTES for reclaim / token keep-alive.
+    Omit both args for server allocate (human empty body, or 1-byte
+    kind=1 when ai=True). Pass player_id for keep-alive (4 bytes).
+    Pass token=TOKEN_BYTES for reclaim / token keep-alive.
     """
     if token is not None:
         if len(token) != TOKEN_BYTES:
             raise ValueError(f"token must be {TOKEN_BYTES} bytes")
         return encode_envelope(2, "/handshake", token)
     if player_id is None:
+        if ai:
+            return encode_envelope(2, "/handshake", _u8(1))
         return encode_envelope(2, "/handshake", b"")
     return encode_envelope(2, "/handshake", _u32(player_id))
 

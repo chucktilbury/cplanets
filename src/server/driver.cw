@@ -33,6 +33,8 @@
  *               reclaim by token; ticks blocked in lobby (incl. admin).
  *   2026-11-08  Grow seats on allocate; softMaxPlayers optional cap
  *               (0 = unlimited within practical bounds).
+ *   2026-11-08  Lobby suppresses end-status (all-humans-quit /
+ *               eliminate-all); AI allocate marks human=false.
  */
 
 include "clock.cw"
@@ -741,13 +743,11 @@ class GameDriver {
     }
 
     /*
-     * Allocate a seat (reuse free or grow), mint token, connect.
+     * Allocate a human seat (reuse free or grow), mint token, connect.
      *
-     * Purpose: PUT /handshake with an empty body (new connect).
-     * Prefers a free never-tokened seat among those already
-     * allocated; otherwise grows a new seat when softMaxPlayers
-     * allows (0 = unlimited). Response carries playerId + opaque
-     * reconnect token. Never steals a token-held dropped seat.
+     * Purpose: PUT /handshake with an empty body (new human
+     * connect). Same growth / token rules as handshakeAllocateAs
+     * with asAi=false. Seat stays human=true (default).
      *
      * Parameters: none.
      *
@@ -755,6 +755,27 @@ class GameDriver {
      * growth failed / connect failed.
      */
     int64 handshakeAllocate() {
+        return(handshakeAllocateAs(false))
+    }
+
+    /*
+     * Allocate a seat as human or AI, mint token, connect.
+     *
+     * Purpose: PUT /handshake empty (human) or 1-byte kind=1 (AI).
+     * Prefers a free never-tokened seat among those already
+     * allocated; otherwise grows a new seat when softMaxPlayers
+     * allows (0 = unlimited). AI seats get markAi() so
+     * all-humans-quit ignores them (RULES §2 / §15) — a lone AI
+     * in lobby must not end the server on handshake_miss drop.
+     * Never steals a token-held dropped seat.
+     *
+     * Parameters:
+     *   asAi — true to mark the seat non-human after connect.
+     *
+     * Returns: assigned seat id, or -1 when soft max is full /
+     * growth failed / connect failed.
+     */
+    int64 handshakeAllocateAs(bool asAi) {
         int64 playerId = findFreeSeat()
         if (playerId < 0) {
             playerId = growSeat()
@@ -769,6 +790,10 @@ class GameDriver {
         if (not seatConnected(playerId)) {
             presence.clearReconnectToken(playerId)
             return(-1)
+        }
+        if (asAi) {
+            game.markPlayerAi(playerId)
+            republishWithoutTick()
         }
         return(playerId)
     }
@@ -880,9 +905,11 @@ class GameDriver {
     }
 
     /*
-     * Mark a voluntary quit and refresh end status.
+     * Mark a voluntary quit and maybe refresh end status.
      *
-     * Purpose: all-humans-quit ends the live game (RULES §2).
+     * Purpose: all-humans-quit ends the **running** game
+     * (RULES §2). Lobby suppresses end-status so a quit while
+     * seating does not tear down the server before operator go.
      *
      * Parameters:
      *   playerId — empire id.
@@ -898,7 +925,7 @@ class GameDriver {
         game.players[playerId] = seat
         presence.markDrop(playerId)
         presence.clearReconnectToken(playerId)
-        game.refreshEndStatus()
+        refreshEndStatusIfRunning()
         republishWithoutTick()
         return(true)
     }
@@ -907,7 +934,10 @@ class GameDriver {
      * Apply a drop (lost contact) to a seat.
      *
      * Purpose: handshake miss / TCP close. Last policy continues
-     * for the live remainder; no rejoin (RULES §2).
+     * for the live remainder; token reclaim stays available
+     * (RULES §2). Lobby suppresses end-status so a lone
+     * mis-marked human AI miss-drop cannot end the server before
+     * go.
      *
      * Parameters:
      *   playerId — empire id.
@@ -924,9 +954,27 @@ class GameDriver {
         Player seat = game.players[playerId]
         seat.markDrop()
         game.players[playerId] = seat
-        game.refreshEndStatus()
+        refreshEndStatusIfRunning()
         republishWithoutTick()
         return(true)
+    }
+
+    /*
+     * Re-run end-game checks only after operator go.
+     *
+     * Purpose: lobby accepts seats and ages presence, but must
+     * never crown eliminate-all or trip all-humans-quit before
+     * the session is running. Shared by quit / drop / miss scan.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing; may set game.ended when running.
+     */
+    void refreshEndStatusIfRunning() {
+        if (not running) {
+            return()
+        }
+        game.refreshEndStatus()
     }
 
     /*
@@ -967,7 +1015,9 @@ class GameDriver {
      * Fire one cadence step if due and not lobby/paused/ended.
      *
      * Purpose: snapshot → tick → persist → publish (PLAN §4.F).
-     * Lobby blocks wall ticks until operator / admin go().
+     * Lobby blocks wall **and** injectable cadence until operator
+     * / admin go() — presence may still age, but end-status and
+     * fireOne stay gated on running.
      *
      * Parameters: none.
      *
@@ -977,7 +1027,8 @@ class GameDriver {
         if (game.ended) {
             return(false)
         }
-        # Presence still ages in lobby; only cadence fire waits on go.
+        # Presence still ages in lobby; cadence fire and end-status
+        # wait on go (scanPresenceDrops → refreshEndStatusIfRunning).
         scanPresenceDrops()
         if (game.ended or paused or not running) {
             return(false)
@@ -1032,7 +1083,9 @@ class GameDriver {
     /*
      * Scan handshake misses and apply drops.
      *
-     * Purpose: presence maintenance between ticks.
+     * Purpose: presence maintenance between ticks (and in lobby
+     * between accepts). End-status runs only while running so a
+     * lobby miss-drop cannot all-humans-quit the server.
      *
      * Parameters: none.
      *
@@ -1052,7 +1105,7 @@ class GameDriver {
             index = index + 1
         }
         if (droppedIds.length > 0) {
-            game.refreshEndStatus()
+            refreshEndStatusIfRunning()
         }
     }
 

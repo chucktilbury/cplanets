@@ -13,6 +13,7 @@
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-08  Suspended hold past handshake_miss; clear resumes.
  *   2026-11-08  Lobby: go() before injectable advance.
+ *   2026-11-08  Quit end-status requires go() (lobby gate).
  */
 
 include "lib/envelope.cw"
@@ -192,23 +193,42 @@ start {
         ok = false
     }
 
-    # --- all humans quit ends game ---
+    # --- all humans quit ends game (only after go / running) ---
     State endGame = State()
     endGame.startClosed(17u, 2)
     endGame.ensureAllSeatHomes()
     endGame.markPlayerAi(1)
     GameDriver endDrv = GameDriver(
         endGame, true, "", false, 10000u)
+    # Lobby suppresses end-status; quit before go must not end.
     if (ok and not endDrv.quitPlayer(0)) {
         ok = false
     }
-    if (ok and not endDrv.game.ended) {
+    if (ok and endDrv.game.ended) {
         ok = false
     }
-    if (ok and not endDrv.game.endReason.equals("all_humans_quit")) {
+    # Fresh session: go, then quit the sole human while AI remains.
+    State endRun = State()
+    endRun.startClosed(19u, 2)
+    endRun.ensureAllSeatHomes()
+    endRun.markPlayerAi(1)
+    GameDriver endRunDrv = GameDriver(
+        endRun, true, "", false, 10000u)
+    if (ok and not endRunDrv.go()) {
+        ok = false
+    }
+    if (ok and not endRunDrv.quitPlayer(0)) {
+        ok = false
+    }
+    if (ok and not endRunDrv.game.ended) {
+        ok = false
+    }
+    if (ok and not endRunDrv.game.endReason.equals(
+        "all_humans_quit")) {
         ok = false
     }
     endDrv.close()
+    endRunDrv.close()
 
     driver.close()
     print(ok)

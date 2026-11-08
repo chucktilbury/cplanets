@@ -97,10 +97,18 @@ if(NOT Cwhip_APPLICATION_OUTPUT_DIRECTORIES)
         "Install an SDK that provides Cwhip_APPLICATION_OUTPUT_DIRECTORIES.")
 endif()
 
+# Non-blocking stdin poll for the serve-time status menu (ServerListen).
+add_library(cplanets_native OBJECT
+    "${PROJECT_SOURCE_DIR}/src/native/stdinPoll.c")
+target_include_directories(cplanets_native PRIVATE
+    "${Cwhip_INCLUDE_DIR}")
+
 function(cplanets_add_program target source)
     cwhip_add_program(${target}
         SOURCE "${PROJECT_SOURCE_DIR}/${source}"
-        OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}")
+        OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}"
+        OBJECTS $<TARGET_OBJECTS:cplanets_native>
+        DEPENDS cplanets_native)
     get_target_property(_executable ${target} CWHIP_EXECUTABLE)
     set(${target}_executable "${_executable}" PARENT_SCOPE)
 endfunction()
@@ -114,7 +122,9 @@ function(cplanets_add_test_program target source)
     if(NOT Cwhip_COMPILER)
         cwhip_add_program(${target}
             SOURCE "${PROJECT_SOURCE_DIR}/${source}"
-            OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}")
+            OUTPUT_DIRECTORY "${CWHIP_BIN_DIR}"
+            OBJECTS $<TARGET_OBJECTS:cplanets_native>
+            DEPENDS cplanets_native)
         get_target_property(_executable ${target} CWHIP_EXECUTABLE)
         set(${target}_executable "${_executable}" PARENT_SCOPE)
         return()
@@ -189,10 +199,10 @@ function(cplanets_add_test_program target source)
             -P "${stage_sources}"
         COMMAND ${environment} "${Cwhip_COMPILER}" "${work}/src/${source_name}"
             -M "${Cwhip_MODULE_DIR}" -p "${src_root}" ${_cwhip_debug_flags}
-            -o "${output}"
+            -o "${output}" $<TARGET_OBJECTS:cplanets_native>
         DEPENDS "${Cwhip_COMPILER}" "${Cwhip_RUNTIME_LIBRARY}" ${sdk_inputs}
             ${inputs} ${src_inputs} "${work}/inputs.txt" "${work}/source-inputs.cmake"
-            "${stage_sources}"
+            "${stage_sources}" cplanets_native
             "${work}/cwhip-pkg.toml" "${work}/cwhip-pkg.lock"
         WORKING_DIRECTORY "${work}" COMMAND_EXPAND_LISTS VERBATIM)
     # No ALL — production `build` must not compile unit/fn programs.
@@ -200,6 +210,7 @@ function(cplanets_add_test_program target source)
     if(TARGET cwhip_language_resources)
         add_dependencies(${target} cwhip_language_resources)
     endif()
+    add_dependencies(${target} cplanets_native)
     set_property(TARGET ${target} PROPERTY CWHIP_EXECUTABLE "${output}")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES
         "${work}/src" "${work}/home" "${work}/xdg" "${work}/data"

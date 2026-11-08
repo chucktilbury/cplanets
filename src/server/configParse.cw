@@ -13,6 +13,7 @@
  *   2026-11-07  Initial ServerConfigParse.
  *   2026-11-07  handshake_miss_ms + accept_poll_ms keys.
  *   2026-11-08  menu key for operator status console.
+ *   2026-11-08  Drop menu key (status via stdin m while serving).
  */
 
 include "config.cw"
@@ -136,8 +137,6 @@ class ServerConfigParse {
             cfg.serve = parseBool(val)
         } else (key.equals("injectable")) {
             cfg.injectable = parseBool(val)
-        } else (key.equals("menu")) {
-            cfg.menu = parseBool(val)
         } else (key.equals("verbosity")) {
             cfg.verbosity = val.toInt64()
         } else (key.equals("handshake_miss_ms")) {

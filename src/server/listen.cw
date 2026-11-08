@@ -4,7 +4,9 @@
  * Binds a listen socket, accepts with SO_RCVTIMEO so the injectable
  * / wall cadence can run between accepts, and handles one request /
  * response per connection burst. Clients never open the DB
- * (RULES §2 / PLAN §4.F).
+ * (RULES §2 / PLAN §4.F). Between accept cycles, an optional
+ * ServeMenuGate may open the read-only status menu on stdin `m`
+ * without blocking accept forever (non-blocking poll).
  *
  * Gap: Cwhip networking has no select/poll multiplex and no
  * stream reassembly helper — each recv assumes a complete envelope
@@ -18,18 +20,21 @@
  * Changelog:
  *   2026-11-05  Initial TCP listener with timeout accept.
  *   2026-11-06  Document one-shot TCP client contract.
+ *   2026-11-08  Poll ServeMenuGate between accept / maybeTick cycles.
  */
 
 import networking as Networking
 
 include "handler.cw"
+include "serveMenuGate.cw"
 
 /*
  * ServerListen owns the TCP socket and accept / handle loop.
  *
  * Uses Networking.Runtime directly so the listen fd can take
  * SO_RCVTIMEO (ServerSocket has no setTimeout). One writer: all
- * mutations go through ServerHandler → GameDriver.
+ * mutations go through ServerHandler → GameDriver. menuGate stays
+ * disabled unless the server calls enable() before serve().
  */
 class ServerListen {
     Networking.Runtime net
@@ -40,6 +45,7 @@ class ServerListen {
     int64 acceptTimeoutMs
     int64 maxCycles
     int64 cycles
+    ServeMenuGate menuGate
 
     /*
      * Construct a listener bound to a handler/driver.
@@ -53,7 +59,7 @@ class ServerListen {
      *   cycleLimit — stop after this many accept attempts
      *                (0 = unlimited; tests pass a small N).
      *
-     * Returns: ServerListen with fd -1.
+     * Returns: ServerListen with fd -1 and a disabled menu gate.
      */
     ServerListen(
         ServerHandler gameHandler,
@@ -68,6 +74,7 @@ class ServerListen {
         acceptTimeoutMs = timeoutMs
         maxCycles = cycleLimit
         cycles = 0
+        menuGate = ServeMenuGate()
     }
 
     /*
@@ -113,7 +120,9 @@ class ServerListen {
      * Run accept / maybeTick cycles until ended or cycle limit.
      *
      * Purpose: sole server loop. On accept timeout, still calls
-     * maybeTick so wall cadence advances without a client.
+     * maybeTick so wall cadence advances without a client. When the
+     * menu gate is enabled, a non-blocking stdin poll may open the
+     * status console (ticks paused while open).
      *
      * Parameters: none.
      *
@@ -126,6 +135,7 @@ class ServerListen {
                 return(handled)
             }
             cycles = cycles + 1
+            menuGate.pollOnce()
             driver.maybeTick()
             if (driver.game.ended) {
                 return(handled)

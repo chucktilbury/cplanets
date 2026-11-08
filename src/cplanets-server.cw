@@ -4,14 +4,14 @@
  * --config PATH is mandatory (process/network defaults; not the
  * scenario). Missing or empty path prints help and exits 2.
  * --serve [--host ADDR] [--port N] [--players N] [--seed N]
- * [--setup PATH] [--verbosity N] [--injectable] [--cycles N]
- * [--menu]: bind TCP and/or open the read-only in-process status
- * console on the same State (sole writer). Verbosity is 0–10
- * (clamped; stdout). Stand-alone and online share this driver
- * (RULES §2 / PLAN §4.F). Knob edits take effect on process restart
- * (no mid-game retune). User-facing argv uses stdlib `cli`
- * (including --help / -h). With serve=false and menu=false from
- * file/argv, prints smoke identity (name + lib).
+ * [--setup PATH] [--verbosity N] [--injectable] [--cycles N]:
+ * bind TCP and run accept + cadence. While serving, stdin line `m`
+ * opens the read-only in-process status console on the same State
+ * (ticks pause while the menu is open). Verbosity is 0–10 (clamped;
+ * stdout). Stand-alone and online share this driver (RULES §2 /
+ * PLAN §4.F). Knob edits take effect on process restart (no mid-game
+ * retune). User-facing argv uses stdlib `cli` (including --help / -h).
+ * With serve=false from file/argv, prints smoke identity (name + lib).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -30,6 +30,7 @@
  *   2026-11-07  handshake_miss_ms / accept_poll_ms from server cfg.
  *   2026-11-07  CLI port help default 7700 (0 still ephemeral).
  *   2026-11-08  --menu read-only status console (pause-and-inspect).
+ *   2026-11-08  Drop --menu; on-demand status via stdin m while serving.
  */
 
 import cli as Cli
@@ -43,7 +44,7 @@ include "server/configParse.cw"
 include "server/driver.cw"
 include "server/handler.cw"
 include "server/listen.cw"
-include "server/statusMenu.cw"
+include "server/statusViews.cw"
 
 /*
  * ServerMain parses argv via Cli and runs smoke or serve mode.
@@ -112,16 +113,10 @@ class ServerMain {
         Cli.Option serve = Cli.Option()
         serve.longName = "serve"
         serve.name = "serve"
-        serve.description = "bind TCP and run accept + cadence loop"
+        serve.description = (
+            "bind TCP and run accept + cadence (stdin m = status menu)")
         serve.valueType = Cli.ValueType().FLAG
         commandLine.addOption(serve)
-        Cli.Option menu = Cli.Option()
-        menu.longName = "menu"
-        menu.name = "menu"
-        menu.description = (
-            "read-only status console (same State as serve)")
-        menu.valueType = Cli.ValueType().FLAG
-        commandLine.addOption(menu)
         Cli.Option host = Cli.Option()
         host.longName = "host"
         host.name = "host"
@@ -261,7 +256,7 @@ class ServerMain {
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
-     *   name — option name (serve / injectable / menu).
+     *   name — option name (serve / injectable).
      *   fromFile — value from ServerConfig.
      *
      * Returns: switchValue when wasProvided, else fromFile.
@@ -323,16 +318,14 @@ class ServerMain {
         cfg.serve = resolveFlag(commandLine, "serve", cfg.serve)
         cfg.injectable = resolveFlag(
             commandLine, "injectable", cfg.injectable)
-        cfg.menu = resolveFlag(commandLine, "menu", cfg.menu)
         cfg.clampAll()
         return(cfg)
     }
 
     /*
-     * Load scenario text and start a State for menu and/or serve.
+     * Load scenario text and start a State for serve.
      *
-     * Purpose: one authoritative world bootstrap shared by --menu
-     * and --serve (no second galaxy).
+     * Purpose: one authoritative world bootstrap for --serve.
      *
      * Parameters:
      *   cfg — clamped ServerConfig (setup / seed / players /
@@ -377,34 +370,22 @@ class ServerMain {
     /*
      * Run the TCP server loop on an existing GameDriver.
      *
-     * Purpose: Phase F listen path after --menu inspect (same State)
-     * or as the sole serve entry. Prints HOST= / PORT= / SETUP= /
-     * SEED= / PLAYERS= / CYCLES= / VERBOSITY= / INJECTABLE= for
-     * operators and Python tests.
+     * Purpose: Phase F listen path. Prints HOST= / PORT= / SETUP= /
+     * SEED= / PLAYERS= / CYCLES= / VERBOSITY= / INJECTABLE= /
+     * MENU_KEY= for operators and Python tests. Enables the stdin
+     * `m` status menu gate on the listen loop.
      *
      * Parameters:
      *   setupPath — path used for SETUP= (may be empty → builtin).
      *   driver — sole writer already wrapping the live State.
-     *   host — listen bind address.
-     *   port — listen port (0 = ephemeral).
-     *   players — seat count (banner only; already applied).
-     *   seedRaw — PRNG seed for banner.
-     *   cycles — accept/serve iteration cap.
-     *   injectable — test clock (banner only).
-     *   acceptPollMs — accept/recv poll timeout (server config).
+     *   cfg — clamped ServerConfig (host/port/cycles/accept poll).
      *
      * Returns: process exit code (0 ok, 1 bind failure).
      */
     int64 runServeDriver(
         String setupPath,
         GameDriver driver,
-        String host,
-        int64 port,
-        int64 players,
-        int64 seedRaw,
-        int64 cycles,
-        bool injectable,
-        int64 acceptPollMs) {
+        ServerConfig cfg) {
         String setupLabel = "builtin"
         if (setupPath.length > 0) {
             setupLabel = setupPath
@@ -412,26 +393,33 @@ class ServerMain {
 
         ServerHandler handler = ServerHandler(driver)
         ServerListen listener = ServerListen(
-            handler, driver, acceptPollMs, cycles)
-        if (not listener.listenOn(host, port)) {
+            handler, driver, cfg.acceptPollMs, cfg.cycles)
+        StatusViews views = StatusViews(driver, cfg)
+        listener.menuGate.enable(views, driver)
+        if (not listener.listenOn(cfg.host, cfg.port)) {
             print("cplanets-server: bind failed\n")
             driver.close()
             return(1)
         }
         print("cplanets-server\n")
-        print(format("HOST={}\n", host))
+        print(format("HOST={}\n", cfg.host))
         print(format("PORT={}\n", listener.getPort()))
         print(format("SETUP={}\n", setupLabel))
-        print(format("SEED={}\n", seedRaw))
-        print(format("PLAYERS={}\n", players))
-        print(format("CYCLES={}\n", cycles))
+        print(format("SEED={}\n", cfg.seed))
+        print(format("PLAYERS={}\n", cfg.players))
+        print(format("CYCLES={}\n", cfg.cycles))
         print(format(
             "VERBOSITY={}\n", driver.game.scenario.verbosity))
-        if (injectable) {
+        if (cfg.injectable) {
             print("INJECTABLE=1\n")
         } else {
             print("INJECTABLE=0\n")
         }
+        print("MENU_KEY=m\n")
+        print(
+            "Status menu: type m then Enter on this console ")
+        print(
+            "(ticks pause while open; q resumes prior pause).\n")
         # Flush so Python functional tests see PORT= before accept.
         Sys.StandardIO().flush()
         listener.serve()
@@ -441,24 +429,23 @@ class ServerMain {
     }
 
     /*
-     * Dispatch smoke, menu, and/or serve from resolved config.
+     * Dispatch smoke or serve from resolved config.
      *
      * Purpose: every CLI flag except --config may come from the
      * server config file; flags present on argv override silently.
-     * Scenario/setup holds §14 galaxy knobs only. --menu opens the
-     * read-only status console on the same State --serve would use.
-     * With both flags, explore first; Quit starts TCP. With neither,
-     * print smoke identity.
+     * Scenario/setup holds §14 galaxy knobs only. With serve=false,
+     * print smoke identity. With serve=true, bind TCP; operator may
+     * open the read-only status menu anytime via stdin `m`.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
      *
-     * Returns: process exit code (0 for smoke / menu / serve ok).
+     * Returns: process exit code (0 for smoke / serve ok).
      */
     int64 run(Cli.CommandLine commandLine) {
         ServerConfig cfg = loadConfig(commandLine)
 
-        if (not cfg.serve and not cfg.menu) {
+        if (not cfg.serve) {
             printSmoke()
             return(0)
         }
@@ -468,35 +455,14 @@ class ServerMain {
             return(1)
         }
 
-        # Enable SQLite store when serving; menu-only skips the DB.
-        bool enableStore = cfg.serve
         GameDriver driver = GameDriver(
             game,
             cfg.injectable,
             "",
-            enableStore,
+            true,
             uint64(cfg.handshakeMissMs))
 
-        if (cfg.menu) {
-            StatusViews views = StatusViews(driver, cfg)
-            StatusMenu menu = StatusMenu(views, cfg.serve)
-            int64 proceed = menu.runInteractive()
-            if (proceed == 0 or not cfg.serve) {
-                driver.close()
-                return(0)
-            }
-        }
-
-        return(runServeDriver(
-            cfg.setup,
-            driver,
-            cfg.host,
-            cfg.port,
-            cfg.players,
-            cfg.seed,
-            cfg.cycles,
-            cfg.injectable,
-            cfg.acceptPollMs))
+        return(runServeDriver(cfg.setup, driver, cfg))
     }
 }
 

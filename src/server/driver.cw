@@ -31,6 +31,8 @@
  *               do not claim playerId. Keep-alive only when connected.
  *   2026-11-08  Lobby until operator go; reconnect tokens on allocate;
  *               reclaim by token; ticks blocked in lobby (incl. admin).
+ *   2026-11-08  Grow seats on allocate; softMaxPlayers optional cap
+ *               (0 = unlimited within practical bounds).
  */
 
 include "clock.cw"
@@ -67,6 +69,9 @@ class GameDriver {
     int64 fireCount
     ServerVerboseLog verbose
     String lastOrderError
+    # Optional soft maximum of allocated seats (config players).
+    # 0 = unlimited within State.appendSeat practical bound.
+    int64 softMaxPlayers
 
     /*
      * Construct a driver around a started State.
@@ -75,6 +80,8 @@ class GameDriver {
      * SQLite store for one stand-alone live game. Starts in
      * **lobby** (running=false): TCP accept, seating, and status
      * work, but wall / injectable ticks do not fire until go().
+     * softMaxPlayers defaults to 0 (unlimited); the serve path
+     * sets it from ServerConfig.players after construct.
      *
      * Parameters:
      *   started — State already startClosed / loaded.
@@ -120,6 +127,7 @@ class GameDriver {
         running = false
         fireCount = 0
         lastOrderError = ""
+        softMaxPlayers = 0
         verbose = ServerVerboseLog()
         verbose.setLevel(game.scenario.verbosity)
         publishedState = publisher.encodeState(
@@ -146,7 +154,9 @@ class GameDriver {
      *
      * Purpose: operator console `g` / status-menu Go / harness
      * PUT /admin/go. Idempotent. Does not itself fire a tick.
-     * Later “all humans ready” can call this same path
+     * Starts with **whatever seats are already allocated** — does
+     * not wait for softMaxPlayers / expected seat count. Later
+     * “all humans ready” can call this same path
      * (tryAutoGoAllHumansReady is the stub hook).
      *
      * Parameters: none.
@@ -163,6 +173,40 @@ class GameDriver {
         }
         running = true
         republishWithoutTick()
+        return(true)
+    }
+
+    /*
+     * Count seats that have been allocated (in the players list).
+     *
+     * Purpose: status banner seated vs soft max. Every handshake
+     * allocate appends or reuses a slot in game.players — that
+     * length is the seated/allocated count.
+     *
+     * Parameters: none.
+     *
+     * Returns: game.players.length.
+     */
+    int64 seatedCount() {
+        return(game.players.length)
+    }
+
+    /*
+     * True when softMaxPlayers allows growing one more seat.
+     *
+     * Purpose: handshake allocate checks before State.appendSeat.
+     * softMaxPlayers 0 means unlimited (practical bound lives in
+     * appendSeat). softMaxPlayers N rejects when seatedCount >= N.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when a new seat may be appended.
+     */
+    bool canGrowSeat() {
+        if (softMaxPlayers > 0
+            and game.players.length >= softMaxPlayers) {
+            return(false)
+        }
         return(true)
     }
 
@@ -597,16 +641,17 @@ class GameDriver {
      * Pick the first free seat for a new empty-body connect.
      *
      * Purpose: server-side seating — clients cannot know a free
-     * seat without being told (RULES §2). Walks 0..players-1 and
-     * returns the first seat that is not connected, not quit, and
+     * seat without being told (RULES §2). Walks allocated seats
+     * and returns the first that is not connected, not quit, and
      * has **no** outstanding reconnect token. Token-held dropped
      * seats are reclaimable only with the token (cannot steal).
-     * Quit seats stay closed for the live game.
+     * Quit seats stay closed for the live game. When none are
+     * free, callers may growSeat() under softMaxPlayers.
      *
      * Parameters: none.
      *
-     * Returns: seat id, or -1 when the game ended or every seat
-     * is taken / token-held / quit.
+     * Returns: seat id, or -1 when the game ended or every
+     * allocated seat is taken / token-held / quit.
      */
     int64 findFreeSeat() {
         if (game.ended) {
@@ -624,6 +669,34 @@ class GameDriver {
             index = index + 1
         }
         return(-1)
+    }
+
+    /*
+     * Append a new empire seat under the soft-max ceiling.
+     *
+     * Purpose: handshake allocate grows seats on demand so a third
+     * client is not aborted when softMaxPlayers is 0 / unset
+     * (RULES §2). Grows presence and policy tables to match.
+     *
+     * Parameters: none.
+     *
+     * Returns: new seat id, or -1 when soft max / practical bound
+     * blocks growth or the game has ended.
+     */
+    int64 growSeat() {
+        if (game.ended) {
+            return(-1)
+        }
+        if (not canGrowSeat()) {
+            return(-1)
+        }
+        int64 playerId = game.appendSeat()
+        if (playerId < 0) {
+            return(-1)
+        }
+        policies.ensureSeats(game.players.length)
+        presence.ensureSeats(game.players.length)
+        return(playerId)
     }
 
     /*
@@ -668,18 +741,24 @@ class GameDriver {
     }
 
     /*
-     * Allocate the first free seat, mint a token, mark connected.
+     * Allocate a seat (reuse free or grow), mint token, connect.
      *
      * Purpose: PUT /handshake with an empty body (new connect).
-     * Server picks the seat; response carries playerId + opaque
+     * Prefers a free never-tokened seat among those already
+     * allocated; otherwise grows a new seat when softMaxPlayers
+     * allows (0 = unlimited). Response carries playerId + opaque
      * reconnect token. Never steals a token-held dropped seat.
      *
      * Parameters: none.
      *
-     * Returns: assigned seat id, or -1 when none free / failed.
+     * Returns: assigned seat id, or -1 when soft max is full /
+     * growth failed / connect failed.
      */
     int64 handshakeAllocate() {
         int64 playerId = findFreeSeat()
+        if (playerId < 0) {
+            playerId = growSeat()
+        }
         if (playerId < 0) {
             return(-1)
         }

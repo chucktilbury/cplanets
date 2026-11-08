@@ -13,6 +13,7 @@
  *   2026-11-07  handshake_miss_ms + accept_poll_ms (former literals).
  *   2026-11-08  menu flag for read-only operator status console.
  *   2026-11-08  Drop menu flag; status opens via stdin m while serving.
+ *   2026-11-08  players = optional soft max seats (0 = unlimited).
  */
 
 /*
@@ -27,6 +28,9 @@ class ServerConfig {
     String setup
     String host
     int64 port
+    # Soft maximum of allocated seats (0 = unlimited). Also the
+    # expected-ceiling hint shown in status when > 0. Not a fixed
+    # pre-created seat array — live serve starts empty and grows.
     int64 players
     int64 seed
     int64 cycles
@@ -44,7 +48,8 @@ class ServerConfig {
      * Construct CLI-matching process defaults.
      *
      * Purpose: give loaders and bare-argv serve the same baseline as
-     * buildCli() defaults (loopback bind, ephemeral port, 2 seats).
+     * buildCli() defaults (loopback bind, ephemeral port, soft max
+     * 0 = unlimited seats grown on connect).
      *
      * Parameters: none.
      *
@@ -54,7 +59,7 @@ class ServerConfig {
         setup = ""
         host = "127.0.0.1"
         port = 0
-        players = 2
+        players = 0
         seed = 7
         cycles = 0
         serve = false
@@ -68,7 +73,8 @@ class ServerConfig {
      * Clamp seat, port, seed, cycles, and verbosity into legal bands.
      *
      * Purpose: harden after text load so listen / start never see
-     * negative ports or out-of-range verbosity.
+     * negative ports or out-of-range verbosity. players is a soft
+     * max: 0 stays 0 (unlimited); negatives clamp to 0.
      *
      * Parameters: none (mutates this config).
      *
@@ -78,8 +84,8 @@ class ServerConfig {
         if (port < 0) {
             port = 0
         }
-        if (players < 1) {
-            players = 1
+        if (players < 0) {
+            players = 0
         }
         if (seed < 0) {
             seed = 0

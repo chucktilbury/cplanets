@@ -26,6 +26,8 @@
  *   2026-11-07  peelSittingHulls + issueOrderHulls for split
  *               dispatch of a multi-hull sitting stack.
  *   2026-11-08  Defer home yards / starter fleets to seat connect.
+ *   2026-11-08  finishStart allows 0 seats; appendSeat grows the
+ *               empire list on handshake allocate (live serve).
  */
 
 include "agreement.cw"
@@ -119,7 +121,9 @@ class State {
      *
      * Parameters:
      *   seed — PRNG seed (0 remapped inside SeededRng).
-     *   playerCount — number of empire seats (>= 1).
+     *   playerCount — initial empire seats (>= 0). Live serve
+     *     starts at 0 and grows via appendSeat on allocate; unit
+     *     fixtures may pre-create N seats.
      *
      * Returns: nothing; fills this State in place.
      */
@@ -138,7 +142,7 @@ class State {
      * Parameters:
      *   text — setup document body.
      *   seed — PRNG seed.
-     *   playerCount — number of empire seats (>= 1).
+     *   playerCount — initial empire seats (>= 0); see startClosed.
      *
      * Returns: nothing; fills this State in place.
      */
@@ -161,7 +165,7 @@ class State {
      * Parameters:
      *   loaded — Scenario with knobs already overlaid / clamped.
      *   seed — PRNG seed.
-     *   playerCount — number of empire seats (>= 1).
+     *   playerCount — initial empire seats (>= 0); see startClosed.
      *
      * Returns: nothing; fills this State in place.
      */
@@ -180,10 +184,11 @@ class State {
      * Purpose: keep startClosed and startFromText aligned on player
      * seats, unowned start galaxy, default designs, and RNG.
      * Homes stay deferred until ensureHomeForSeat / handshake.
+     * Live serve passes playerCount 0 and grows seats on allocate.
      *
      * Parameters:
      *   seed — PRNG seed.
-     *   playerCount — empire seats; values < 1 become 1.
+     *   playerCount — initial empire seats; values < 0 become 0.
      *
      * Returns: nothing; mutates this State.
      */
@@ -209,8 +214,8 @@ class State {
         endReason = ""
         winnerId = -1
         int64 seats = playerCount
-        if (seats < 1) {
-            seats = 1
+        if (seats < 0) {
+            seats = 0
         }
         int64 index = 0
         while (index < seats) {
@@ -225,6 +230,31 @@ class State {
         # connects (RULES §2 / §3 connect-time home spawn).
         galaxy.buildFrom(scenario, rng, -1)
         seedDefaultDesigns()
+    }
+
+    /*
+     * Append one new empire seat with starting pools.
+     *
+     * Purpose: handshake allocate grows the seat list when no free
+     * reclaimable seat exists and soft max still allows growth
+     * (RULES §2). Does not grant a home — caller runs
+     * ensureHomeForSeat after presence is recorded.
+     *
+     * Parameters: none.
+     *
+     * Returns: new seat id (== prior players.length), or -1 when
+     * the practical absolute seat bound is already reached.
+     */
+    int64 appendSeat() {
+        if (players.length >= 256) {
+            return(-1)
+        }
+        int64 id = players.length
+        Player seat = Player(id)
+        seat.applyStartingPools(scenario)
+        seat.partitionId = id
+        players.append(seat)
+        return(id)
     }
 
     /*

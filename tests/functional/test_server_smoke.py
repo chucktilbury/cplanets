@@ -16,7 +16,10 @@ from wire import (
     admin_go,
     decode_envelope,
     get_state,
+    handshake,
+    parse_handshake_ack,
     put_policy,
+    put_suspended,
 )
 
 
@@ -98,6 +101,21 @@ def main() -> int:
         return 1
 
     try:
+        # Allocate seat 0 (live serve starts empty; grow on connect).
+        resp = exchange("127.0.0.1", port, handshake())
+        _, verb, path, body = decode_envelope(resp)
+        accepted, _tick, _ended, seat, token = parse_handshake_ack(body)
+        if path != "/handshake" or not accepted or seat != 0 or len(token) != 16:
+            print(f"bad handshake path={path} body={body!r}")
+            return 1
+        # Hold past handshake_miss during injectable advance (no
+        # spare pre-created human seat under grow-on-connect).
+        resp = exchange("127.0.0.1", port, put_suspended(0, True))
+        _, verb, path, body = decode_envelope(resp)
+        if path != "/suspended" or body[0] != 1:
+            print(f"bad suspend path={path} body={body!r}")
+            return 1
+
         # PUT policy for seat 0 (anytime; no ready barrier).
         resp = exchange("127.0.0.1", port, put_policy(0, b"\x01\x02"))
         _, verb, path, body = decode_envelope(resp)

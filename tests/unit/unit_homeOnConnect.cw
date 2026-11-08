@@ -11,6 +11,7 @@
  *   2026-11-08  Initial home-on-connect unit program.
  *   2026-11-08  Server allocate: first free seat; drop frees seat.
  *   2026-11-08  Drop keeps token; reclaim by token (no steal).
+ *   2026-11-08  Soft max 2 for full-reject; grow covered elsewhere.
  */
 
 include "lib/state.cw"
@@ -98,6 +99,8 @@ start {
         ok = false
     }
     GameDriver drv = GameDriver(live, true, "", false, 5000u)
+    # Soft max 2: third allocate must reject (no grow past soft max).
+    drv.softMaxPlayers = 2
     int64 seat0 = drv.handshakeAllocate()
     if (seat0 != 0) {
         ok = false

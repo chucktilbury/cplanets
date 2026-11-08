@@ -21,6 +21,7 @@ from wire import (
     decode_envelope,
     get_state,
     handshake,
+    put_suspended,
 )
 
 LIST_MARKER = 1196445777
@@ -202,6 +203,13 @@ def test_knob_path(server: Path, server_config: Path) -> int:
             if path != "/handshake" or body[0] != 1:
                 print(f"handshake failed path={path} body={body!r}")
                 return 1
+            # Suspend so injectable advance past miss window does not
+            # drop the only human under grow-on-connect seating.
+            resp = exchange("127.0.0.1", port, put_suspended(0, True))
+            _, verb, path, body = decode_envelope(resp)
+            if path != "/suspended" or body[0] != 1:
+                print(f"suspend failed path={path} body={body!r}")
+                return 1
 
             resp = exchange("127.0.0.1", port, get_state(0, 0))
             _, verb, path, body = decode_envelope(resp)
@@ -222,14 +230,6 @@ def test_knob_path(server: Path, server_config: Path) -> int:
                     f"start_wealth not applied: milli={wealth0} "
                     f"expected>={expected_milli}"
                 )
-                return 1
-
-            # Keep seat 0 present across injectable advances so AFK
-            # drop does not end the live game before stock deltas.
-            resp = exchange("127.0.0.1", port, handshake(0))
-            _, verb, path, body = decode_envelope(resp)
-            if path != "/handshake" or body[0] != 1:
-                print(f"re-handshake failed path={path} body={body!r}")
                 return 1
 
             resp = exchange("127.0.0.1", port, admin_go())
@@ -323,6 +323,12 @@ def test_repo_fixture(
         return 2
     proc, port = spawn_server(server, fixture, server_config, seed=7)
     try:
+        # Seat 0 must exist before wealth is readable from publish.
+        resp = exchange("127.0.0.1", port, handshake())
+        _, verb, path, body = decode_envelope(resp)
+        if path != "/handshake" or body[0] != 1:
+            print(f"fixture handshake failed path={path} body={body!r}")
+            return 1
         resp = exchange("127.0.0.1", port, get_state(0, 0))
         _, verb, path, body = decode_envelope(resp)
         if verb != 1 or path != "/state":

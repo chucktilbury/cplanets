@@ -32,6 +32,7 @@
  *   2026-11-08  --menu read-only status console (pause-and-inspect).
  *   2026-11-08  Drop --menu; on-demand status via stdin m while serving.
  *   2026-11-08  Lobby until operator go (stdin g); reconnect tokens.
+ *   2026-11-08  players soft max (0=unlimited); seats grow on connect.
  */
 
 import cli as Cli
@@ -139,10 +140,11 @@ class ServerMain {
         Cli.Option players = Cli.Option()
         players.longName = "players"
         players.name = "players"
-        players.description = "seat count for the closed start galaxy"
+        players.description = (
+            "soft max seats (0=unlimited; grow on connect)")
         players.valueType = Cli.ValueType().NUMBER
         players.hasDefault = true
-        players.defaultValue = "2"
+        players.defaultValue = "0"
         commandLine.addOption(players)
         Cli.Option seed = Cli.Option()
         seed.longName = "seed"
@@ -327,10 +329,13 @@ class ServerMain {
      * Load scenario text and start a State for serve.
      *
      * Purpose: one authoritative world bootstrap for --serve.
+     * Always starts with **zero** empire seats; handshake allocate
+     * grows seats as clients connect. cfg.players is the soft max
+     * applied on the GameDriver after construct, not a pre-size.
      *
      * Parameters:
-     *   cfg — clamped ServerConfig (setup / seed / players /
-     *         verbosity already overlaid).
+     *   cfg — clamped ServerConfig (setup / seed / players soft
+     *         max / verbosity already overlaid).
      *
      * Returns: started State, or null when setup parse failed
      * (error already printed).
@@ -355,11 +360,11 @@ class ServerMain {
         }
 
         State game = State()
+        # 0 seats: grow on connect. Soft max is driver.softMaxPlayers.
         if (haveSetup) {
-            game.startFromScenario(
-                loaded, uint64(cfg.seed), cfg.players)
+            game.startFromScenario(loaded, uint64(cfg.seed), 0)
         } else {
-            game.startClosed(uint64(cfg.seed), cfg.players)
+            game.startClosed(uint64(cfg.seed), 0)
         }
         # Verbosity is a process key: apply after scenario load so a
         # leftover scenario.verbosity from older fixtures cannot win.
@@ -472,6 +477,8 @@ class ServerMain {
             "",
             true,
             uint64(cfg.handshakeMissMs))
+        # players config / --players: soft max (0 = unlimited).
+        driver.softMaxPlayers = cfg.players
 
         return(runServeDriver(cfg.setup, driver, cfg))
     }

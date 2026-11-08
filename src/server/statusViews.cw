@@ -13,6 +13,7 @@
  *   2026-11-08  Drop menu= from server config dump.
  *   2026-11-08  Player detail: connected / suspended presence.
  *   2026-11-08  Summary shows phase=lobby|running.
+ *   2026-11-08  Summary shows seated count vs soft max when set.
  */
 
 include "config.cw"
@@ -50,6 +51,9 @@ class StatusViews {
      * One-line top status: tick, pause, seat/planet/fleet counts.
      *
      * Purpose: top-menu banner so operators see cadence at a glance.
+     * seated is allocated seats (grown on connect). When soft max
+     * (cfg.players) is > 0, also prints softMax=N; when 0, prints
+     * softMax=unlimited.
      *
      * Parameters: none.
      *
@@ -69,13 +73,18 @@ class StatusViews {
         if (game.ended) {
             ended = "true"
         }
+        String softLabel = "unlimited"
+        if (driver.softMaxPlayers > 0) {
+            softLabel = format("{}", driver.softMaxPlayers)
+        }
         return(format(
-            "phase={} tick={} paused={} ended={} players={} planets={} fleets={} builds={} designs={}",
+            "phase={} tick={} paused={} ended={} seated={} softMax={} planets={} fleets={} builds={} designs={}",
             phase,
             game.tickCount,
             paused,
             ended,
-            game.players.length,
+            driver.seatedCount(),
+            softLabel,
             game.galaxy.planets.length,
             game.fleets.length,
             game.builds.length,
@@ -751,7 +760,7 @@ class StatusViews {
         text.append(format("  setup={}\n", cfg.setup))
         text.append(format("  host={} port={}\n", cfg.host, cfg.port))
         text.append(format(
-            "  players={} seed={} cycles={}\n",
+            "  players={} (soft max; 0=unlimited) seed={} cycles={}\n",
             cfg.players,
             cfg.seed,
             cfg.cycles))

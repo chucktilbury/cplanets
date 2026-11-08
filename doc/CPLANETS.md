@@ -119,7 +119,7 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
 | `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
 | `--port N` | `7700` (sample) | `port` | Listen port; `0` still picks an ephemeral free port (CI / harnesses) |
-| `--players N` | `2` | `players` | Seat count (homes granted on connect) |
+| `--players N` | `0` | `players` | Soft max allocated seats (`0` = unlimited; grow on connect). Also expected-ceiling hint in status; does not delay go. |
 | `--seed N` | `7` | `seed` | PRNG seed for the start galaxy layout |
 | `--setup PATH` | (empty → builtin) | `setup` | Scenario file (§14 knobs only) |
 | `--verbosity N` | `0` | `verbosity` | Stdout log level 0–10 (clamped) |
@@ -127,25 +127,34 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
 
 **Lobby / go (while serving):** the server starts in **lobby**
-(`PHASE=lobby`). TCP accept, seat allocate, reconnect tokens, and
-the status menu work, but **wall ticks do not advance** until the
-operator starts the game. Type **`g` then Enter** on the server
-console (banner prints `GO_KEY=g`) — or choose **Go** in the status
-menu — to leave lobby (`PHASE=running`). Harnesses may
-`PUT /admin/go` (same path). Later “all humans ready” can share that
-path; v1 is operator go only. Injectable `/admin/advance` is also
-blocked until go.
+(`PHASE=lobby`). TCP accept, seat allocate (grow-on-connect),
+reconnect tokens, and the status menu work, but **wall ticks do not
+advance** until the operator starts the game. Type **`g` then Enter**
+on the server console (banner prints `GO_KEY=g`) — or choose **Go**
+in the status menu — to leave lobby (`PHASE=running`). Go starts with
+**whatever seats are already allocated**; it does not wait for
+`--players` / soft max. Harnesses may `PUT /admin/go` (same path).
+Later “all humans ready” can share that path; v1 is operator go only.
+Injectable `/admin/advance` is also blocked until go.
+
+**Seats / `players`:** live serve starts with **zero** seats and
+**grows** a seat on empty-body handshake when needed. `players` /
+`--players` is an **optional soft max** (`0` = unlimited within a
+practical bound). Soft max rejects allocate only when set and full.
+Status summary shows `seated=N softMax=M` (or `softMax=unlimited`).
+Closed eliminate-all counts only **allocated** seats (never-connected
+soft-max slots do not exist in the list).
 
 **Status menu (while serving):** type `m` then Enter on the server
 console (banner prints `MENU_KEY=m`). Opens a read-only in-process
-console over the live State — phase / tick / pause summary, players
-(wealth, owned planets/fleets/ships), planet and fleet detail,
-designs / yard jobs, and a dump of loaded server + scenario knobs.
-In lobby the menu also offers **Go**. Config create/save is out of
-scope. **Ticks pause while the menu is open** and the prior pause
-flag is restored on `q` (clients can wait). The serve loop polls
-stdin non-blocking between accepts, so TCP accept is not blocked
-forever waiting for menu input.
+console over the live State — phase / tick / pause / seated vs soft
+max summary, players (wealth, owned planets/fleets/ships), planet and
+fleet detail, designs / yard jobs, and a dump of loaded server +
+scenario knobs. In lobby the menu also offers **Go**. Config
+create/save is out of scope. **Ticks pause while the menu is open**
+and the prior pause flag is restored on `q` (clients can wait). The
+serve loop polls stdin non-blocking between accepts, so TCP accept is
+not blocked forever waiting for menu input.
 
 **Bind address:** default `127.0.0.1` (loopback), matching the
 prior hard-coded TCP listen. Set `host = 0.0.0.0` (or CLI
@@ -333,10 +342,11 @@ game ends, or the process is stopped. Pass `--cycles N` (`N > 0`) for
 a short smoke/harness run. `--once` remains the local one-shot (no
 TCP).
 
-**Solo human (no AI):** use `--players 1` so pause is offered, or keep
-`--players 2` and leave seat 1 idle (last policy / empty). Wall ticks
-still run. Prefer `scripts/tuning-session` (server + AI) for the
-documented tuning loop.
+**Solo human (no AI):** leave `--players 0` (unlimited) and connect one
+human — pause is offered when exactly one live human seat exists. Soft
+max `--players 1` also works (rejects a second allocate). Wall ticks
+still run from go with whatever is seated. Prefer
+`scripts/tuning-session` (server + AI) for the documented tuning loop.
 
 Without a display, use `--pull` / `--once` on the human binary and
 `--once` or `--serve-loop` on the AI. While the AI serve-loop runs,

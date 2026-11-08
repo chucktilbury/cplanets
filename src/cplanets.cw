@@ -29,6 +29,7 @@
  *   2026-11-07  Connect failure: print host:port; exit 1;
  *               GUI AlertDialog (no silent empty session).
  *   2026-11-08  Wire AFK CheckButton → PUT /suspended.
+ *   2026-11-08  --player is offline-only; TCP seats from handshake.
  */
 
 import cli as Cli
@@ -119,7 +120,8 @@ class HumanMain {
         Cli.Option player = Cli.Option()
         player.longName = "player"
         player.name = "player"
-        player.description = "seat id"
+        player.description = (
+            "offline seat id (--once / port 0); TCP seats are server-assigned on handshake")
         player.valueType = Cli.ValueType().NUMBER
         commandLine.addOption(player)
         Cli.Option once = Cli.Option()
@@ -277,6 +279,7 @@ class HumanMain {
      * Returns: nothing.
      */
     void runOnce(HumanConfig cfg) {
+        cfg.ensureOfflineSeat()
         State game = State()
         game.startClosed(11u, 2)
         if (cfg.playerId < game.players.length) {
@@ -333,6 +336,7 @@ class HumanMain {
                 print(format("cplanets: {}\n", startupError))
             }
         } else {
+            cfg.ensureOfflineSeat()
             State game = State()
             game.startClosed(11u, 2)
             PolicyTable policies = PolicyTable()

@@ -27,6 +27,8 @@
  *               PUT /order reject reasons (fleet missing / locked).
  *   2026-11-08  Handshake grants seat home yard + starter fleet.
  *   2026-11-08  PUT /suspended intentional AFK skips handshake_miss.
+ *   2026-11-08  Server allocates free seats on handshake; clients
+ *               do not claim playerId. Keep-alive only when connected.
  */
 
 include "clock.cw"
@@ -532,23 +534,65 @@ class GameDriver {
     }
 
     /*
-     * Record a presence handshake for a seat.
+     * Pick the first free seat for a new connect.
      *
-     * Purpose: AFK ≠ drop — live contact without a policy PUT.
-     * First successful handshake for a seat also creates that
-     * seat's home planet and starter fleet (RULES §3). Later
-     * handshakes / AFK keep-alives leave the home in place.
-     * Drop and quit do not destroy an already-granted home.
+     * Purpose: server-side seating — clients cannot know a free
+     * seat without being told (RULES §2). Walks 0..players-1 and
+     * returns the first seat that is not connected and not quit.
+     * Never-seated and free dropped seats both qualify; quit
+     * seats stay closed for the live game.
+     *
+     * Parameters: none.
+     *
+     * Returns: seat id, or -1 when the game ended or every seat
+     * is taken / quit.
+     */
+    int64 findFreeSeat() {
+        if (game.ended) {
+            return(-1)
+        }
+        presence.ensureSeats(game.players.length)
+        int64 index = 0
+        while (index < game.players.length) {
+            Player seat = game.players[index]
+            if (not seat.quit and not presence.isConnected(index)) {
+                return(index)
+            }
+            index = index + 1
+        }
+        return(-1)
+    }
+
+    /*
+     * Seat a player id: presence + home grant.
+     *
+     * Purpose: shared path for allocate and keep-alive. Clears
+     * drop flags when a free dropped seat is taken again. First
+     * successful seat also creates that seat's home planet and
+     * starter fleet (RULES §3). Later keep-alives leave the home
+     * in place. Drop and quit do not destroy an already-granted
+     * home.
      *
      * Parameters:
-     *   playerId — empire id.
+     *   playerId — empire id already chosen by allocate/keep-alive.
      *
      * Returns: true when presence was recorded and the seat home
      * is granted (or was already granted).
      */
-    bool handshake(int64 playerId) {
+    bool seatConnected(int64 playerId) {
         if (game.ended) {
             return(false)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(false)
+        }
+        Player seat = game.players[playerId]
+        if (seat.quit) {
+            return(false)
+        }
+        if (seat.dropped) {
+            seat.markReseated()
+            game.players[playerId] = seat
         }
         if (not presence.handshake(playerId, clock.now())) {
             return(false)
@@ -558,6 +602,74 @@ class GameDriver {
         }
         republishWithoutTick()
         return(true)
+    }
+
+    /*
+     * Allocate the first free seat and mark it connected.
+     *
+     * Purpose: PUT /handshake with an empty body (new connect).
+     * Server picks the seat; response carries the assigned
+     * playerId. Prefer never-seated then free dropped in id
+     * order via findFreeSeat.
+     *
+     * Parameters: none.
+     *
+     * Returns: assigned seat id, or -1 when none free / failed.
+     */
+    int64 handshakeAllocate() {
+        int64 playerId = findFreeSeat()
+        if (playerId < 0) {
+            return(-1)
+        }
+        if (not seatConnected(playerId)) {
+            return(-1)
+        }
+        return(playerId)
+    }
+
+    /*
+     * Refresh presence for a seat that is already connected.
+     *
+     * Purpose: PUT /handshake keep-alive after the client was
+     * told its playerId. Does not honor a client seat claim for
+     * a free / dropped / never-seated id — callers fall through
+     * to handshakeAllocate when this returns -1.
+     *
+     * Parameters:
+     *   playerId — previously assigned empire id.
+     *
+     * Returns: playerId when keep-alive succeeded, else -1.
+     */
+    int64 handshakeKeepAlive(int64 playerId) {
+        if (game.ended) {
+            return(-1)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(-1)
+        }
+        if (not presence.isConnected(playerId)) {
+            return(-1)
+        }
+        if (not seatConnected(playerId)) {
+            return(-1)
+        }
+        return(playerId)
+    }
+
+    /*
+     * Record a presence handshake for a known seat id.
+     *
+     * Purpose: in-process unit / fn tests that already chose a
+     * seat. Live TCP clients must use handshakeAllocate /
+     * handshakeKeepAlive instead of claiming ids.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *
+     * Returns: true when the seat was connected and home granted.
+     */
+    bool handshake(int64 playerId) {
+        return(seatConnected(playerId))
     }
 
     /*

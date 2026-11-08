@@ -97,7 +97,7 @@ def main() -> int:
         return 1
 
     try:
-        exchange("127.0.0.1", port, handshake(0))
+        exchange("127.0.0.1", port, handshake())
 
         resp = exchange("127.0.0.1", port, put_pause(True))
         _, verb, path, body = decode_envelope(resp)

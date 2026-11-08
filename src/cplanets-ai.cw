@@ -29,6 +29,7 @@
  *   2026-11-08  Menu gate wires client for PUT /suspended hold.
  *   2026-11-08  cycles 0 = play until eliminated/ended; wall clock.
  *   2026-11-08  CLI --serve-loop without --cycles forces continuous.
+ *   2026-11-08  TCP seats from handshake; offline --once pins seat 0.
  */
 
 import cli as Cli
@@ -285,6 +286,7 @@ class AiMain {
      * Returns: nothing.
      */
     void runOnce(AiConfig cfg) {
+        cfg.ensureOfflineSeat()
         AiBrain brain = AiBrain(cfg)
         AiView view = AiView(cfg.playerId)
         view.currentRole = "neutral"

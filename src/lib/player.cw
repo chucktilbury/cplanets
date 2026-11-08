@@ -14,6 +14,8 @@
  *   2026-11-07  afkProductionScale for AFK timeout shrink wire-up.
  *   2026-11-08  homeGranted: home spawned on seat connect, not at
  *               scenario start.
+ *   2026-11-08  markReseated clears drop when a free seat is
+ *               reassigned on a new connect.
  */
 
 include "scenario.cw"
@@ -186,6 +188,24 @@ class Player {
     void markDrop() {
         dropped = true
         present = false
+        quit = false
+    }
+
+    /*
+     * Clear drop flags when a free seat is seated again.
+     *
+     * Purpose: v1 reconnect assigns free never-seated or free
+     * dropped seats to new connects (no identity reclaim). A
+     * dropped seat that is allocated again becomes a live
+     * participant; quit seats are never reallocated.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void markReseated() {
+        dropped = false
+        present = true
         quit = false
     }
 }

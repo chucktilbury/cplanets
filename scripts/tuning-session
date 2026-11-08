@@ -32,7 +32,7 @@ Comparable loop after a knob edit:
   1. Edit the --setup and/or --ai-config file.
   2. Stop this script (Ctrl-C).
   3. Re-run with the same --setup --seed --ai-config.
-  4. Attach the human client again (same --port / --player).
+  4. Attach the human client again (same --port; seat from handshake).
 EOF
     exit 2
 }

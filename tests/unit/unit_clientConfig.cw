@@ -8,12 +8,21 @@
  *   2026-11-05  Initial unit.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-07  Assert once / pull / gui / test mode keys.
+ *   2026-11-08  Default playerId -1 (server assigns on handshake).
  */
 
 include "client/configParse.cw"
 
 start {
     bool ok = true
+    HumanConfig baseline = HumanConfig()
+    if (baseline.playerId != -1) {
+        ok = false
+    }
+    baseline.ensureOfflineSeat()
+    if (ok and baseline.playerId != 0) {
+        ok = false
+    }
     String text = ""
     text.append("player_id = 2\n")
     text.append("host = 10.0.0.1\n")

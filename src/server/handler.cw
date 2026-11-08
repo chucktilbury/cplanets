@@ -20,6 +20,8 @@
  *   2026-11-07  PUT /order optional trailing hulls peel count.
  *   2026-11-07  Rejected /order ack carries lastOrderError string.
  *   2026-11-08  PUT /suspended intentional AFK presence flag.
+ *   2026-11-08  PUT /handshake: server allocates seat; ack returns
+ *               assigned playerId (clients do not claim seats).
  */
 
 include "driver.cw"
@@ -210,24 +212,74 @@ class ServerHandler {
     }
 
     /*
-     * Serve PUT /handshake body (playerId u32).
+     * Serve PUT /handshake (empty body or optional legacy playerId).
      *
-     * Purpose: presence keep-alive distinct from policy PUT.
+     * Purpose: presence keep-alive distinct from policy PUT. The
+     * server allocates seats — clients must not choose playerId.
+     * Empty body = new connect (first free never-seated or free
+     * dropped seat). Body with playerId u32 = keep-alive only when
+     * that seat is already connected; otherwise the claim is
+     * ignored and a free seat is allocated (legacy clients that
+     * still send a config player_id).
      *
      * Parameters:
-     *   body — uncompressed request body.
+     *   body — uncompressed request body (empty or playerId u32).
      *
-     * Returns: ack envelope on /handshake.
+     * Returns: handshake ack with assigned playerId on success.
      */
     buffer handleHandshake(buffer body) {
-        WireBytes r = WireBytes()
-        r.setRead(body)
-        int64 player = r.readU32()
-        if (not r.ok() or r.offset != body.length) {
-            return(errorFrame("bad_handshake"))
+        int64 player = -1
+        if (body.length == 0) {
+            player = driver.handshakeAllocate()
+        } else {
+            WireBytes r = WireBytes()
+            r.setRead(body)
+            int64 claim = r.readU32()
+            if (not r.ok() or r.offset != body.length) {
+                return(errorFrame("bad_handshake"))
+            }
+            player = driver.handshakeKeepAlive(claim)
+            if (player < 0) {
+                # Not connected: ignore client claim; assign free.
+                player = driver.handshakeAllocate()
+            }
         }
-        bool ok = driver.handshake(player)
-        return(flagAck("/handshake", ok))
+        return(handshakeAck(player))
+    }
+
+    /*
+     * Build the PUT /handshake response body.
+     *
+     * Purpose: tell the client which seat it owns. Shape is
+     * u8 accepted, u32 tick, u8 ended, u32 playerId. On failure
+     * accepted is 0 and playerId is 0xffffffff.
+     *
+     * Parameters:
+     *   playerId — assigned seat (>= 0) or -1 on failure.
+     *
+     * Returns: envelope bytes on /handshake.
+     */
+    buffer handshakeAck(int64 playerId) {
+        WireBytes w = WireBytes()
+        if (playerId >= 0) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        w.writeU32(driver.game.tickCount)
+        if (driver.game.ended) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        if (playerId >= 0) {
+            w.writeU32(playerId)
+        } else {
+            w.writeU32(0xffffffff)
+        }
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/handshake", w.bytes)
+        return(codec.encode(env))
     }
 
     /*

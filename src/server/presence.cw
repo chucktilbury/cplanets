@@ -15,6 +15,8 @@
  * Changelog:
  *   2026-11-05  Initial presence book and pause helper.
  *   2026-11-08  Intentional suspended flag skips handshake_miss.
+ *   2026-11-08  Server allocates free seats on connect (no client
+ *               seat claim); keep-alive only when already connected.
  */
 
 include "../lib/player.cw"

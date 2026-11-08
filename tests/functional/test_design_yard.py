@@ -103,11 +103,12 @@ def main() -> int:
         # Home yard is created on connect (handshake), not at server
         # start. Two-player fixture keeps the game alive if this
         # handshake later ages out during admin_advance.
-        resp = exchange("127.0.0.1", port, handshake(0))
+        resp = exchange("127.0.0.1", port, handshake())
         _, _verb, path, body = decode_envelope(resp)
         if path != "/handshake" or body[0] != 1:
             print(f"handshake failed path={path} body={body!r}")
             return 1
+        # First free seat is 0; later verbs use that assigned id.
 
         # Tiny size keeps develop wealth cost affordable on startWealth.
         resp = exchange(

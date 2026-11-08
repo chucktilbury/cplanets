@@ -52,8 +52,22 @@ def admin_advance(count: int) -> bytes:
     return encode_envelope(2, "/admin/advance", _u32(count))
 
 
-def handshake(player_id: int) -> bytes:
+def handshake(player_id: int | None = None) -> bytes:
+    """PUT /handshake. Omit player_id (or None) for server allocate."""
+    if player_id is None:
+        return encode_envelope(2, "/handshake", b"")
     return encode_envelope(2, "/handshake", _u32(player_id))
+
+
+def parse_handshake_ack(body: bytes) -> tuple[bool, int, bool, int]:
+    """Parse handshake ack: accepted, tick, ended, playerId."""
+    if len(body) < 10:
+        raise ValueError(f"short handshake ack: {body!r}")
+    accepted = body[0] == 1
+    tick = int.from_bytes(body[1:5], "little")
+    ended = body[5] == 1
+    player_id = int.from_bytes(body[6:10], "little")
+    return accepted, tick, ended, player_id
 
 
 def put_suspended(player_id: int, flag: bool) -> bytes:

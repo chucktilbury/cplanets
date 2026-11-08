@@ -191,7 +191,7 @@ def test_knob_path(server: Path, server_config: Path) -> int:
         proc, port = spawn_server(server, setup, server_config, seed=99)
         try:
             # Homes spawn on connect — seat 0 before production ticks.
-            resp = exchange("127.0.0.1", port, handshake(0))
+            resp = exchange("127.0.0.1", port, handshake())
             _, verb, path, body = decode_envelope(resp)
             if path != "/handshake" or body[0] != 1:
                 print(f"handshake failed path={path} body={body!r}")

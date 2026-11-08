@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **Server allocates seats on connect:** `PUT /handshake` no longer
+  takes a client seat claim as authority. Empty body (or ignored
+  legacy `playerId`) assigns the first free seat in `0…players−1`
+  (never-seated or free dropped; quit not reused). Response shape
+  is `u8 accepted`, `u32 tick`, `u8 ended`, `u32 playerId`. Human
+  and AI clients adopt that id for all later traffic. Reconnect v1:
+  new connect gets a new free seat (no identity reclaim); keep-alive
+  only while still connected. Config `player_id` / `--player` are
+  offline-only; sample AI/human configs drop seating claims. Docs:
+  [RULES.md](RULES.md), [CPLANETS.md](CPLANETS.md). Tests:
+  `unit_homeOnConnect`, `unit_serverPresence`, functional wire
+  handshake helpers.
+
 - **AI continuous serve-loop:** `--serve-loop` with `cycles = 0`
   (default) keeps `cplanets-ai` deciding until the seat is
   eliminated, the game ends, or the process is stopped. CLI

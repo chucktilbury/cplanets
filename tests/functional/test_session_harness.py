@@ -23,6 +23,7 @@ from wire import (
     get_digest,
     get_state,
     handshake,
+    parse_handshake_ack,
     put_policy,
 )
 
@@ -157,7 +158,8 @@ def spawn_server(
     return proc, port
 
 
-def write_ai_config(path: Path, port: int, player_id: int = 1) -> None:
+def write_ai_config(path: Path, port: int) -> None:
+    """AI dial config — server assigns the seat on handshake."""
     path.write_text(
         "\n".join(
             [
@@ -171,7 +173,6 @@ def write_ai_config(path: Path, port: int, player_id: int = 1) -> None:
                 "reaction_lag_seconds = 0.0",
                 "surprise_rate = 0.0",
                 "seed = 42",
-                f"player_id = {player_id}",
                 "host = 127.0.0.1",
                 f"port = {port}",
                 "",
@@ -223,8 +224,6 @@ def run_human_pull(client: Path, port: int, human_cfg: Path) -> int:
             "127.0.0.1",
             "--port",
             str(port),
-            "--player",
-            "0",
             "--pull",
         ],
         capture_output=True,
@@ -297,7 +296,7 @@ def test_session(
 
         with tempfile.TemporaryDirectory() as tmp:
             ai_cfg = Path(tmp) / "ai-harness.cfg"
-            write_ai_config(ai_cfg, port, player_id=1)
+            write_ai_config(ai_cfg, port)
             rc = run_ai_loop(ai, ai_cfg, cycles=4)
             if rc != 0:
                 return rc
@@ -332,11 +331,16 @@ def test_session(
             )
             return 1
 
-        # Human presence after ticks: handshake + headless --pull.
-        resp = exchange("127.0.0.1", port, handshake(0))
+        # Human presence after ticks: empty handshake allocates a
+        # free seat (AI may have held / dropped seat 0).
+        resp = exchange("127.0.0.1", port, handshake())
         _, _verb, path, body = decode_envelope(resp)
-        if path != "/handshake" or body[0] != 1:
-            print(f"human handshake failed path={path} body={body!r}")
+        accepted, _tick, _ended, seat = parse_handshake_ack(body)
+        if path != "/handshake" or not accepted or seat > 1:
+            print(
+                f"human handshake failed path={path} body={body!r} "
+                f"seat={seat}"
+            )
             return 1
 
         rc = run_human_pull(client, port, human_cfg)

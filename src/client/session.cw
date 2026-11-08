@@ -19,6 +19,8 @@
  *   2026-11-07  putBudget / putMessage for list chrome.
  *   2026-11-07  putOrder trailing hulls peel count.
  *   2026-11-07  lastRejectReason from optional /order ack trailer.
+ *   2026-11-08  Handshake empty-body allocate; adopt returned
+ *               playerId for all subsequent traffic.
  */
 
 import networking as Networking
@@ -134,21 +136,59 @@ class HumanSession {
     }
 
     /*
-     * PUT /handshake for this seat.
+     * PUT /handshake; adopt the server-assigned seat.
      *
-     * Purpose: presence keep-alive (AFK ≠ drop).
+     * Purpose: presence keep-alive (AFK ≠ drop). When playerId is
+     * still -1 (unassigned), send an empty body so the server
+     * allocates the first free seat. When already assigned, send
+     * that id as keep-alive. On success, store the returned
+     * playerId and use it for all later verbs.
      *
      * Parameters: none.
      *
-     * Returns: true when a non-empty response returns.
+     * Returns: true when accepted and a seat id was returned.
      */
     bool handshake() {
         WireBytes w = WireBytes()
-        w.writeU32(config.playerId)
+        if (config.playerId >= 0) {
+            w.writeU32(config.playerId)
+        }
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/handshake", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
-        return(resp.length > 0)
+        return(adoptHandshakeSeat(resp))
+    }
+
+    /*
+     * Decode a handshake ack and store the assigned seat.
+     *
+     * Purpose: server seating is authoritative — body shape is
+     * u8 accepted, u32 tick, u8 ended, u32 playerId.
+     *
+     * Parameters:
+     *   resp — raw response envelope bytes.
+     *
+     * Returns: true when accepted == 1 and playerId is in range.
+     */
+    bool adoptHandshakeSeat(buffer resp) {
+        if (resp.length < 1) {
+            return(false)
+        }
+        Envelope out = EnvelopeCodec().decode(resp)
+        if (not out.ok or not out.path.equals("/handshake")) {
+            return(false)
+        }
+        WireBytes r = WireBytes()
+        r.setRead(out.body)
+        int64 accepted = r.readU8()
+        r.readU32()
+        r.readU8()
+        int64 seat = r.readU32()
+        if (not r.ok() or accepted != 1 or seat == 0xffffffff) {
+            return(false)
+        }
+        config.playerId = seat
+        return(true)
     }
 
     /*

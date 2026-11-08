@@ -62,10 +62,12 @@ Phase F adds `src/server/` (clock, policy table, presence, snapshot
 store, publish codec, driver, handler, listen) and turns
 `cplanets-server` into a TCP sole writer (`--serve`). Extra verbs
 on the server: PUT `/handshake`, `/quit`, `/pause`,
-`/order`, `/recall`, `/admin/advance`. Unit: `unit_serverClock`,
-`unit_serverPresence`, `unit_serverPolicy`. Function: `fn_server`.
-Python functional: `tests/functional/test_server_smoke.py`,
-`test_list_chrome.py`.
+`/order`, `/recall`, `/admin/advance`. `PUT /handshake` allocates
+the first free seat (empty body) and returns
+`accepted + tick + ended + playerId`; clients adopt that id.
+Unit: `unit_serverClock`, `unit_serverPresence`, `unit_serverPolicy`.
+Function: `fn_server`. Python functional:
+`tests/functional/test_server_smoke.py`, `test_list_chrome.py`.
 
 Phase H adds `src/ai/` (config, configParse, view, policyShape,
 brain, reaction, tickSuggest, client) and turns `cplanets-ai` into

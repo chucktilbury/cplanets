@@ -109,10 +109,18 @@ below.
 **Seat allocation (v1).** The **server allocates seats** on connect.
 Clients must **not** choose `playerId` as seating authority — there
 is no way for a client to know a free seat without being told.
+Seats **grow on connect**: the live game starts with an empty seat
+list and appends a seat when allocate needs one. Config / CLI
+`players` is an **optional soft max** of allocated seats (`0` or
+unset = unlimited within a practical absolute bound). Soft max also
+acts as an **expected-ceiling hint** in the status banner; it does
+**not** pre-create seats and does **not** delay operator `go`.
 `PUT /handshake` body shapes:
-- **empty** — new connect; first seat in `0…players−1` that is not
-  connected, not quit, and has **no** outstanding reconnect token
-  (never-seated). Issues a fresh opaque **16-byte** token.
+- **empty** — new connect; first **allocated** seat that is not
+  connected, not quit, and has **no** outstanding reconnect token;
+  otherwise **grow** a new seat when under soft max. Issues a fresh
+  opaque **16-byte** token. Rejects only when soft max is set and
+  full (or the practical bound is hit).
 - **exactly 4 bytes (`playerId` u32)** — **keep-alive only** when
   that seat is already connected; otherwise **reject** (cannot
   steal a dropped / token-held seat).
@@ -151,14 +159,24 @@ path stays clean. Do **not** implement a save / rejoin API in v1.
 useful vs poor rocks, is setup. **Player home yards are not
 pre-seeded** at scenario start: a seat receives its home (productive
 yard + the minimal starter fleet the closed fixture grants today)
-only when a client **connects and is seated** (handshake). Empty
-configured seats stay unseated until then and are **not** eliminated
-for zero planets. **Drop / AFK / quit does not destroy** a home once
-granted — leave it in place (no casual home teardown; rejoin remains
-out of v1). New players may join later into their **own sandbox** (a
-partition of that same map). Partitions **do not couple** until that
-player **makes contact** by exploration and/or conquest. Then they
-compete like everyone else.
+only when a client **connects and is seated** (handshake). Only
+**allocated** seats exist in the players list — soft-max expected
+slots that never connected do not count for eliminate-all. Allocated
+seats that have not yet received a home (fixtures / rare grant
+failure) are **not** eliminated for zero planets. **Drop / AFK /
+quit does not destroy** a home once granted — leave it in place (no
+casual home teardown; rejoin remains out of v1). New players may
+join later into their **own sandbox** (a partition of that same map)
+while under soft max. Partitions **do not couple** until that player
+**makes contact** by exploration and/or conquest. Then they compete
+like everyone else.
+
+**Go and eliminate-all with dynamic seats.** Operator `go` starts
+with whatever seats are already allocated — it does not wait for
+soft max / expected count. Closed eliminate-all considers only
+seats that have been allocated (`players[]`); living =
+`homeGranted && !eliminated`. Soft-max slots never taken are not
+blockers.
 
 **Stocks are an empire pool** (wealth, resources, tech on the player).
 Shipping metal to a specific yard to build is interesting and too
@@ -705,8 +723,11 @@ lag**, still **setup-tunable**; **all humans quit → server ends the
 game**; zombies fall to **normal play** (no consistent zombie-win
 path); **home yards spawn on seat connect** (not pre-seeded; drop
 leaves home in place); **server allocates seats on handshake**
-(clients do not claim `playerId`; opaque reconnect token reclaim);
-**lobby until operator go** (no ticks until `g` / Go / `/admin/go`);
+(clients do not claim `playerId`; seats grow on connect; `players`
+is soft max / expected hint, not a hard fixed array; opaque
+reconnect token reclaim); **lobby until operator go** (no ticks
+until `g` / Go / `/admin/go`; go uses whatever seats are seated);
+
 mid-dispatch: other policy OK, that fleet
 locked until recall; design/build take time (setup/ticks);
 combat/production/other tunables live in **setup outside code**;

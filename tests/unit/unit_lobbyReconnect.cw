@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial lobby + reconnect token unit.
+ *   2026-11-08  Soft max 2 so drop cannot grow a third seat.
  */
 
 include "lib/state.cw"
@@ -23,6 +24,8 @@ start {
     # Miss window must exceed one tick period (default 5s) so a
     # single injectable advance does not handshake_miss-drop seats.
     GameDriver drv = GameDriver(game, true, "", false, 60000u)
+    # Cap at 2 so empty allocate after drop cannot grow seat 2.
+    drv.softMaxPlayers = 2
 
     # --- lobby blocks injectable advance ---
     if (not drv.inLobby()) {

@@ -90,8 +90,10 @@ def main() -> int:
         "phase=lobby",
         "tick=0",
         "paused=true",
+        # Grow-on-connect: no seats until a client handshakes.
+        "seated=0",
+        "softMax=2",
         "Players:",
-        "Player id=0",
         "Planets:",
         "Planet id=",
         # Homes/fleets spawn on client connect — empty before seating.
@@ -100,6 +102,7 @@ def main() -> int:
         "Designs:",
         "Build jobs:",
         "Server config (read-only):",
+        "players=2 (soft max; 0=unlimited)",
         "Scenario setup (read-only):",
         "status>",
         "MENU_OPEN=0",

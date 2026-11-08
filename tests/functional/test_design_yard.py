@@ -18,6 +18,7 @@ from wire import (
     handshake,
     put_build,
     put_design,
+    put_suspended,
 )
 
 
@@ -63,10 +64,9 @@ def main() -> int:
         "--serve",
         "--port",
         "0",
-        # Two seats so an injectable-clock handshake miss on seat 0
-        # does not trip all-humans-quit before the post-advance build
-        # (seat 1 stays present/unseated). Home still lands on the
-        # seat-0 handshake below.
+        # Soft max 2 (optional). Hold seat 0 with PUT /suspended so
+        # injectable advance past miss does not end the game — grow-
+        # on-connect no longer leaves a spare unseated human seat.
         "--players",
         "2",
         "--injectable",
@@ -102,12 +102,16 @@ def main() -> int:
 
     try:
         # Home yard is created on connect (handshake), not at server
-        # start. Two-player fixture keeps the game alive if this
-        # handshake later ages out during admin_advance.
+        # start. Suspend holds past handshake_miss on advance.
         resp = exchange("127.0.0.1", port, handshake())
         _, _verb, path, body = decode_envelope(resp)
         if path != "/handshake" or body[0] != 1:
             print(f"handshake failed path={path} body={body!r}")
+            return 1
+        resp = exchange("127.0.0.1", port, put_suspended(0, True))
+        _, _verb, path, body = decode_envelope(resp)
+        if path != "/suspended" or body[0] != 1:
+            print(f"suspend failed path={path} body={body!r}")
             return 1
         # First free seat is 0; later verbs use that assigned id.
 

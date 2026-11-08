@@ -13,6 +13,8 @@
  *   2026-11-05  Initial end-of-game checks for Phase D5.
  *   2026-11-08  Unseated (no homeGranted) seats skip elimination
  *               and do not count as living / closed-win blockers.
+ *   2026-11-08  Only allocated seats (players[]) count; soft-max
+ *               expected slots that never connected do not exist.
  */
 
 include "event.cw"
@@ -91,8 +93,11 @@ class EndGame {
         if (scenario.isClosed() and players.length > 1) {
             int64 living = countLiving(players)
             int64 unseated = countUnseated(players)
-            # Unseated slots are reserved but not yet in play; do
-            # not crown a winner while any seat has never connected.
+            # Only seats that have been allocated exist in players[].
+            # Unseated = allocated but not yet homeGranted (fixture
+            # pre-create / rare grant failure). Soft-max expected
+            # slots that never connected are not in the list — go
+            # and eliminate-all use whoever was actually seated.
             if (living == 1 and unseated == 0) {
                 int64 win = firstLiving(players)
                 endedOut = true
@@ -213,13 +218,15 @@ class EndGame {
     }
 
     /*
-     * Count seats that have never received a home.
+     * Count allocated seats that have never received a home.
      *
-     * Purpose: closed eliminate-all waits until every configured
-     * seat has connected at least once (or the fixture seated them).
+     * Purpose: closed eliminate-all waits until every **allocated**
+     * seat has connected at least once (or a fixture seated them).
+     * Soft-max expected seats that were never allocated do not
+     * appear in players[] and do not block the end check.
      *
      * Parameters:
-     *   players — seats.
+     *   players — allocated seats.
      *
      * Returns: number of players with homeGranted == false.
      */

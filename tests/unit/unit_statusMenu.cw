@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-08  Initial status menu unit program.
  *   2026-11-08  Drop menu= config dump token.
+ *   2026-11-08  Summary uses seated= / softMax= tokens.
  */
 
 include "server/config.cw"
@@ -26,6 +27,7 @@ start {
     ServerConfig cfg = ServerConfig()
     cfg.players = 2
     cfg.seed = 7
+    driver.softMaxPlayers = 2
     StatusViews views = StatusViews(driver, cfg)
 
     String summary = views.summaryLine()
@@ -35,7 +37,10 @@ start {
     if (not summary.contains("tick=0")) {
         ok = false
     }
-    if (not summary.contains("players=2")) {
+    if (not summary.contains("seated=2")) {
+        ok = false
+    }
+    if (not summary.contains("softMax=2")) {
         ok = false
     }
     if (not summary.contains("planets=")) {

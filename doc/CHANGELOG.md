@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Dynamic seats / soft max `players`:** live serve starts with
+  **zero** seats and **grows** on empty-body handshake allocate.
+  `players` / `--players` is an **optional soft max** (`0` =
+  unlimited within a practical bound) and an expected-ceiling hint
+  in the status banner (`seated=N softMax=…`). Soft max rejects
+  allocate only when set and full. Operator `go` starts with
+  whatever seats are already allocated. Closed eliminate-all counts
+  only allocated seats. Default soft max is `0` (former hard
+  `players=2` no longer aborts a third AI). Docs: [RULES.md](RULES.md),
+  [CPLANETS.md](CPLANETS.md). Unit: `unit_dynamicSeats`.
+
 - **Lobby until go + reconnect tokens:** server starts in **lobby**
   (TCP accept, seating, status menu; **no wall ticks** until go).
   Operator starts with console **`g`+Enter** (`GO_KEY=g`), status-menu

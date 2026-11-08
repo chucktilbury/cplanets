@@ -26,6 +26,7 @@ from wire import (
     handshake,
     parse_handshake_ack,
     put_policy,
+    put_suspended,
 )
 
 LIST_MARKER = 1196445777
@@ -111,7 +112,7 @@ def spawn_server(
         "--port",
         "0",
         "--players",
-        "3",
+        "0",
         "--seed",
         str(seed),
         "--setup",
@@ -267,9 +268,19 @@ def test_session(
         server, setup, server_config, HARNESS_SEED
     )
     try:
-        # No human handshake before injectable advance: a handshake
-        # at clock 0 ages out when advanceMs(period) hits the
-        # server miss window and refreshEndStatus ends the game.
+        # Allocate seat 0 then suspend so injectable advance does
+        # not handshake_miss-drop the human and end the game.
+        resp = exchange("127.0.0.1", port, handshake())
+        _, _verb, path, body = decode_envelope(resp)
+        accepted, _t, _e, seat, token = parse_handshake_ack(body)
+        if path != "/handshake" or not accepted or seat != 0:
+            print(f"human handshake failed path={path} body={body!r}")
+            return 1
+        resp = exchange("127.0.0.1", port, put_suspended(0, True))
+        _, _verb, path, body = decode_envelope(resp)
+        if path != "/suspended" or body[0] != 1:
+            print(f"suspend failed path={path} body={body!r}")
+            return 1
         resp = exchange("127.0.0.1", port, put_policy(0, b"\x01\x02"))
         _, _verb, path, body = decode_envelope(resp)
         if path != "/policy" or body[0] != 1:

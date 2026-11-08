@@ -12,7 +12,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from wire import decode_envelope, put_policy
+from wire import decode_envelope, handshake, put_policy
 
 
 def exchange(host: str, port: int, frame: bytes, timeout: float = 2.0) -> bytes:
@@ -103,6 +103,11 @@ def test_cli_verbosity(server: Path, server_config: Path) -> int:
     try:
         if "VERBOSITY=3" not in preamble:
             print(f"missing VERBOSITY=3 in {preamble!r}")
+            return 1
+        resp = exchange("127.0.0.1", port, handshake())
+        _, verb, path, body = decode_envelope(resp)
+        if path != "/handshake" or body[0] != 1:
+            print(f"handshake failed path={path} body={body!r}")
             return 1
         resp = exchange("127.0.0.1", port, put_policy(0, v1_policy_blob()))
         _, verb, path, body = decode_envelope(resp)

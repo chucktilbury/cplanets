@@ -13,6 +13,7 @@
  *   2026-11-07  verbosity (0 quiet / 1+ seat, policy, cycle).
  *   2026-11-07  Verbosity 0–10 scale; clamp in clampAll.
  *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
+ *   2026-11-08  cycles 0 = serve until eliminated/ended/stop.
  */
 
 /*
@@ -40,6 +41,8 @@ class AiConfig {
     # only; 3+ seat / policy / cycle; 10 full dumps (AiVerboseLog).
     int64 verbosity
     # CLI mirror defaults (silent argv override after load).
+    # cycles: 0 = run until eliminated / game ended / process stop;
+    # N > 0 caps serve-loop attempts (smoke / harness).
     int64 cycles
     bool once
     bool serveLoop
@@ -69,7 +72,7 @@ class AiConfig {
         host = "127.0.0.1"
         port = 0
         verbosity = 0
-        cycles = 1
+        cycles = 0
         once = false
         serveLoop = false
     }
@@ -112,8 +115,9 @@ class AiConfig {
         } else (verbosity > 10) {
             verbosity = 10
         }
-        if (cycles < 1) {
-            cycles = 1
+        # 0 = unlimited serve-loop (until eliminated / ended / stop).
+        if (cycles < 0) {
+            cycles = 0
         }
     }
 

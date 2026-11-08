@@ -15,6 +15,7 @@
  *   2026-11-07  firstOwnedYardId / isOwnedYard for Ships yard Entry.
  *   2026-11-07  firstSittingOwnedFleetId for Fleets Entry sync.
  *   2026-11-08  developJobs / buildJobs / reclaimJobs for bars.
+ *   2026-11-08  ownedPlanetCount for AI eliminate-stop.
  */
 
 include "designRow.cw"
@@ -185,6 +186,31 @@ class ClientStateView {
             index = index + 1
         }
         return(PlanetRow())
+    }
+
+    /*
+     * Count visible planets owned by this seat.
+     *
+     * Purpose: AI serve-loop elimination stop — after a home has
+     * been seen, zero owned planets means the seat is out (closed
+     * eliminate-all; RULES §7.9). Unowned / invisible rocks do not
+     * count.
+     *
+     * Parameters: none.
+     *
+     * Returns: number of visible planets with ownerId == viewerId.
+     */
+    int64 ownedPlanetCount() {
+        int64 count = 0
+        int64 index = 0
+        while (index < planets.length) {
+            PlanetRow row = planets[index]
+            if (row.visible and row.ownerId == viewerId) {
+                count = count + 1
+            }
+            index = index + 1
+        }
+        return(count)
     }
 
     /*

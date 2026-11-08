@@ -18,7 +18,8 @@ Usage: scripts/tuning-session [options]
   --port N         Listen port (default: 7700)
   --players N      Seat count (default: 2)
   --ai-config PATH AI config (default: config/ai-mid.cfg)
-  --ai-cycles N    AI --serve-loop cycles (default: 0 = run until stop;
+  --ai-cycles N    AI --serve-loop cycles (default: 0 = until
+                   eliminated / game ended / process stop;
                    pass >0 for a short smoke, then AI exits)
   --no-ai          Start server only
   --injectable     Enable admin advance clock (CI / harness)
@@ -163,12 +164,8 @@ if [[ "$start_ai" == true ]]; then
         --port "$port"
         --serve-loop
     )
-    if [[ "$ai_cycles" -gt 0 ]]; then
-        ai_args+=(--cycles "$ai_cycles")
-    else
-        # Long loop for interactive tuning; stop via Ctrl-C.
-        ai_args+=(--cycles 1000000)
-    fi
+    # cycles 0 (default) = continuous until eliminated/ended/stop.
+    ai_args+=(--cycles "$ai_cycles")
     printf 'Starting AI: config=%s (CLI port=%s)\n' \
         "$ai_config" "$port"
     "$ai_bin" "${ai_args[@]}" &

@@ -13,11 +13,23 @@
  *   2026-11-06  Unknown keys fail loud (TUNING A2).
  *   2026-11-07  Assert verbosity config key.
  *   2026-11-07  Assert cycles / once / serve_loop keys.
+ *   2026-11-08  cycles 0 default; negative clamps to 0.
  */
 
 include "ai/configParse.cw"
 
 start {
+    AiConfig baseline = AiConfig()
+    bool ok = true
+    if (baseline.cycles != 0) {
+        ok = false
+    }
+    baseline.cycles = -3
+    baseline.clampAll()
+    if (baseline.cycles != 0) {
+        ok = false
+    }
+
     String text = ""
     text.append("aggression = 0.9\n")
     text.append("role_stickiness = 0.2\n")
@@ -38,7 +50,6 @@ start {
     text.append("serve_loop = true\n")
     AiConfigParse parser = AiConfigParse()
     AiConfig cfg = parser.parseText(text)
-    bool ok = true
     if (not parser.ok) {
         ok = false
     }

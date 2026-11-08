@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-08  Initial AI explore state for status menu.
  *   2026-11-08  Track suspended (PUT /suspended) for menu hold.
+ *   2026-11-08  Elimination / game-end stop helpers for serve-loop.
  */
 
 include "../client/stateView.cw"
@@ -47,6 +48,9 @@ class AiExploreState {
     String lastCycleAction
     String lastError
     int64 lastPullTick
+    # True after any snapshot showed at least one owned planet.
+    # Used so pre-home zero ownership does not look like elimination.
+    bool everOwnedPlanet
 
     /*
      * Construct an empty explore bag around config + logger/lag.
@@ -83,6 +87,7 @@ class AiExploreState {
         lastCycleAction = ""
         lastError = ""
         lastPullTick = -1
+        everOwnedPlanet = false
     }
 
     /*
@@ -170,6 +175,9 @@ class AiExploreState {
         if (decoded.policy.roleName.length > 0) {
             view.currentRole = decoded.policy.roleName
         }
+        if (decoded.ownedPlanetCount() > 0) {
+            everOwnedPlanet = true
+        }
         if (pullTick < 0) {
             lastError = "pull_state_failed"
         } else {
@@ -177,6 +185,65 @@ class AiExploreState {
                 lastError = ""
             }
         }
+    }
+
+    /*
+     * True when the published game has ended.
+     *
+     * Purpose: serve-loop stop when closed eliminate-all (or
+     * humans-quit) sets State.ended on the wire.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when a snapshot reports ended.
+     */
+    bool gameEnded() {
+        if (not hasSnapshot) {
+            return(false)
+        }
+        return(snapshot.ended)
+    }
+
+    /*
+     * True when this seat lost all planets after having owned some.
+     *
+     * Purpose: serve-loop stop for mid-game elimination before the
+     * whole match ends (multi-seat closed games). Pre-home zero
+     * ownership does not count (everOwnedPlanet stays false until
+     * handshake grants a yard).
+     *
+     * Parameters: none.
+     *
+     * Returns: true when ever owned and current owned count is 0.
+     */
+    bool seatEliminated() {
+        if (not hasSnapshot) {
+            return(false)
+        }
+        if (not everOwnedPlanet) {
+            return(false)
+        }
+        return(snapshot.ownedPlanetCount() < 1)
+    }
+
+    /*
+     * Short token for why the continuous serve-loop should stop.
+     *
+     * Purpose: banner line after runLoop exits on end conditions.
+     * Finite --cycles N paths do not use this (they print ok).
+     *
+     * Parameters: none.
+     *
+     * Returns: "eliminated", "game_ended", or empty when still live.
+     */
+    String serveStopReason() {
+        if (seatEliminated()) {
+            return("eliminated")
+        }
+        if (gameEnded()) {
+            return("game_ended")
+        }
+        return("")
     }
 
     /*

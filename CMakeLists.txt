@@ -279,6 +279,7 @@ if(BUILD_TESTING)
         unit_aiVerbose
         unit_aiTickSuggest
         unit_aiReaction
+        unit_aiStatusMenu
         unit_clientConfig
         unit_clientLivability
         unit_clientPolicy
@@ -388,4 +389,10 @@ if(BUILD_TESTING)
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_status_menu.cmake")
+    add_test(NAME functional_ai_status_menu COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DAI=${cplanets-ai_executable}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_ai_status_menu.cmake")
 endif()

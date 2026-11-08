@@ -23,6 +23,7 @@
  *   2026-11-07  Verbosity scale 0–10; clamp out-of-range.
  *   2026-11-07  Config defaults for every CLI flag but --config.
  *   2026-11-07  --config mandatory; missing prints help, exit 2.
+ *   2026-11-08  On-demand status menu via stdin m during serve-loop.
  */
 
 import cli as Cli
@@ -33,6 +34,7 @@ include "ai/brain.cw"
 include "ai/client.cw"
 include "ai/config.cw"
 include "ai/configParse.cw"
+include "ai/menuGate.cw"
 include "ai/policyShape.cw"
 include "ai/verboseLog.cw"
 include "ai/view.cw"
@@ -299,7 +301,9 @@ class AiMain {
      * Dial the server and run a short PUT loop.
      *
      * Purpose: same-protocol exercise; cycles clamped to at least
-     * one handshake + policy attempt.
+     * one handshake + policy attempt. Between cycles, stdin line
+     * `m` opens the read-only status menu (decisions pause while
+     * open; `q` resumes). Banner prints MENU_KEY=m.
      *
      * Parameters:
      *   cfg — loaded AI config with host/port.
@@ -309,6 +313,8 @@ class AiMain {
      */
     void runLoop(AiConfig cfg, int64 cycles) {
         AiClient client = AiClient(cfg)
+        AiMenuGate gate = AiMenuGate()
+        gate.enable(client.explore)
         if (not client.dial()) {
             print("cplanets-ai\n")
             print(format("VERBOSITY={}\n", cfg.verbosity))
@@ -316,24 +322,38 @@ class AiMain {
             return()
         }
         client.handshake()
+        print("cplanets-ai\n")
+        print(format("HOST={}\n", cfg.host))
+        print(format("PORT={}\n", cfg.port))
+        print(format("PLAYER={}\n", cfg.playerId))
+        print(format("CYCLES={}\n", cycles))
+        print(format("VERBOSITY={}\n", cfg.verbosity))
+        print("MENU_KEY=m\n")
+        print(
+            "Status menu: type m then Enter on this console ")
+        print(
+            "(AI decisions pause while open; q resumes).\n")
+        Sys.StandardIO().flush()
         int64 limit = cycles
         if (limit < 1) {
             limit = 1
         }
         int64 index = 0
         while (index < limit) {
+            # Pull / decide first so a buffered stdin `m` opens the
+            # menu against a decoded snapshot, not an empty bag.
             int64 tick = client.pullStateTick()
             if (tick < 0) {
                 tick = 0
             }
-            AiView view = AiView(cfg.playerId)
+            AiView view = client.explore.view
             view.publishedTick = tick
             client.maybePutPolicyAt(
                 view, uint64(index * 1000), index)
+            gate.pollOnce()
             index = index + 1
         }
         client.close()
-        print("cplanets-ai\n")
         print(format("VERBOSITY={}\n", cfg.verbosity))
         print("ok\n")
     }

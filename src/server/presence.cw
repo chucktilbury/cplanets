@@ -3,14 +3,18 @@
  *
  * Handshake / keep-alive proves the session is alive. Missing
  * policy PUTs alone are AFK (last policy). Handshake failure is a
- * drop. Pause is offered only with exactly one human (RULES §2 /
- * PLAN §4.F).
+ * drop — unless the seat is intentionally suspended (client AFK /
+ * menu-open flag), which keeps the seat connected for presence and
+ * skips handshake_miss drop while normal AFK production shrink
+ * still applies. Pause is offered only with exactly one human
+ * (RULES §2 / PLAN §4.F).
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial presence book and pause helper.
+ *   2026-11-08  Intentional suspended flag skips handshake_miss.
  */
 
 include "../lib/player.cw"
@@ -18,13 +22,17 @@ include "../lib/player.cw"
 /*
  * PresenceSeat tracks live contact for one empire.
  *
- * connected means the TCP session / handshake is alive. AFK is
- * derived as connected && idle policy — not a separate wire flag
- * here. missLimitMs is how long without handshake before drop.
+ * connected means the TCP session / handshake is alive. Idle
+ * policy while connected is AFK (last policy + optional
+ * production shrink). suspended is an intentional client flag
+ * (menu open / marked AFK): seat stays connected and
+ * handshake_miss does not drop it. missLimitMs is how long
+ * without handshake before drop when not suspended.
  */
 class PresenceSeat {
     int64 playerId
     bool connected
+    bool suspended
     uint64 lastHandshakeMs
     uint64 missLimitMs
 
@@ -37,11 +45,12 @@ class PresenceSeat {
      *   seat — empire id.
      *   missMs — drop after this many ms without handshake.
      *
-     * Returns: PresenceSeat with connected false.
+     * Returns: PresenceSeat with connected false, suspended false.
      */
     PresenceSeat(int64 seat, uint64 missMs) {
         playerId = seat
         connected = false
+        suspended = false
         lastHandshakeMs = 0u
         missLimitMs = missMs
     }
@@ -130,10 +139,58 @@ class PresenceBook {
     }
 
     /*
+     * True when the seat is intentionally suspended (AFK flag).
+     *
+     * Purpose: status menu / tests; suspended seats skip
+     * handshake_miss drop while remaining connected.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *
+     * Returns: suspended flag, or false when out of range.
+     */
+    bool isSuspended(int64 playerId) {
+        if (playerId < 0 or playerId >= seats.length) {
+            return(false)
+        }
+        PresenceSeat seat = seats[playerId]
+        return(seat.suspended)
+    }
+
+    /*
+     * Set or clear the intentional suspended / AFK flag.
+     *
+     * Purpose: client menu-open or human AFK mark. Marks the seat
+     * connected and refreshes lastHandshakeMs so clearing the flag
+     * restarts a full miss window. Does not itself drop or quit.
+     *
+     * Parameters:
+     *   playerId — empire id.
+     *   wantSuspended — true to hold the seat past handshake_miss.
+     *   nowMs — current server clock (handshake refresh).
+     *
+     * Returns: true when the seat exists and was updated.
+     */
+    bool setSuspended(
+        int64 playerId,
+        bool wantSuspended,
+        uint64 nowMs) {
+        if (playerId < 0 or playerId >= seats.length) {
+            return(false)
+        }
+        PresenceSeat seat = seats[playerId]
+        seat.connected = true
+        seat.suspended = wantSuspended
+        seat.lastHandshakeMs = nowMs
+        seats[playerId] = seat
+        return(true)
+    }
+
+    /*
      * Force a drop (lost contact) on one seat.
      *
      * Purpose: TCP close / scanDrops path; last policy continues
-     * for the live remainder (no rejoin in v1).
+     * for the live remainder (no rejoin in v1). Clears suspended.
      *
      * Parameters:
      *   playerId — empire id.
@@ -147,6 +204,7 @@ class PresenceBook {
         PresenceSeat seat = seats[playerId]
         bool was = seat.connected
         seat.connected = false
+        seat.suspended = false
         seats[playerId] = seat
         return(was)
     }
@@ -154,8 +212,10 @@ class PresenceBook {
     /*
      * Drop seats whose handshake is older than missLimitMs.
      *
-     * Purpose: distinguish AFK (connected, idle policy) from drop
-     * (lost contact). Appends dropped player ids to outIds.
+     * Purpose: distinguish AFK (connected, idle policy — including
+     * intentional suspended) from drop (lost contact). Suspended
+     * seats are skipped so menu-open / marked-AFK clients are not
+     * handshake_miss dropped. Appends dropped player ids to outIds.
      *
      * Parameters:
      *   nowMs — current server clock.
@@ -168,11 +228,12 @@ class PresenceBook {
         int64 index = 0
         while (index < seats.length) {
             PresenceSeat seat = seats[index]
-            if (seat.connected) {
+            if (seat.connected and not seat.suspended) {
                 uint64 age = nowMs - seat.lastHandshakeMs
                 if (nowMs < seat.lastHandshakeMs
                     or age >= seat.missLimitMs) {
                     seat.connected = false
+                    seat.suspended = false
                     seats[index] = seat
                     outIds.append(seat.playerId)
                     dropped = dropped + 1

@@ -17,6 +17,7 @@
  *   2026-11-07  lastError on design / build / reclaim reject.
  *   2026-11-07  putOrderRemote hulls peel + lastError on reject.
  *   2026-11-07  Surface server /order reject reason in lastError.
+ *   2026-11-08  putSuspendedRemote for human AFK CheckButton.
  */
 
 include "config.cw"
@@ -171,6 +172,28 @@ class AppCore {
         }
         session.handshake()
         bool ok = session.putPause(wantPaused)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT suspended over TCP when port is set.
+     *
+     * Purpose: GuiMain AFK CheckButton — holds the seat past
+     * handshake_miss while marked AFK.
+     *
+     * Parameters:
+     *   wantSuspended — desired suspended / AFK flag.
+     *
+     * Returns: true when accepted.
+     */
+    bool putSuspendedRemote(bool wantSuspended) {
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putSuspended(wantSuspended)
         session.close()
         return(ok)
     }

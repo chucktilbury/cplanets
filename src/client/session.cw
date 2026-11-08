@@ -13,6 +13,7 @@
  * Changelog:
  *   2026-11-05  Initial HumanSession request helpers.
  *   2026-11-06  TUNING B: putPause / putOrder / putRecall.
+ *   2026-11-08  putSuspended intentional AFK presence flag.
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
  *   2026-11-07  Ship create: putDesign / putBuild / putReclaimHulls.
  *   2026-11-07  putBudget / putMessage for list chrome.
@@ -250,6 +251,31 @@ class HumanSession {
             Envelope.VERB_PUT, "/pause", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
         return(flagAccepted(resp, "/pause"))
+    }
+
+    /*
+     * PUT /suspended with playerId + 0/1 flag.
+     *
+     * Purpose: intentional AFK so handshake_miss does not drop the
+     * seat while the human marks AFK or pauses interaction.
+     *
+     * Parameters:
+     *   wantSuspended — true to hold past handshake_miss.
+     *
+     * Returns: true when the server accepted the change.
+     */
+    bool putSuspended(bool wantSuspended) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        if (wantSuspended) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/suspended", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/suspended"))
     }
 
     /*

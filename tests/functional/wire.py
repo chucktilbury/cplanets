@@ -56,6 +56,13 @@ def handshake(player_id: int) -> bytes:
     return encode_envelope(2, "/handshake", _u32(player_id))
 
 
+def put_suspended(player_id: int, flag: bool) -> bytes:
+    """PUT /suspended: playerId u32 + flag u8 (intentional AFK hold)."""
+    return encode_envelope(
+        2, "/suspended", _u32(player_id) + _u8(1 if flag else 0)
+    )
+
+
 def put_pause(flag: bool) -> bytes:
     return encode_envelope(2, "/pause", _u8(1 if flag else 0))
 

@@ -83,10 +83,17 @@ human** player. With **two or more humans**, pause is **not** offered
 **Presence.** The server distinguishes **AFK** from an **actual drop**
 (lost contact / disconnect) with a **handshake**. Missing policy
 updates alone do **not** mean drop — that is AFK while the session is
-alive. Handshake failure (lost contact) is a drop. Soft vs hard drop
-effects beyond this distinction, who is notified, and heartbeat
-interval are **not** locked here (§17). AFK vs drop is **live session
-contact** only — not a save / rejoin feature (see Session below).
+alive (last policy held; AFK production shrink after timeout when
+configured). Handshake failure (lost contact / `handshake_miss`) is a
+drop — **unless** the client has set an intentional **suspended**
+flag (`PUT /suspended`, body: playerId + flag). While **suspended**
+(menu open, marked AFK, or equivalent), the seat stays **connected**
+for presence: do **not** apply handshake_miss drop; keep applying
+normal AFK rules (last policy + shrink). Clearing suspended resumes
+normal miss drop. Soft vs hard drop effects beyond this distinction,
+who is notified, and heartbeat interval are **not** locked here
+(§17). AFK vs drop is **live session contact** only — not a save /
+rejoin feature (see Session below).
 
 **Session / game instance (v1).** Each game is **stand-alone**. There
 is **no durable status save** and **no rejoin** after leave or drop:
@@ -619,8 +626,9 @@ this human dialog.
   identify: victim-only (current default) vs broader knowledge.
 - AFK timeout / shrink: exact setup field names and floor (units =
   real time and/or tick period under §2 clock).
-- **Presence / drop follow-ups** (handshake AFK≠drop and v1 no-rejoin
-  are locked in §2; these details are not):
+- **Presence / drop follow-ups** (handshake AFK≠drop, intentional
+  `PUT /suspended` hold, and v1 no-rejoin are locked in §2; these
+  details are not):
   - Heartbeat / handshake interval and miss threshold.
   - Whether other humans get a digest event (e.g. `dropped`) — and
     who sees it.
@@ -652,7 +660,9 @@ this human dialog.
 **identify asymmetry** (attacker advantage + defender fair chance +
 **separate** setup knobs); v1 end = closed eliminate-all (ongoing =
 future); clock = server real-time tick + digest, policy anytime, AFK
-= last policy; **pause only with exactly one human**; **tick period**
+= last policy; intentional **`PUT /suspended`** holds past
+handshake_miss (still AFK rules); **pause only with exactly one
+human**; **tick period**
 = setup **seconds**, provisional **1–30**, **may auto-config from AI
 lag**, still **setup-tunable**; **all humans quit → server ends the
 game**; zombies fall to **normal play** (no consistent zombie-win

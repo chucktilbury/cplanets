@@ -4,16 +4,20 @@
  * Between decision cycles, polls stdin non-blocking. A lone `m`
  * line opens the read-only AiStatusMenu, forcing decisionPaused
  * for a consistent client view and clearing it when the operator
- * quits with `q`. Reuses server StdinPoll native binding.
+ * quits with `q`. On open, PUT /suspended=1 so handshake_miss
+ * does not drop the seat while decisions pause; on close, clear
+ * the flag. Reuses server StdinPoll native binding.
  *
  * Created: 2026-11-08
  * Author: Auto
  *
  * Changelog:
  *   2026-11-08  Initial AI serve-loop menu gate (stdin m, pause).
+ *   2026-11-08  Menu open/close sends PUT /suspended.
  */
 
 include "../server/stdinPoll.cw"
+include "client.cw"
 include "exploreState.cw"
 include "statusMenu.cw"
 include "statusViews.cw"
@@ -21,11 +25,13 @@ include "statusViews.cw"
 /*
  * AiMenuGate watches stdin during AiMain.runLoop().
  *
- * Disabled until enable() binds live explore state. After stdin
- * EOF, further polls are skipped so a closed pipe cannot spin.
+ * Disabled until enable() binds live explore state and client.
+ * After stdin EOF, further polls are skipped so a closed pipe
+ * cannot spin.
  */
 class AiMenuGate {
     AiExploreState state
+    AiClient client
     bool enabled
     bool stdinEof
     Sys.StandardIO io
@@ -43,6 +49,7 @@ class AiMenuGate {
      */
     AiMenuGate() {
         state = null
+        client = null
         enabled = false
         stdinEof = false
         io = Sys.StandardIO()
@@ -50,18 +57,21 @@ class AiMenuGate {
     }
 
     /*
-     * Bind live explore state and start watching stdin for `m`.
+     * Bind live explore state + client and start watching stdin.
      *
      * Purpose: cplanets-ai --serve-loop path; menu stays hidden
-     * until the operator types m.
+     * until the operator types m. Client is used for PUT
+     * /suspended around the menu.
      *
      * Parameters:
      *   live — AiExploreState shared with AiClient.
+     *   liveClient — AiClient for presence suspended flag.
      *
      * Returns: nothing.
      */
-    void enable(AiExploreState live) {
+    void enable(AiExploreState live, AiClient liveClient) {
         state = live
+        client = liveClient
         enabled = true
         stdinEof = false
     }
@@ -105,25 +115,33 @@ class AiMenuGate {
     }
 
     /*
-     * Pause decisions, run the read-only menu, clear pause.
+     * Suspend presence, pause decisions, run menu, then clear.
      *
      * Purpose: consistent operator snapshot of client knowledge.
      * The serve-loop skips maybePutPolicy while decisionPaused
-     * is true; this method blocks in the menu until q / EOF.
+     * is true; PUT /suspended holds the seat past handshake_miss
+     * while the menu blocks. Clears suspended when q / EOF.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void openMenuPaused() {
+        if (client != null) {
+            client.putSuspended(true)
+        }
         state.decisionPaused = true
-        print("MENU_OPEN=1 (AI decisions paused; q resumes)\n")
+        print("MENU_OPEN=1 (AI decisions paused; suspended=1; ")
+        print("q resumes)\n")
         io.flush()
         AiStatusViews views = AiStatusViews(state)
         AiStatusMenu menu = AiStatusMenu(views)
         menu.runInteractive()
         state.decisionPaused = false
-        print("MENU_OPEN=0\n")
+        if (client != null) {
+            client.putSuspended(false)
+        }
+        print("MENU_OPEN=0 (suspended=0)\n")
         io.flush()
     }
 }

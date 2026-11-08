@@ -250,7 +250,10 @@ that errors as the primary UX.
 ## 9. Connection / drop / AFK notices (human-visible)
 
 **Locked:** handshake distinguishes **AFK** (present, idle policy) from
-**drop** (lost contact). AFK = last policy. v1: **no rejoin / no status
+**drop** (lost contact). Intentional **`PUT /suspended`** (human AFK
+CheckButton; AI status menu while open) holds the seat past
+handshake_miss without treating it as a drop; last policy + AFK
+shrink still apply. AFK = last policy. v1: **no rejoin / no status
 save**; drop → last policy for live remainder; all-humans-quit ends
 game.
 

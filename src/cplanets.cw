@@ -28,6 +28,7 @@
  *   2026-11-07  Map pick-to-dispatch + ContextMenu budget.
  *   2026-11-07  Connect failure: print host:port; exit 1;
  *               GUI AlertDialog (no silent empty session).
+ *   2026-11-08  Wire AFK CheckButton → PUT /suspended.
  */
 
 import cli as Cli
@@ -357,6 +358,7 @@ class HumanMain {
         gui.budgetAction = gui.onBudget
         gui.sendAction = gui.onSendMessage
         gui.pauseAction = gui.onPauseToggled
+        gui.afkAction = gui.onAfkToggled
         gui.testAction = gui.onTest
         gui.mapPickAction = gui.onMapPlanetPicked
         gui.mapDispatchAction = gui.onMapDispatchHere

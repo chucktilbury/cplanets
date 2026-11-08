@@ -13,6 +13,7 @@
  *   2026-11-06  One-shot TCP: redial per exchange (server closes).
  *   2026-11-07  Verbosity: seat / policy / cycle decision logs.
  *   2026-11-08  Decode GET /state into explore bag for status menu.
+ *   2026-11-08  putSuspended for menu-open AFK hold.
  */
 
 import networking as Networking
@@ -178,6 +179,34 @@ class AiClient {
         bool ok = resp.length > 0
         explore.noteHandshake(ok)
         verbose.logSeat(config.playerId, ok)
+        return(ok)
+    }
+
+    /*
+     * PUT /suspended for this seat.
+     *
+     * Purpose: intentional AFK hold while the status menu is open
+     * (or any client pause) so handshake_miss does not drop the
+     * seat. Clear on resume so normal miss drop applies again.
+     *
+     * Parameters:
+     *   wantSuspended — true to hold; false to clear.
+     *
+     * Returns: true when a non-empty ack returns.
+     */
+    bool putSuspended(bool wantSuspended) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        if (wantSuspended) {
+            w.writeU8(1)
+        } else {
+            w.writeU8(0)
+        }
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/suspended", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        bool ok = resp.length > 0
+        explore.noteSuspended(wantSuspended, ok)
         return(ok)
     }
 

@@ -1,8 +1,9 @@
 /*
  * tests/unit/unit_serverPresence.cw — handshake drop + pause gate unit.
  *
- * AFK≠drop: connected idle stays; miss window drops. Pause only
- * with exactly one live human (PLAN §4.F).
+ * AFK≠drop: connected idle stays; miss window drops. Intentional
+ * suspended holds past handshake_miss; clearing resumes miss drop.
+ * Pause only with exactly one live human (PLAN §4.F).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -10,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial presence unit.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-08  Suspended flag skips miss; clear resumes drop.
  */
 
 include "lib/player.cw"
@@ -36,6 +38,55 @@ start {
         ok = false
     }
     if (ok and book.isConnected(0)) {
+        ok = false
+    }
+
+    # --- suspended holds past handshake_miss ---
+    PresenceBook hold = PresenceBook(1000u)
+    hold.ensureSeats(1)
+    if (ok and not hold.handshake(0, 100u)) {
+        ok = false
+    }
+    if (ok and not hold.setSuspended(0, true, 150u)) {
+        ok = false
+    }
+    if (ok and not hold.isSuspended(0)) {
+        ok = false
+    }
+    if (ok and not hold.isConnected(0)) {
+        ok = false
+    }
+    dropped = []
+    n = hold.scanDrops(5000u, dropped)
+    if (ok and n != 0) {
+        ok = false
+    }
+    if (ok and not hold.isConnected(0)) {
+        ok = false
+    }
+    if (ok and not hold.isSuspended(0)) {
+        ok = false
+    }
+
+    # --- clear suspended → normal miss drop resumes ---
+    if (ok and not hold.setSuspended(0, false, 5100u)) {
+        ok = false
+    }
+    if (ok and hold.isSuspended(0)) {
+        ok = false
+    }
+    if (ok and not hold.isConnected(0)) {
+        ok = false
+    }
+    dropped = []
+    n = hold.scanDrops(6500u, dropped)
+    if (ok and n != 1) {
+        ok = false
+    }
+    if (ok and hold.isConnected(0)) {
+        ok = false
+    }
+    if (ok and hold.isSuspended(0)) {
         ok = false
     }
 

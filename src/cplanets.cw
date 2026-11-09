@@ -30,6 +30,7 @@
  *               GUI AlertDialog (no silent empty session).
  *   2026-11-08  Wire AFK CheckButton → PUT /suspended.
  *   2026-11-08  --player is offline-only; TCP seats from handshake.
+ *   2026-11-09  Wire fleet / design Examine dialog actions.
  */
 
 import cli as Cli
@@ -354,6 +355,8 @@ class HumanMain {
         gui.dialogCloseAction = gui.onDialogClose
         gui.showExploredAction = gui.showFirstExplored
         gui.showMapExploredAction = gui.showMapExplored
+        gui.examineFleetAction = gui.showFleetExamine
+        gui.examineShipAction = gui.showShipExamine
         gui.dispatchAction = gui.onDispatch
         gui.recallAction = gui.onRecall
         gui.developAction = gui.onDevelop

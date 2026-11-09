@@ -12,6 +12,7 @@
  *   2026-11-08  Server allocate: first free seat; drop frees seat.
  *   2026-11-08  Drop keeps token; reclaim by token (no steal).
  *   2026-11-08  Soft max 2 for full-reject; grow covered elsewhere.
+ *   2026-11-09  Sandbox seats also receive a starter scout fleet.
  */
 
 include "lib/state.cw"
@@ -70,7 +71,8 @@ start {
         ok = false
     }
 
-    # --- seat 1 connect claims a sandbox home (no starter fleet) ---
+    # --- seat 1 connect claims a sandbox home + starter fleet ---
+    int64 fleetsBeforeSandbox = bare.fleets.length
     if (not bare.ensureHomeForSeat(1)) {
         ok = false
     }
@@ -79,6 +81,7 @@ start {
         ok = false
     }
     int64 owned1 = 0
+    int64 ownedFleets1 = 0
     int64 index = 0
     while (index < bare.galaxy.planets.length) {
         Planet rock = bare.galaxy.planets[index]
@@ -88,6 +91,20 @@ start {
         index = index + 1
     }
     if (owned1 != 1) {
+        ok = false
+    }
+    index = 0
+    while (index < bare.fleets.length) {
+        Fleet ship = bare.fleets[index]
+        if (ship.ownerId == 1 and ship.hullCount > 0) {
+            ownedFleets1 = ownedFleets1 + 1
+        }
+        index = index + 1
+    }
+    if (ownedFleets1 < 1) {
+        ok = false
+    }
+    if (bare.fleets.length <= fleetsBeforeSandbox) {
         ok = false
     }
 

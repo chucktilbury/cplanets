@@ -281,6 +281,7 @@ if(BUILD_TESTING)
         unit_statusMenu
         unit_aiConfig
         unit_aiExploreStop
+        unit_aiOrderPlan
         unit_aiVerbose
         unit_aiTickSuggest
         unit_aiReaction
@@ -289,6 +290,7 @@ if(BUILD_TESTING)
         unit_clientLivability
         unit_clientPolicy
         unit_clientPublishDecode
+        unit_fleetExamine
         unit_mapMath)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_cw_test(${unit} unit)

@@ -41,9 +41,10 @@ class Player {
     bool quit
     bool dropped
     bool eliminated
-    # True once this seat's home yard (and starter fleet) were
-    # created on connect/handshake. Unseated seats are not living
-    # for eliminate-all and are not eliminated for zero planets.
+    # True once this seat's home yard and starter scout fleet were
+    # created on connect/handshake (every seat; RULES §2). Unseated
+    # seats are not living for eliminate-all and are not eliminated
+    # for zero planets.
     bool homeGranted
     int64 partitionId
     list knownCompetitors

@@ -28,6 +28,8 @@
  *   2026-11-08  Defer home yards / starter fleets to seat connect.
  *   2026-11-08  finishStart allows 0 seats; appendSeat grows the
  *               empire list on handshake allocate (live serve).
+ *   2026-11-09  Every seated empire gets a starter scout fleet
+ *               (RULES §2), not only seat 0.
  */
 
 include "agreement.cw"
@@ -322,11 +324,9 @@ class State {
         }
         seat.homeGranted = true
         players[playerId] = seat
-        # Primary seat keeps the historical starter scout stack;
-        # sandbox seats get the yard only (same as prior seed path).
-        if (playerId == 0) {
-            seedStarterFleet(playerId, homeId)
-        }
+        # RULES §2: every seated empire gets the productive yard
+        # plus the minimal starter scout stack (not seat-0 only).
+        seedStarterFleet(playerId, homeId)
         return(true)
     }
 
@@ -356,9 +356,10 @@ class State {
     /*
      * Park a small scout fleet on a newly granted home yard.
      *
-     * Purpose: give dispatch/recall/move a starting stock without
-     * yard production first (same starter band as the former
-     * empire-0 seedHomeFleet).
+     * Purpose: give every seated empire a dispatch-ready scout
+     * stack without waiting on yard production first (RULES §2
+     * minimal starter fleet). Called once from ensureHomeForSeat
+     * for primary and sandbox seats alike.
      *
      * Parameters:
      *   ownerId — empire that owns the fleet.

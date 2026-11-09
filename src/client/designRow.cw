@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-07  Initial DesignRow for ship create / yard GUI.
+ *   2026-11-09  examineDialogText for design TransientWindow.
  */
 
 /*
@@ -86,5 +87,50 @@ class DesignRow {
         return(format(
             "Design {} '{}' kind={} sizeMilli={} {}",
             id, name, kind, sizeMilli, status))
+    }
+
+    /*
+     * Build the design / ship examine dialog body text.
+     *
+     * Purpose: human TransientWindow inspect for a catalog row
+     * (Section C Ships tab). Shows develop status and milli stats
+     * from the published chrome trailer.
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line dialog body, or empty when id is invalid.
+     */
+    String examineDialogText() {
+        if (id < 0) {
+            return("")
+        }
+        String kind = "war"
+        if (scout) {
+            kind = "scout"
+        } else (colony) {
+            kind = "colony"
+        } else (defense) {
+            kind = "defense"
+        }
+        String text = format(
+            "Design {}\nName: {}\nKind: {}\n", id, name, kind)
+        if (closed) {
+            text.append("Status: closed\n")
+        } else (developTicksLeft > 0) {
+            text.append(format(
+                "Status: developing (ticks left {})\n",
+                developTicksLeft))
+        } else (ready) {
+            text.append("Status: ready to build\n")
+        } else {
+            text.append("Status: not ready\n")
+        }
+        text.append(format(
+            "Speed milli: {}\nHop milli: {}\n",
+            speedMilli, hopMilli))
+        text.append(format(
+            "Size milli: {}\nCargo milli: {}\n",
+            sizeMilli, cargoMilli))
+        return(text)
     }
 }

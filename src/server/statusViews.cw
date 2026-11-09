@@ -759,7 +759,7 @@ class StatusViews {
      */
     String serverConfigDump() {
         String text = "Server config (read-only):\n"
-        text.append(format("  setup={}\n", cfg.setup))
+        text.append(format("  configPath={}\n", cfg.configPath))
         text.append(format("  host={} port={}\n", cfg.host, cfg.port))
         text.append(format(
             "  players={} (soft max; 0=unlimited) seed={} cycles={}\n",
@@ -775,6 +775,11 @@ class StatusViews {
             "  handshake_miss_ms={} accept_poll_ms={}\n",
             cfg.handshakeMissMs,
             cfg.acceptPollMs))
+        text.append(format(
+            "  recv_buffer_bytes={} seat_hard_cap={} verbose_capture_lines={}\n",
+            cfg.recvBufferBytes,
+            cfg.seatHardCap,
+            cfg.verboseCaptureLines))
         return(text)
     }
 
@@ -789,7 +794,7 @@ class StatusViews {
      */
     String scenarioConfigDump() {
         Scenario sc = driver.game.scenario
-        String text = "Scenario setup (read-only):\n"
+        String text = "Scenario / §14 knobs (read-only):\n"
         text.append(format(
             "  mode={} tickPeriod={}s autoAiLag={} verbosity={}\n",
             sc.scenarioMode,

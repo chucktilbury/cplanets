@@ -12,8 +12,10 @@
  *   2026-11-08  Drop menu= config dump token.
  *   2026-11-08  Summary uses seated= / softMax= tokens.
  *   2026-11-09  Lobby summary shows paused=true (clock hold).
+ *   2026-11-09  Include scenario before unified ServerConfig.
  */
 
+include "lib/scenario.cw"
 include "server/config.cw"
 include "server/statusViews.cw"
 
@@ -140,7 +142,7 @@ start {
         ok = false
     }
     String scenarioDump = views.scenarioConfigDump()
-    if (not scenarioDump.contains("Scenario setup")) {
+    if (not scenarioDump.contains("Scenario / §14 knobs")) {
         ok = false
     }
     if (not scenarioDump.contains("mode=")) {

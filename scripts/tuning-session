@@ -2,7 +2,7 @@
 # scripts/tuning-session — start a closed tuning session (server + AI).
 #
 # Human attaches separately with --gui or headless --pull. Same
-# --setup + --seed yields a comparable galaxy after knob edits
+# --config + --seed yields a comparable galaxy after knob edits
 # (restart contract; TUNING-PLAYABLE workstream C).
 #
 # Prefer: ./scripts/setup && build, then run this from the project root.
@@ -13,10 +13,11 @@ usage() {
     cat <<'EOF' >&2
 Usage: scripts/tuning-session [options]
 
-  --setup PATH     Scenario fixture (default: scenarios/tuning-small.setup)
+  --config PATH    Unified server config (default: config/server-tuning-small.cfg)
+  --setup PATH     Deprecated alias for --config (migration)
   --seed N         Galaxy PRNG seed (default: 77)
   --port N         Listen port (default: 7700)
-  --players N      Seat count (default: 2)
+  --players N      Soft max seats (default: 2)
   --ai-config PATH AI config (default: config/ai-mid.cfg)
   --ai-cycles N    AI --serve-loop cycles (default: 0 = until
                    eliminated / game ended / process stop;
@@ -25,13 +26,13 @@ Usage: scripts/tuning-session [options]
   --injectable     Enable admin advance clock (CI / harness)
   --help           This help
 
-Prints PORT=/SEED=/SETUP= lines, then leaves server (and optional AI)
+Prints PORT=/SEED=/CONFIG= lines, then leaves server (and optional AI)
 in the foreground group. Stop with Ctrl-C (kills both).
 
 Comparable loop after a knob edit:
-  1. Edit the --setup and/or --ai-config file.
+  1. Edit the --config and/or --ai-config file.
   2. Stop this script (Ctrl-C).
-  3. Re-run with the same --setup --seed --ai-config.
+  3. Re-run with the same --config --seed --ai-config.
   4. Attach the human client again (same --port; seat from handshake).
 EOF
     exit 2
@@ -40,7 +41,7 @@ EOF
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-setup="scenarios/tuning-small.setup"
+server_config="config/server-tuning-small.cfg"
 seed=77
 port=7700
 players=2
@@ -51,8 +52,8 @@ injectable=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-    --setup)
-        setup="${2:-}"
+    --config|--setup)
+        server_config="${2:-}"
         shift 2
         ;;
     --seed)
@@ -100,8 +101,8 @@ if [[ ! -x "$server_bin" ]]; then
         "$server_bin" >&2
     exit 1
 fi
-if [[ ! -f "$setup" ]]; then
-    printf 'Missing setup fixture: %s\n' "$setup" >&2
+if [[ ! -f "$server_config" ]]; then
+    printf 'Missing server config: %s\n' "$server_config" >&2
     exit 1
 fi
 if [[ "$start_ai" == true ]]; then
@@ -115,7 +116,6 @@ if [[ "$start_ai" == true ]]; then
     fi
 fi
 
-server_config="config/server-default.cfg"
 server_args=(
     --config "$server_config"
     --serve
@@ -123,7 +123,6 @@ server_args=(
     --port "$port"
     --players "$players"
     --seed "$seed"
-    --setup "$setup"
 )
 if [[ "$injectable" == true ]]; then
     server_args+=(--injectable)
@@ -143,8 +142,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-printf 'Starting server: config=%s setup=%s seed=%s port=%s\n' \
-    "$server_config" "$setup" "$seed" "$port"
+printf 'Starting server: config=%s seed=%s port=%s\n' \
+    "$server_config" "$seed" "$port"
 "$server_bin" "${server_args[@]}" &
 server_pid=$!
 
@@ -178,22 +177,23 @@ Harness running.
   Server PID: ${server_pid}
   AI PID:     ${ai_pid:-none}
   Seed:       ${seed}  (keep this fixed for comparable re-runs)
-  Setup:      ${setup}
+  Config:     ${server_config}
   AI config:  ${ai_config}
 
-Human GTK (seat 0):
+Human GTK (seat from handshake):
   bin/cplanets --config config/human-default.cfg \\
-    --host 127.0.0.1 --port ${port} --player 0 --gui
+    --host 127.0.0.1 --port ${port} --gui
 
 Headless human smoke:
   bin/cplanets --config config/human-default.cfg \\
-    --host 127.0.0.1 --port ${port} --player 0 --pull
+    --host 127.0.0.1 --port ${port} --pull
 
-Fixture packs: scenarios/tuning-small.setup,
-  scenarios/tuning-combat.setup, scenarios/tuning-trade.setup,
-  scenarios/closed-default.setup
+Unified server packs: config/server-tuning-small.cfg,
+  config/server-tuning-combat.cfg, config/server-tuning-trade.cfg,
+  config/server-default.cfg
+  (scenarios/*.setup are reference fragments only)
 AI bands: config/ai-soft.cfg, config/ai-mid.cfg, config/ai-hard.cfg
-  (seat player_id=1). Default config/ai-default.cfg is seat 0.
+  Default config/ai-default.cfg.
 
 Ctrl-C stops server and AI.
 EOF

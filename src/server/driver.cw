@@ -80,7 +80,7 @@ class GameDriver {
     ServerVerboseLog verbose
     String lastOrderError
     # Optional soft maximum of allocated seats (config players).
-    # 0 = unlimited within State.appendSeat practical bound.
+    # 0 = unlimited within State.seatHardCap (server config).
     int64 softMaxPlayers
 
     /*

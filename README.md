@@ -8,7 +8,7 @@ A player has attributes such as wealth, power, experience, and technology level.
 
 A player uses a fleet of ships to explore and conquer the galaxy. Named classes (scout through colony) are default designs; a player can set their own mix of speed, range, weapons, shields, and size, pay a **development** cost (mostly wealth) once, then **produce** hulls (mostly resources) until they are reclaimed at a shipyard (setup percent of production resources). Ships already built keep their stats. Any fleet can be recalled before it arrives. 
 
-Players can form **player–player** trade agreements and broadcast messages and send messages directly to other players. Freighters cycle full both ways (plus escorts); war fleets stay until moved. Attacking a partner ends trade and can confiscate inbound ships; identify chance for origin and/or actor scales with attributes. Unowned rocks fall without a fight; parked ships and defenses still fight. Taking a planet requires a surviving colony before it produces; mixed fleets matter in combat. Roles (neutral, conqueror, pirate, trader, hermit) retune how wealth becomes worlds, resources, and technology. A closed game (v1 default) ends when one player has eliminated all others. An ongoing map that continues without any one player is a future model; new players get a sandbox until they make contact. Magnitudes live in a scenario setup file that an admin edits and that locks once play starts. Working rules are in [doc/RULES.md](doc/RULES.md). That file is the spec if it disagrees with this overview. 
+Players can form **player–player** trade agreements and broadcast messages and send messages directly to other players. Freighters cycle full both ways (plus escorts); war fleets stay until moved. Attacking a partner ends trade and can confiscate inbound ships; identify chance for origin and/or actor scales with attributes. Unowned rocks fall without a fight; parked ships and defenses still fight. Taking a planet requires a surviving colony before it produces; mixed fleets matter in combat. Roles (neutral, conqueror, pirate, trader, hermit) retune how wealth becomes worlds, resources, and technology. A closed game (v1 default) ends when one player has eliminated all others. An ongoing map that continues without any one player is a future model; new players get a sandbox until they make contact. Magnitudes live in the unified server config file that an admin edits and that locks once play starts ([doc/SERVER-CONFIG.md](doc/SERVER-CONFIG.md)). Working rules are in [doc/RULES.md](doc/RULES.md). That file is the spec if it disagrees with this overview. 
 
 ## User interface
 
@@ -46,6 +46,9 @@ target (or when `ctest` runs).
 ## Docs
 
 - [User / operator guide](doc/CPLANETS.md) — start here to run the game
+- [Server config keys](doc/SERVER-CONFIG.md)
+- [AI client config keys](doc/AI-CLIENT-CONFIG.md)
+- [Human client config keys](doc/HUMAN-CLIENT-CONFIG.md)
 - [Game rules and machine](doc/RULES.md)
 - [Implementation plan](doc/PLAN.md)
 - [Playable + knobs, then balance (next phase)](doc/TUNING-PLAYABLE.md)

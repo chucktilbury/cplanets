@@ -1,9 +1,10 @@
 /*
- * src/server/config.cw — server process / network runtime knobs.
+ * src/server/config.cw — unified server process + scenario knobs.
  *
- * Own file surface parallel to AI/human configs (RULES §2). Holds
- * listen bind, serve loop, seed/players, and verbosity — not §14
- * galaxy magnitudes (those stay in --setup / scenario files).
+ * One operator file for listen/serve runtime and former §14 scenario
+ * magnitudes (RULES §2 / preferences). Missing or unopenable
+ * --config is a hard error; there is no separate setup= path and no
+ * silent builtin fallback when a file was expected.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -14,18 +15,25 @@
  *   2026-11-08  menu flag for read-only operator status console.
  *   2026-11-08  Drop menu flag; status opens via stdin m while serving.
  *   2026-11-08  players = optional soft max seats (0 = unlimited).
+ *   2026-11-09  Fold Scenario into ServerConfig; drop setup path.
+ *   2026-11-09  recv_buffer_bytes, seat_hard_cap, verbose_capture_lines.
  */
 
 /*
- * ServerConfig holds network + process defaults for cplanets-server.
+ * ServerConfig holds network / process defaults plus the Scenario
+ * snapshot for one serve start. Callers must include Scenario
+ * (via setupParse / state / scenario.cw) before this file.
  *
- * Every CLI flag except --config PATH maps to a field here. Load
- * from text via ServerConfigParse, then let argv override silently
- * when wasProvided. setup is a path to a scenario file (empty =
- * builtin closed defaults); CLI --setup overlays this key.
+ * Every CLI flag except --config PATH maps to a field here (or to
+ * a Scenario §14 key with no argv overlay). Load from text via
+ * ServerConfigParse, then let argv override silently when
+ * wasProvided. scenario starts as Scenario() closed defaults;
+ * recognized §14 keys overlay in-file. configPath is runtime-only
+ * (the --config path; not a file key).
  */
 class ServerConfig {
-    String setup
+    # Runtime-only: path passed as --config (banner / diagnostics).
+    String configPath
     String host
     int64 port
     # Soft maximum of allocated seats (0 = unlimited). Also the
@@ -43,20 +51,31 @@ class ServerConfig {
     int64 handshakeMissMs
     # Accept/recv poll timeout (ms). Former 50 literal on ServerListen.
     int64 acceptPollMs
+    # Max bytes per accepted client recv (former 65536 literal).
+    int64 recvBufferBytes
+    # Absolute seat bound when players soft max is 0 / unlimited
+    # (former State.appendSeat 256 literal). Soft max still wins when set.
+    int64 seatHardCap
+    # ServerVerboseLog ring size (former maxLines 64 literal).
+    int64 verboseCaptureLines
+    # §14 galaxy / economy / combat / design magnitudes.
+    Scenario scenario
 
     /*
-     * Construct CLI-matching process defaults.
+     * Construct CLI-matching process defaults + closed Scenario.
      *
      * Purpose: give loaders and bare-argv serve the same baseline as
      * buildCli() defaults (loopback bind, ephemeral port, soft max
-     * 0 = unlimited seats grown on connect).
+     * 0 = unlimited seats grown on connect) plus Scenario() §14
+     * closed fixture magnitudes.
      *
      * Parameters: none.
      *
-     * Returns: ServerConfig with host 127.0.0.1, port 0, seed 7.
+     * Returns: ServerConfig with host 127.0.0.1, port 0, seed 7,
+     * closed scenario defaults, and practical buffer/seat caps.
      */
     ServerConfig() {
-        setup = ""
+        configPath = ""
         host = "127.0.0.1"
         port = 0
         players = 0
@@ -67,14 +86,19 @@ class ServerConfig {
         verbosity = 0
         handshakeMissMs = 5000
         acceptPollMs = 50
+        recvBufferBytes = 65536
+        seatHardCap = 256
+        verboseCaptureLines = 64
+        scenario = Scenario()
     }
 
     /*
-     * Clamp seat, port, seed, cycles, and verbosity into legal bands.
+     * Clamp seat, port, seed, cycles, verbosity, and buffer bands.
      *
      * Purpose: harden after text load so listen / start never see
      * negative ports or out-of-range verbosity. players is a soft
-     * max: 0 stays 0 (unlimited); negatives clamp to 0.
+     * max: 0 stays 0 (unlimited); negatives clamp to 0. Also clamps
+     * nested scenario tick period and verbosity fields.
      *
      * Parameters: none (mutates this config).
      *
@@ -104,8 +128,19 @@ class ServerConfig {
         if (acceptPollMs < 1) {
             acceptPollMs = 1
         }
+        if (recvBufferBytes < 1024) {
+            recvBufferBytes = 1024
+        }
+        if (seatHardCap < 1) {
+            seatHardCap = 1
+        }
+        if (verboseCaptureLines < 1) {
+            verboseCaptureLines = 1
+        }
         if (host.length == 0) {
             host = "127.0.0.1"
         }
+        scenario.clampTickPeriod()
+        scenario.clampVerbosity()
     }
 }

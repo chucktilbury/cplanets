@@ -1,8 +1,9 @@
 /*
  * tests/unit/unit_serverConfig.cw — unit program for ServerConfigParse.
  *
- * Overlays process/network keys from application text; checks clamp,
- * host/address alias, and that scenario-only knobs fail loud.
+ * Overlays process/network and §14 scenario keys from application
+ * text; checks clamp, host/address alias, setup= migration reject,
+ * and that unknown keys fail loud.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -12,13 +13,13 @@
  *   2026-11-07  Assert handshake_miss_ms / accept_poll_ms.
  *   2026-11-08  Assert menu key.
  *   2026-11-08  Drop menu key (status via stdin m while serving).
+ *   2026-11-09  Unified config: §14 keys ok; setup= rejected.
  */
 
 include "server/configParse.cw"
 
 start {
     String text = ""
-    text.append("setup = scenarios/closed-default.setup\n")
     text.append("host = 10.0.0.9\n")
     text.append("port = 7700\n")
     text.append("players = 4\n")
@@ -29,13 +30,16 @@ start {
     text.append("verbosity = 2\n")
     text.append("handshake_miss_ms = 7500\n")
     text.append("accept_poll_ms = 25\n")
+    text.append("recv_buffer_bytes = 8192\n")
+    text.append("seat_hard_cap = 32\n")
+    text.append("verbose_capture_lines = 16\n")
+    text.append("world_count = 18\n")
+    text.append("start_wealth = 2500.0\n")
+    text.append("tick_period_seconds = 12\n")
     ServerConfigParse parser = ServerConfigParse()
     ServerConfig cfg = parser.parseText(text)
     bool ok = true
     if (not parser.ok) {
-        ok = false
-    }
-    if (not cfg.setup.equals("scenarios/closed-default.setup")) {
         ok = false
     }
     if (not cfg.host.equals("10.0.0.9")) {
@@ -68,8 +72,26 @@ start {
     if (cfg.acceptPollMs != 25) {
         ok = false
     }
+    if (cfg.recvBufferBytes != 8192) {
+        ok = false
+    }
+    if (cfg.seatHardCap != 32) {
+        ok = false
+    }
+    if (cfg.verboseCaptureLines != 16) {
+        ok = false
+    }
+    if (cfg.scenario.worldCount != 18) {
+        ok = false
+    }
+    if (cfg.scenario.startWealth != 2500.0f64) {
+        ok = false
+    }
+    if (cfg.scenario.tickPeriodSeconds != 12) {
+        ok = false
+    }
 
-    # address is an alias for host.
+    # address is an alias for host; verbosity clamps.
     ServerConfigParse aliasParser = ServerConfigParse()
     ServerConfig aliased = aliasParser.parseText(
         "address = 0.0.0.0\nverbosity = 99\n")
@@ -83,10 +105,21 @@ start {
         ok = false
     }
 
-    # Scenario-only keys must not silently no-op on the server surface.
+    # Legacy setup= path must fail loud with migration hint.
+    ServerConfigParse setupParser = ServerConfigParse()
+    setupParser.parseText(
+        "setup = scenarios/closed-default.setup\n")
+    if (setupParser.ok) {
+        ok = false
+    }
+    if (not setupParser.lastError.startsWith("setup path removed")) {
+        ok = false
+    }
+
+    # Truly unknown keys still fail loud.
     String bad = ""
     bad.append("port = 1\n")
-    bad.append("world_count = 10\n")
+    bad.append("not_a_real_knob = 1\n")
     ServerConfigParse badParser = ServerConfigParse()
     ServerConfig ignored = badParser.parseText(bad)
     if (badParser.ok) {

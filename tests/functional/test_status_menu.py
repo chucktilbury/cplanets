@@ -112,7 +112,7 @@ def main() -> int:
                 "Build jobs:",
                 "Server config (read-only):",
                 "players=2 (soft max; 0=unlimited)",
-                "Scenario setup (read-only):",
+                "Scenario / §14 knobs (read-only):",
                 "status>",
                 "MENU_OPEN=0",
                 "PAUSE_RESTORED=0",

@@ -32,7 +32,7 @@ merged.
 
 | Workstream | Status | What it is |
 | --- | --- | --- |
-| **A** knob surface | Done (PR #30) | `--setup` / unknown-key fail / restart-only contract |
+| **A** knob surface | Done (PR #30; unified config later) | Unified `--config` §14 keys / unknown-key fail / restart-only |
 | **B** list chrome | Done (PR #31) | Pause, dispatch/recall, explored auto-pop, design/build **labels** |
 | **C** session harness | Done (PR #32) | `scripts/tuning-session`, fixture packs, AI soft/mid/hard, CTest |
 | **D** map | Done (Phase I) | Map panel chrome; not required for balance passes |
@@ -133,8 +133,8 @@ CTest/fn where behavior lands.
 
 | Chunk | Landed |
 | --- | --- |
-| A1 | Grouped keys in `scenarios/closed-default.setup` + `config/ai-default.cfg` |
-| A2 | `cplanets-server --setup PATH` (+ `--seed`); unknown keys fail loud |
+| A1 | Grouped keys in `config/server-default.cfg` + `config/ai-default.cfg` |
+| A2 | Unified server `--config` (+ `--seed`); unknown keys fail loud |
 | A3 | Restart contract in [CPLANETS.md](CPLANETS.md); no mid-game retune |
 | A4 | CTest `functional_setup_path` |
 
@@ -154,6 +154,6 @@ CTest/fn where behavior lands.
 | C1–C4 | Operator recipe; `functional_session_harness`; tuning fixtures; AI soft/mid/hard |
 
 **How to re-run a comparable loop (after balance work starts):** edit
-setup/AI knobs → stop → `./scripts/tuning-session --setup … --seed 77
+server/AI knobs → stop → `./scripts/tuning-session --config … --seed 77
 --ai-config …` with the **same seed** → attach human. CI proof:
 `ctest -R functional_session_harness`.

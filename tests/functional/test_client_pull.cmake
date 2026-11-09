@@ -6,17 +6,12 @@ if(NOT DEFINED SERVER_CONFIG)
     message(FATAL_ERROR
         "test_client_pull.cmake requires SERVER_CONFIG")
 endif()
-set(_setup_args)
-if(DEFINED FIXTURE AND NOT "${FIXTURE}" STREQUAL "")
-    list(APPEND _setup_args "--setup" "${FIXTURE}")
-endif()
 execute_process(
     COMMAND "${PYTHON}"
         "${CMAKE_CURRENT_LIST_DIR}/test_client_pull.py"
         "--server" "${SERVER}"
         "--client" "${CLIENT}"
         "--server-config" "${SERVER_CONFIG}"
-        ${_setup_args}
     RESULT_VARIABLE result
     OUTPUT_VARIABLE output
     ERROR_VARIABLE error

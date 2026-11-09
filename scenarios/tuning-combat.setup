@@ -13,7 +13,8 @@ afk_timeout_seconds = 120.0
 afk_shrink_factor = 1.0
 
 # --- galaxy ---
-# Process / network runtime lives in config/server-*.cfg.
+# REFERENCE fragment — fold into config/server-*.cfg (unified).
+# Server no longer loads setup= PATH / --setup. See doc/SERVER-CONFIG.md.
 world_count = 16
 useful_mix = 0.35
 scout_range = 3.0

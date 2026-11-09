@@ -8,8 +8,13 @@ balance values.
 
 **Authorities:** [RULES.md](RULES.md) §14 (knobs outside code),
 [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) (phase order), this file
-(inventory). Operator paths: `scenarios/*.setup`, `config/ai-*.cfg`,
-`config/human-default.cfg`. Prefer `./scripts/setup` for builds.
+(inventory). Operator paths: unified `config/server-*.cfg` (process
++ §14), `config/ai-*.cfg`, `config/human-default.cfg`. Key catalogs:
+[SERVER-CONFIG.md](SERVER-CONFIG.md),
+[AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md),
+[HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md).
+`scenarios/*.setup` are reference fragments only. Prefer
+`./scripts/setup` for builds.
 
 **Context twin:** Project store `docs/knob-coverage.md`.
 
@@ -152,6 +157,9 @@ Human difficulty GUI is **not** required; AI stays file-driven.
 | [CPLANETS.md](CPLANETS.md) | Operator run / restart contract |
 | [RULES.md](RULES.md) §14 | Knobs outside code |
 | [DIALOGS.md](DIALOGS.md) | Missing playable chrome |
-| `scenarios/closed-default.setup` | §14 key surface |
-| `config/server-default.cfg` | Server process/network surface |
+| [SERVER-CONFIG.md](SERVER-CONFIG.md) | Unified server + §14 key catalog |
+| [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md) | AI key catalog |
+| [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md) | Human key catalog |
+| `config/server-default.cfg` | Unified server + §14 sample |
 | `config/ai-default.cfg` | AI axes surface |
+| `scenarios/*.setup` | Reference §14 fragments only |

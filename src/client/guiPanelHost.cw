@@ -44,8 +44,10 @@ class GuiPanelHost {
      *
      * Purpose: allocate titled TransientWindow wrappers; content
      * is attached later by wire(); parent set in setParent().
-     * Menu void<> fields bind to show* methods here so GuiMain
-     * can wire the View menu like File→Refresh.
+     * show*Action fields stay null until GuiMain binds them with
+     * an explicit receiver (panels.showPlanetsAction =
+     * panels.showPlanets) — bare method names are not valid in
+     * constructors.
      *
      * Parameters: none.
      *
@@ -58,11 +60,11 @@ class GuiPanelHost {
         shipsPanel = GuiPanelDialog("Ships", 440, 680)
         digestPanel = GuiPanelDialog("Digest", 420, 520)
         policyPanel = GuiPanelDialog("Policy", 400, 420)
-        showPlanetsAction = showPlanets
-        showFleetsAction = showFleets
-        showShipsAction = showShips
-        showDigestAction = showDigest
-        showPolicyAction = showPolicy
+        showPlanetsAction = null
+        showFleetsAction = null
+        showShipsAction = null
+        showDigestAction = null
+        showPolicyAction = null
     }
 
     /*

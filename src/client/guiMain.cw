@@ -124,6 +124,11 @@ class GuiMain {
         policyPage = GuiPolicyPage(appCore)
         mapPage = GuiMapPage(appCore)
         panels = GuiPanelHost()
+        panels.showPlanetsAction = panels.showPlanets
+        panels.showFleetsAction = panels.showFleets
+        panels.showShipsAction = panels.showShips
+        panels.showDigestAction = panels.showDigest
+        panels.showPolicyAction = panels.showPolicy
         explored = ExploredTrack()
         suppressPauseToggle = false
         suppressAfkToggle = false

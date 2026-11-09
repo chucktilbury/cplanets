@@ -79,6 +79,7 @@ def main() -> int:
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
         text=True,
         env=env,
         bufsize=1,

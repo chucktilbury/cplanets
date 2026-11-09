@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **CTest headless configs + stdin EOF:** smoke / functional harnesses
+  use `tests/config/*` (gui=false, serve=false / port 0 as needed) so
+  ctest does not open human GTK windows or dial operator port 7700.
+  `cplanets_stdin_pending` no longer treats EOF POLLIN (`/dev/null`
+  under ctest) as ready input, which had starved the TCP accept loop
+  (truncated handshake envelopes). Design/yard harness calls operator
+  go before play verbs. Lobby-until-go unchanged.
 - **Lobby hold on live serve loop:** connect still leaves
   `PHASE=lobby` / `tick=0`, and play verbs (`/order`, `/build`,
   `/design`, `/recall`, `/reclaim-hulls`, `/budget`) are rejected

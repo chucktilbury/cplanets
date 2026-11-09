@@ -118,6 +118,7 @@ def spawn_server(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
         text=True,
         env=env,
         bufsize=1,
@@ -296,6 +297,7 @@ def test_unknown_key(server: Path, server_config: Path) -> int:
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
             text=True,
             env=env,
         )

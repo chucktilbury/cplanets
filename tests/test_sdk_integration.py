@@ -107,9 +107,9 @@ class SdkIntegrationTests(unittest.TestCase):
         )
         self.run_command("cmake", "--install", str(build))
         smoke_cfg = {
-            "cplanets-server": project / "config" / "server-default.cfg",
-            "cplanets": project / "config" / "human-default.cfg",
-            "cplanets-ai": project / "config" / "ai-default.cfg",
+            "cplanets-server": project / "tests" / "config" / "server-smoke.cfg",
+            "cplanets": project / "tests" / "config" / "human-smoke.cfg",
+            "cplanets-ai": project / "tests" / "config" / "ai-smoke.cfg",
             "cplanets-tick": project / "config" / "tick-default.cfg",
         }
         for name in ("cplanets-server", "cplanets", "cplanets-ai", "cplanets-tick"):

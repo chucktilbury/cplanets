@@ -36,6 +36,7 @@ def spawn_server(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
         text=True,
         env=os.environ.copy(),
         bufsize=1,

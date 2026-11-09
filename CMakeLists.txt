@@ -311,21 +311,29 @@ if(BUILD_TESTING)
     foreach(fn IN LISTS cplanets_fn_programs)
         cplanets_add_cw_test(${fn} fn)
     endforeach()
+    # Smoke identity uses tests/config/* (headless / serve=false).
+    # Operator samples under config/ may enable GUI or live dial.
     set(_smoke_configs
-        cplanets-server|server-default.cfg
-        cplanets|human-default.cfg
-        cplanets-ai|ai-default.cfg
-        cplanets-tick|tick-default.cfg)
+        cplanets-server|tests/config/server-smoke.cfg
+        cplanets|tests/config/human-smoke.cfg
+        cplanets-ai|tests/config/ai-smoke.cfg
+        cplanets-tick|config/tick-default.cfg)
     foreach(entry IN LISTS _smoke_configs)
         string(REPLACE "|" ";" _parts "${entry}")
         list(GET _parts 0 program)
-        list(GET _parts 1 _cfg_name)
+        list(GET _parts 1 _cfg_rel)
         add_test(NAME smoke_${program} COMMAND "${CMAKE_COMMAND}"
             "-DEXECUTABLE=${${program}_executable}"
             "-DPROGRAM=${program}"
-            "-DCONFIG=${PROJECT_SOURCE_DIR}/config/${_cfg_name}"
+            "-DCONFIG=${PROJECT_SOURCE_DIR}/${_cfg_rel}"
             -P "${PROJECT_SOURCE_DIR}/tests/check-program.cmake")
     endforeach()
+    set_tests_properties(
+        smoke_cplanets-server
+        smoke_cplanets
+        smoke_cplanets-ai
+        smoke_cplanets-tick
+        PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
     find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
     add_test(NAME functional_server_smoke COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
@@ -340,7 +348,7 @@ if(BUILD_TESTING)
     add_test(NAME functional_ai_verbose COMMAND "${CMAKE_COMMAND}"
         "-DAI=${cplanets-ai_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
-        "-DCONFIG=${PROJECT_SOURCE_DIR}/config/ai-default.cfg"
+        "-DCONFIG=${PROJECT_SOURCE_DIR}/tests/config/ai-once.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_ai_verbose.cmake")
     add_test(NAME functional_setup_path COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
@@ -351,7 +359,7 @@ if(BUILD_TESTING)
     add_test(NAME functional_client_once COMMAND "${CMAKE_COMMAND}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
-        "-DCLIENT_CONFIG=${PROJECT_SOURCE_DIR}/config/human-default.cfg"
+        "-DCLIENT_CONFIG=${PROJECT_SOURCE_DIR}/tests/config/human-once.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_once.cmake")
     add_test(NAME functional_client_pull COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
@@ -380,6 +388,7 @@ if(BUILD_TESTING)
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
+        "-DHUMAN_CONFIG=${PROJECT_SOURCE_DIR}/tests/config/human-headless.cfg"
         "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
         "-DWORLDS=12"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_session_harness.cmake")
@@ -389,7 +398,7 @@ if(BUILD_TESTING)
         "-DCLIENT=${cplanets_executable}"
         "-DTICK=${cplanets-tick_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
-        "-DHUMAN_CONFIG=${PROJECT_SOURCE_DIR}/config/human-default.cfg"
+        "-DHUMAN_CONFIG=${PROJECT_SOURCE_DIR}/tests/config/human-smoke.cfg"
         "-DTICK_CONFIG=${PROJECT_SOURCE_DIR}/config/tick-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_cli_config_defaults.cmake")
     add_test(NAME functional_status_menu COMMAND "${CMAKE_COMMAND}"

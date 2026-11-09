@@ -127,6 +127,7 @@ def spawn_server(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
         text=True,
         env=env,
         bufsize=1,
@@ -439,7 +440,7 @@ def main() -> int:
     parser.add_argument(
         "--human-config",
         default="",
-        help="path to config/human-default.cfg",
+        help="path to tests/config/human-headless.cfg",
     )
     parser.add_argument(
         "--worlds",
@@ -454,7 +455,10 @@ def main() -> int:
     server_config = Path(args.server_config)
     fixture = Path(args.fixture)
     human_cfg = Path(args.human_config) if args.human_config else (
-        Path(__file__).resolve().parents[2] / "config" / "human-default.cfg"
+        Path(__file__).resolve().parents[2]
+        / "tests"
+        / "config"
+        / "human-headless.cfg"
     )
     for path, label in (
         (server, "server"),

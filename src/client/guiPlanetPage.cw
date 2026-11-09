@@ -4,7 +4,7 @@
  * Visibility-limited planet list plus per-owned-planet allocation
  * Scale (DIALOGS §4.2). PUT /budget stores allocationPct; the
  * production tick scales empire-pool credit by pct/100. Hosted in
- * the View→Planets non-modal panel dialog.
+ * the Planets menubar non-modal panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -14,6 +14,7 @@
  *   2026-11-07  Default Scale 100 matches full production.
  *   2026-11-07  Map ContextMenu: setPlanetId for budget Entry.
  *   2026-11-09  Hosted in View→Planets panel dialog.
+ *   2026-11-09  Menubar opener is Planets→Open (not View).
  *   2026-11-09  Planet id choice row + tooltips (View usable).
  */
 

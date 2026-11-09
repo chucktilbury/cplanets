@@ -5,7 +5,7 @@
  * Order / fleet / dest use GuiChoiceRow (Combo stand-in); hulls
  * use a Scale (Spin stand-in). Travel ProgressBar tracks the
  * selected (or lead in-flight) fleet. Develop/build bars reuse
- * GuiProgressChrome. Hosted in View→Fleets panel dialog.
+ * GuiProgressChrome. Hosted in Fleets menubar panel dialog.
  *
  * Created: 2026-11-06
  * Author: Auto
@@ -18,6 +18,7 @@
  *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
  *   2026-11-09  Examine fleet button → GuiFleetDialog.
  *   2026-11-09  Hosted in View→Fleets panel dialog.
+ *   2026-11-09  Menubar opener is Fleets→Open (not View).
  *   2026-11-09  Choice rows + hull Scale + travel ProgressBar +
  *               tooltips (View dialogs usable).
  *   2026-11-09  Safe Scale range via GuiScaleRange (empty fleets).

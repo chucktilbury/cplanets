@@ -32,13 +32,13 @@ Context: `design-decisions.md`, `project-context.md`,
 
 | Surface | Role | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Main window** | Always-on client shell; never ticks | Title; File + View menus; status line (tick / counts); map canvas | **Exists (Phase G + menubar)** |
+| **Main window** | Always-on client shell; never ticks | Title; File + Planets/Fleets/Ships/Digest/Policy menus; status line (tick / counts); map canvas | **Exists (Phase G + menubar)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
-| **View menu** | Former Notebook tab names | Planets / Fleets / Ships / Digest / Policy → raise non-modal panel dialogs | **Exists** |
+| **Panel menus** | Former Notebook tab names at menubar root | Planets / Fleets / Ships / Digest / Policy → each top-level menu’s **Open** raises its non-modal panel dialog | **Exists** |
 | **Map canvas panel** | Galaxy graphic as the main client surface | Hot spots; status colors; dotted ETA paths; pan/zoom; pick→fleet dest; ContextMenu status + zoom-to-known + dispatch/budget | **Exists (Phase I + pick-to-dispatch)** |
 
 **Principle:** the map is the main **panel**. Standing policy and list
-chrome open as **non-modal View-menu dialogs** (same content as the
+chrome open as **non-modal top-level menubar dialogs** (same content as the
 former Notebook tabs). Focused inspect dialogs (explored / examine)
 remain separate TransientWindows.
 
@@ -46,11 +46,11 @@ remain separate TransientWindows.
 
 | Dialog | When shown | Status |
 | --- | --- | --- |
-| **Planets panel dialog** | View→Planets (or map budget ContextMenu) | **Exists** — former Planets notebook page in `GuiPanelDialog` (list + explored button + budget Scale) |
-| **Fleets panel dialog** | View→Fleets (or map dispatch ContextMenu) | **Exists** — choice rows + hulls Scale; Examine fleet; develop/build/**travel** **ProgressBars**; tooltips |
-| **Ships panel dialog** | View→Ships | **Exists** — kind/yard/design choice rows; reclaim Scale; Examine design; develop/build **ProgressBars**; tooltips |
-| **Digest panel dialog** | View→Digest | **Exists** — newspaper + known competitors + compose (recipient choice row); tooltips |
-| **Policy panel dialog** | View→Policy | **Exists** — role choice row + % Scales + Apply; tooltips |
+| **Planets panel dialog** | Planets→Open (or map budget ContextMenu) | **Exists** — former Planets notebook page in `GuiPanelDialog` (list + explored button + budget Scale) |
+| **Fleets panel dialog** | Fleets→Open (or map dispatch ContextMenu) | **Exists** — choice rows + hulls Scale; Examine fleet; develop/build/**travel** **ProgressBars**; tooltips |
+| **Ships panel dialog** | Ships→Open | **Exists** — kind/yard/design choice rows; reclaim Scale; Examine design; develop/build **ProgressBars**; tooltips |
+| **Digest panel dialog** | Digest→Open | **Exists** — newspaper + known competitors + compose (recipient choice row); tooltips |
+| **Policy panel dialog** | Policy→Open | **Exists** — role choice row + % Scales + Apply; tooltips |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
 | Fleet examine dialog | Fleets panel **Examine fleet** (id choice / first visible) | **Exists** — `GuiFleetDialog` TransientWindow from `FleetRow.examineDialogText()` |
 | Design / ship examine dialog | Ships panel **Examine design** (design id choice / first catalog) | **Exists** — `GuiShipDialog` TransientWindow from `DesignRow.examineDialogText()` |
@@ -173,7 +173,7 @@ Concrete surface:
 | --- | --- |
 | Per-owned-planet `allocationPct` (0–100) | **Scale**; default **100** = full existing production magnitudes; empire pools remain sacred (no yard logistics tax) |
 | Tick effect | Productive owned rock → pool credit × `allocationPct/100` |
-| Entry point | View→Planets; map ContextMenu for owned rocks |
+| Entry point | Planets→Open; map ContextMenu for owned rocks |
 | Exact richer knob list | Still **open** under empire-pool model — do not invent logistics |
 
 ### 4.3 Agreements UI
@@ -216,7 +216,7 @@ Enum/id picks use `GuiChoiceRow` (Combo stand-in); integer
 ranges use `Scale` (Spin stand-in) because Cwhip GTK still lacks
 `DropDown` / `SpinButton`. Float design fields stay Entries.
 ProgressBars live in the Fleets / Ships `GuiPanelDialog` footers
-(View menu). Timed develop/build use existing
+(top-level menubar). Timed develop/build use existing
 `State.queueDesignDevelop` / `queueYardBuild` / `queueReclaim`.
 
 ---
@@ -225,7 +225,7 @@ ProgressBars live in the Fleets / Ships `GuiPanelDialog` footers
 
 | Surface | Contents | Status |
 | --- | --- | --- |
-| **Newspaper / digest panel** | Published tick events + **broadcasts**; read after each tick | **Exists** View→Digest dialog |
+| **Newspaper / digest panel** | Published tick events + **broadcasts**; read after each tick | **Exists** Digest→Open dialog |
 | **Known competitors list** | Names appear after **contact**; no contact → no name | **Exists** (published chrome + Digest list) |
 | **Compose private message** | Pick recipient from known competitors; compose body; send | **Exists** (`PUT /message`; seat-scoped digest) |
 | **Broadcast compose** | Send-to-all-known via same verb + broadcast flag | **Exists** |
@@ -306,18 +306,18 @@ v1. File/scenario edit remains the v1 path.
 
 ### Already in Phase G / TUNING B / Phase I human client
 
-- Main window + File Refresh/Quit + **View** menu
+- Main window + File Refresh/Quit + **Planets / Fleets / Ships / Digest / Policy** top-level menus
 - **Map canvas** as the main panel: DrawingArea hot spots, status
   colors, dotted hop paths, pick/pan/zoom, Scrollbars, ContextMenu
   status + zoom-to-known + dispatch/budget; pick fills fleet dest
   (**Phase I + pick-to-dispatch**)
-- Non-modal **View→Planets / Fleets / Ships / Digest / Policy**
+- Non-modal **Planets / Fleets / Ships / Digest / Policy→Open**
   panel dialogs (former Notebook tabs; `GuiPanelDialog`)
 - Explored-planet TransientWindow (1–10 + populated/productive note);
   manual “Show first explored” + auto-present on quality /
   productive / populated flips (**TUNING B**); map menu open explored
 - Policy role **choice row** + % **Scales** + Apply PUT; no
-  dumb-order warnings; View-dialog tooltips
+  dumb-order warnings; panel-dialog tooltips
 - Planets panel budget Scale → `PUT /budget` (allocationPct; tick
   spend); map ContextMenu budget raises Planets panel for owned rocks
 - Digest known-competitors + private/broadcast compose →

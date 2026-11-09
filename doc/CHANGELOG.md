@@ -2,12 +2,13 @@
 
 ## Unreleased
 
-- **Human View menu + non-modal panel dialogs:** former Notebook tabs
-  (Planets / Fleets / Ships / Digest / Policy) open from **View** as
-  hide-on-close `GuiPanelDialog` TransientWindows. Map canvas is the
-  main panel. Develop/build **ProgressBars** stay in Fleets / Ships
-  dialogs. Map ContextMenu dispatch/budget raises Fleets / Planets.
-  Docs: [DIALOGS.md](DIALOGS.md), [CPLANETS.md](CPLANETS.md).
+- **Top-level panel menubar openers:** former Notebook tabs
+  (Planets / Fleets / Ships / Digest / Policy) are **top-level**
+  menubar menus (each with **Open**); no longer nested under View.
+  Hide-on-close `GuiPanelDialog` TransientWindows unchanged. Map
+  canvas remains the main panel. Map ContextMenu dispatch/budget
+  still raises Fleets / Planets. Docs: [DIALOGS.md](DIALOGS.md),
+  [CPLANETS.md](CPLANETS.md).
 - **Inventory model locked in RULES:** empire inventory = seat stocks
   + designs (empire pool only); planet inventory = location-scoped
   presence (sitting fleets, defenses, yard jobs, flags, allocation)

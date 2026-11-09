@@ -1,5 +1,5 @@
 /*
- * src/client/guiPanelHost.cw — View-menu panel dialog host.
+ * src/client/guiPanelHost.cw — Menubar panel dialog host.
  *
  * Owns the five non-modal GuiPanelDialog shells (Planets / Fleets /
  * Ships / Digest / Policy) so GuiMain stays under the CODING soft
@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-09  Initial panel host (menubar rearrange).
+ *   2026-11-09  Openers are top-level menubar menus (not View).
  */
 
 include "guiDigestPage.cw"
@@ -21,7 +22,8 @@ include "guiPolicyPage.cw"
 include "guiYardPage.cw"
 
 /*
- * GuiPanelHost wires former Notebook pages into View-menu dialogs.
+ * GuiPanelHost wires former Notebook pages into top-level menubar
+ * dialogs.
  *
  * Each panel is a hide-on-close TransientWindow. ProgressBars stay
  * inside the Fleets / Ships page trees adopted as dialog content.
@@ -70,7 +72,7 @@ class GuiPanelHost {
     /*
      * Record the main window used as transient parent.
      *
-     * Purpose: View-menu void<> actions can call showPlanets()
+     * Purpose: menubar void<> actions can call showPlanets()
      * without threading the parent each time.
      *
      * Parameters:
@@ -124,7 +126,7 @@ class GuiPanelHost {
     /*
      * Raise the Planets panel dialog.
      *
-     * Purpose: View→Planets and map budget ContextMenu bridge.
+     * Purpose: Planets→Open and map budget ContextMenu bridge.
      *
      * Parameters: none (uses setParent window).
      *
@@ -140,7 +142,7 @@ class GuiPanelHost {
     /*
      * Raise the Fleets panel dialog.
      *
-     * Purpose: View→Fleets and map dispatch ContextMenu bridge.
+     * Purpose: Fleets→Open and map dispatch ContextMenu bridge.
      *
      * Parameters: none (uses setParent window).
      *
@@ -156,7 +158,7 @@ class GuiPanelHost {
     /*
      * Raise the Ships panel dialog.
      *
-     * Purpose: View→Ships menu item.
+     * Purpose: Ships→Open menu item.
      *
      * Parameters: none (uses setParent window).
      *
@@ -172,7 +174,7 @@ class GuiPanelHost {
     /*
      * Raise the Digest panel dialog.
      *
-     * Purpose: View→Digest menu item.
+     * Purpose: Digest→Open menu item.
      *
      * Parameters: none (uses setParent window).
      *
@@ -188,7 +190,7 @@ class GuiPanelHost {
     /*
      * Raise the Policy panel dialog.
      *
-     * Purpose: View→Policy menu item.
+     * Purpose: Policy→Open menu item.
      *
      * Parameters: none (uses setParent window).
      *

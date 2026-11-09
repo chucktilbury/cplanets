@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Spawn 1-human server; design develop + yard build over the wire."""
+"""Spawn 1-human server; design develop + yard build over the wire.
+
+Leaves lobby via /admin/go before play verbs (lobby hold).
+"""
 
 from __future__ import annotations
 
@@ -79,6 +82,7 @@ def main() -> int:
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
         text=True,
         env=env,
         bufsize=1,
@@ -115,6 +119,13 @@ def main() -> int:
             return 1
         # First free seat is 0; later verbs use that assigned id.
 
+        # Play verbs wait for operator go (lobby hold).
+        resp = exchange("127.0.0.1", port, admin_go())
+        _, _verb, path, body = decode_envelope(resp)
+        if path != "/admin/go" or body[0] != 1:
+            print(f"go failed path={path} body={body!r}")
+            return 1
+
         # Tiny size keeps develop wealth cost affordable on startWealth.
         resp = exchange(
             "127.0.0.1",
@@ -145,13 +156,7 @@ def main() -> int:
             )
             return 1
 
-        # Leave lobby, then advance past default designDevelopTicks (5).
-        resp = exchange("127.0.0.1", port, admin_go())
-        _, _verb, path, body = decode_envelope(resp)
-        if path != "/admin/go" or body[0] != 1:
-            print(f"go failed path={path} body={body!r}")
-            return 1
-
+        # Advance past default designDevelopTicks (5).
         resp = exchange("127.0.0.1", port, admin_advance(8))
         _, _verb, path, body = decode_envelope(resp)
         if path != "/admin/advance" or body[0] != 1:

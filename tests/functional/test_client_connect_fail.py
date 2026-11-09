@@ -33,6 +33,7 @@ def main() -> int:
         cfg.write(
             f"player_id = 0\nhost = {host}\nport = {port}\n"
             "pull = true\n"
+            "gui = false\n"
         )
         cfg.close()
         proc = subprocess.run(

@@ -12,6 +12,9 @@
  * Changelog:
  *   2026-11-08  Initial cplanets_stdin_pending binding.
  *   2026-11-09  Treat stdio-buffered bytes as pending (stray-then-m).
+ *   2026-11-09  Do not treat EOF POLLIN (/dev/null, closed pipe) as
+ *               pending — peek a real byte so ServeMenuGate cannot
+ *               starve TCP accept under ctest.
  */
 
 #include <errno.h>
@@ -70,10 +73,11 @@ static int stdin_stdio_readable(void) {
  * Return whether stdin has bytes ready to read (non-blocking).
  *
  * Bound from Cwhip as StdinPoll.pending() / cplanets_stdin_pending.
- * True when poll(POLLIN) fires on the fd OR stdio already holds
- * buffered input (so a drain loop can keep calling readLine after
- * the first line without blocking). The unused `self` matches the
- * out-of-line native method ABI.
+ * True only when a real byte is available (kernel or stdio buffer),
+ * so a drain loop can keep calling readLine after the first line
+ * without blocking — and so EOF POLLIN on /dev/null does not look
+ * like pending input. The unused `self` matches the out-of-line
+ * native method ABI.
  */
 int32_t cplanets_stdin_pending(void *self) {
     (void)self;
@@ -81,10 +85,17 @@ int32_t cplanets_stdin_pending(void *self) {
     pfd.fd = STDIN_FILENO;
     pfd.events = POLLIN;
     pfd.revents = 0;
-    if (poll(&pfd, 1, 0) > 0
-        && (pfd.revents & (POLLERR | POLLNVAL)) == 0
-        && (pfd.revents & POLLIN) != 0) {
-        return 1;
+    int pr = poll(&pfd, 1, 0);
+    if (pr < 0 || (pfd.revents & (POLLERR | POLLNVAL)) != 0) {
+        return 0;
     }
+    /*
+     * POLLIN is also set at EOF (/dev/null under ctest, closed
+     * pipe). Returning 1 here made ServeMenuGate drain forever
+     * and never reach accept — harness handshakes saw empty
+     * replies. Always require a real readable byte (kernel or
+     * stdio buffer), including the buffered-after-readLine case.
+     */
+    (void)pr;
     return stdin_stdio_readable() ? 1 : 0;
 }

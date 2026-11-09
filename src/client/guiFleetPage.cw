@@ -20,12 +20,14 @@
  *   2026-11-09  Hosted in View→Fleets panel dialog.
  *   2026-11-09  Choice rows + hull Scale + travel ProgressBar +
  *               tooltips (View dialogs usable).
+ *   2026-11-09  Safe Scale range via GuiScaleRange (empty fleets).
  */
 
 include "appCore.cw"
 include "fleetRow.cw"
 include "guiChoiceRow.cw"
 include "guiProgressChrome.cw"
+include "guiScaleRange.cw"
 include "planetRow.cw"
 
 /*
@@ -135,7 +137,11 @@ class GuiFleetPage {
             "0 sends the whole sitting stack; >0 peels that many.")
         page.append(hullsLabel)
         hullsScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        hullsScale.configure(0.0, 0.0, 1.0, 1.0)
+        GuiScaleRange initHulls = GuiScaleRange()
+        initHulls.normalize(0.0, 0.0, 1.0, 1.0)
+        hullsScale.configure(
+            initHulls.value, initHulls.lower, initHulls.upper,
+            initHulls.step)
         hullsScale.setTooltip(
             "Hulls to peel from the sitting stack (0 = all).")
         if (hullsChangedAction != null) {
@@ -309,11 +315,12 @@ class GuiFleetPage {
             maxHulls = row.hullCount
         }
         fp64 cur = hullsScale.value()
-        if (cur > fp64(maxHulls)) {
-            cur = fp64(maxHulls)
-        }
+        GuiScaleRange hullRange = GuiScaleRange()
+        hullRange.normalize(cur, 0.0, fp64(maxHulls), 1.0)
         suppressHulls = true
-        hullsScale.configure(cur, 0.0, fp64(maxHulls), 1.0)
+        hullsScale.configure(
+            hullRange.value, hullRange.lower, hullRange.upper,
+            hullRange.step)
         suppressHulls = false
         refreshHullsLabel()
     }

@@ -17,6 +17,7 @@
  *   2026-11-09  Examine design button → GuiShipDialog.
  *   2026-11-09  Hosted in View→Ships panel dialog.
  *   2026-11-09  Choice rows + reclaim Scale + tooltips (usable).
+ *   2026-11-09  Safe Scale range via GuiScaleRange (empty/1 hull).
  */
 
 include "appCore.cw"
@@ -24,6 +25,7 @@ include "designRow.cw"
 include "fleetRow.cw"
 include "guiChoiceRow.cw"
 include "guiProgressChrome.cw"
+include "guiScaleRange.cw"
 include "planetRow.cw"
 
 /*
@@ -191,7 +193,11 @@ class GuiYardPage {
             "How many hulls to reclaim from the sitting fleet.")
         page.append(reclaimHullsLabel)
         reclaimHullsScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        reclaimHullsScale.configure(1.0, 1.0, 1.0, 1.0)
+        GuiScaleRange initHulls = GuiScaleRange()
+        initHulls.normalize(1.0, 1.0, 1.0, 1.0)
+        reclaimHullsScale.configure(
+            initHulls.value, initHulls.lower, initHulls.upper,
+            initHulls.step)
         reclaimHullsScale.setTooltip(
             "Reclaim hull count — Scale stand-in for SpinButton.")
         if (reclaimHullsChangedAction != null) {
@@ -349,14 +355,22 @@ class GuiYardPage {
             maxHulls = row.hullCount
         }
         fp64 cur = reclaimHullsScale.value()
-        if (cur < 1.0) {
-            cur = 1.0
+        GuiScaleRange hullRange = GuiScaleRange()
+        hullRange.normalize(cur, 1.0, fp64(maxHulls), 1.0)
+        /*
+         * normalize may widen upper when maxHulls == 1 so GTK
+         * accepts the range; keep the thumb on a real hull count.
+         */
+        if (hullRange.value > fp64(maxHulls)) {
+            hullRange.value = fp64(maxHulls)
         }
-        if (cur > fp64(maxHulls)) {
-            cur = fp64(maxHulls)
+        if (hullRange.value < 1.0) {
+            hullRange.value = 1.0
         }
         suppressHulls = true
-        reclaimHullsScale.configure(cur, 1.0, fp64(maxHulls), 1.0)
+        reclaimHullsScale.configure(
+            hullRange.value, hullRange.lower, hullRange.upper,
+            hullRange.step)
         suppressHulls = false
         refreshReclaimHullsLabel()
     }
@@ -544,7 +558,11 @@ class GuiYardPage {
         }
         int64 hulls = int64(reclaimHullsScale.value() + 0.5)
         if (hulls < 1) {
-            return(1)
+            hulls = 1
+        }
+        FleetRow row = core.view.findFleet(reclaimFleetValue())
+        if (row.id >= 0 and row.hullCount > 0 and hulls > row.hullCount) {
+            return(row.hullCount)
         }
         return(hulls)
     }

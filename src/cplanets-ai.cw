@@ -28,6 +28,8 @@
  *   2026-11-08  On-demand status menu via stdin m during serve-loop.
  *   2026-11-08  Menu gate wires client for PUT /suspended hold.
  *   2026-11-08  cycles 0 = play until eliminated/ended; wall clock.
+ *   2026-11-09  Serve-loop issues PUT /order and PUT /build so
+ *               fleets explore / take after lobby go.
  *   2026-11-08  CLI --serve-loop without --cycles forces continuous.
  *   2026-11-08  TCP seats from handshake; offline --once pins seat 0.
  *   2026-11-08  Serve-loop re-handshakes each cycle (presence).
@@ -377,6 +379,9 @@ class AiMain {
             view.publishedTick = tick
             uint64 nowMs = wall.monotonicMilliseconds()
             client.maybePutPolicyAt(view, nowMs, index)
+            # Concrete explore / take / build — policy blobs alone
+            # never move fleets (server stores them opaquely).
+            client.maybeIssueOrdersAt(index)
             gate.pollOnce()
             index = index + 1
             stopReason = client.explore.serveStopReason()

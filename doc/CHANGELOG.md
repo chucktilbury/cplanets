@@ -11,6 +11,26 @@
   keep the token on empty/network handshake failure and only clear
   it after an explicit reject ack. Unit: `unit_lobbyHoldGhosts`
   (also updates `unit_homeOnConnect`).
+- **AI fleets explore + human examine (Section C):** every seated
+  empire now receives the RULES §2 starter scout fleet (not only
+  seat 0). The AI serve-loop issues `PUT /order` (explore / take)
+  and `PUT /build` from the decoded GET snapshot via `AiOrderPlan`
+  — opaque policy blobs alone never moved fleets. Human Fleets /
+  Ships tabs gain **Examine fleet** / **Examine design**
+  TransientWindows (same hide-on-close pattern as explored
+  planets). Units: `unit_aiOrderPlan`, `unit_fleetExamine`,
+  `unit_homeOnConnect`.
+- **Status menu Go / stdin flush:** from lobby, status-menu **`g`**
+  leaves lobby **and closes the menu** so the prior pause flag is
+  restored and clients are not left held in a non-lobby menu.
+  Top-level **`q`** still resumes without go. The serve stdin gate
+  drains stray / blank console lines each cycle (blank Enter is not
+  EOF) so a junk keystroke then `m` still opens the menu.
+  `StdinPoll.pending()` also treats stdio-buffered bytes as ready
+  (piped `x` then `m` after one `readLine`). Functional CTests use
+  repo-root working directory so relative `setup=` resolves under
+  `ctest --test-dir build`. Docs: [CPLANETS.md](CPLANETS.md).
+  Tests: `functional_status_menu`.
 
 - **Lobby AI connect abort:** lobby no longer runs end-status
   (all-humans-quit / eliminate-all) before operator go, so a

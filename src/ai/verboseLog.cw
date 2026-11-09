@@ -18,6 +18,7 @@
  * Changelog:
  *   2026-11-07  Initial AiVerboseLog (seat / policy / cycle).
  *   2026-11-07  Remap to 0–10 scale; clamp; provisional thresholds.
+ *   2026-11-09  logOrder / logBuild for explore and yard verbs.
  */
 
 include "policyShape.cw"
@@ -272,5 +273,79 @@ class AiVerboseLog {
             tick,
             playerId,
             action))
+    }
+
+    /*
+     * Log a PUT /order explore / take attempt.
+     *
+     * Purpose: decisionsAt+ trail when the AI dispatches a fleet
+     * (Section C — policy blobs alone never move ships).
+     *
+     * Parameters:
+     *   playerId — AI seat id.
+     *   fleetId — sitting fleet ordered.
+     *   order — order string (explore / take / …).
+     *   destPlanetId — destination rock.
+     *   hulls — peel count (0 = whole stack).
+     *   ok — true when the server accepted the order.
+     *
+     * Returns: nothing.
+     */
+    void logOrder(
+        int64 playerId,
+        int64 fleetId,
+        String order,
+        int64 destPlanetId,
+        int64 hulls,
+        bool ok) {
+        if (not decisionsEnabled()) {
+            return()
+        }
+        String status = "ok"
+        if (not ok) {
+            status = "fail"
+        }
+        emit(format(
+            "verbosity: order player={} fleet={} order={} dest={} hulls={} status={}\n",
+            playerId,
+            fleetId,
+            order,
+            destPlanetId,
+            hulls,
+            status))
+    }
+
+    /*
+     * Log a PUT /build yard attempt.
+     *
+     * Purpose: decisionsAt+ trail when the AI queues a hull to
+     * recreate fleets after the starter stack is locked in flight.
+     *
+     * Parameters:
+     *   playerId — AI seat id.
+     *   planetId — yard planet.
+     *   designId — ready design id.
+     *   ok — true when the server queued the build.
+     *
+     * Returns: nothing.
+     */
+    void logBuild(
+        int64 playerId,
+        int64 planetId,
+        int64 designId,
+        bool ok) {
+        if (not decisionsEnabled()) {
+            return()
+        }
+        String status = "ok"
+        if (not ok) {
+            status = "fail"
+        }
+        emit(format(
+            "verbosity: build player={} planet={} design={} status={}\n",
+            playerId,
+            planetId,
+            designId,
+            status))
     }
 }

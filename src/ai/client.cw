@@ -20,6 +20,8 @@
  *   2026-11-08  Allocate with 1-byte kind=1 so server marks AI.
  *   2026-11-09  Keep token on empty/network handshake failure;
  *               only clear after an explicit reject ack.
+ *   2026-11-09  PUT /order + PUT /build from AiOrderPlan so AI
+ *               fleets explore / take / yard-build after go.
  */
 
 import networking as Networking
@@ -34,6 +36,7 @@ include "../lib/wireBytes.cw"
 include "brain.cw"
 include "config.cw"
 include "exploreState.cw"
+include "orderPlan.cw"
 include "policyShape.cw"
 include "reaction.cw"
 include "verboseLog.cw"
@@ -42,14 +45,17 @@ include "view.cw"
 /*
  * AiClient talks to a live server over one TCP connection.
  *
- * Brain + ReactionLag decide when to PUT. GET /state is decoded
- * into ClientStateView (same visibility as a human client) and
- * mirrored into AiExploreState for the on-demand status menu.
- * verbose mirrors AiConfig.verbosity (CLI may overlay).
+ * Brain + ReactionLag decide when to PUT policy. AiOrderPlan turns
+ * the same GET snapshot into PUT /order and PUT /build so fleets
+ * actually move. GET /state is decoded into ClientStateView (same
+ * visibility as a human client) and mirrored into AiExploreState
+ * for the on-demand status menu. verbose mirrors AiConfig.verbosity
+ * (CLI may overlay).
  */
 class AiClient {
     AiConfig config
     AiBrain brain
+    AiOrderPlan orders
     ReactionLag lag
     AiVerboseLog verbose
     AiExploreState explore
@@ -63,9 +69,9 @@ class AiClient {
     /*
      * Construct a client around a config.
      *
-     * Purpose: wire brain/lag/verbs/explore; delay connect until
-     * dial(). Copies cfg.verbosity onto the logger (tests may call
-     * setVerbosity afterward).
+     * Purpose: wire brain/lag/verbs/explore/order planner; delay
+     * connect until dial(). Copies cfg.verbosity onto the logger
+     * (tests may call setVerbosity afterward).
      *
      * Parameters:
      *   cfg — clamped AI config (host/port/playerId/seed/axes).
@@ -75,6 +81,7 @@ class AiClient {
     AiClient(AiConfig cfg) {
         config = cfg
         brain = AiBrain(cfg)
+        orders = AiOrderPlan()
         lag = ReactionLag()
         verbose = AiVerboseLog()
         verbose.setLevel(cfg.verbosity)
@@ -425,6 +432,157 @@ class AiClient {
                 view.publishedTick,
                 config.playerId,
                 "put")
+        }
+        return(true)
+    }
+
+    /*
+     * Issue one explore/take order or yard build from the snapshot.
+     *
+     * Purpose: after policy PUT (or when lag skips a PUT), make
+     * fleets leave home so quality gets explored. Uses the last
+     * decoded GET snapshot in explore and the last / freshly
+     * generated policy shape for expansion bias. Skips while the
+     * status menu pauses decisions. Failures are logged; a rejected
+     * order does not abort the serve-loop.
+     *
+     * Parameters:
+     *   cycleIndex — serve-loop index, or −1 to omit cycle logs.
+     *
+     * Returns: true when no action was needed or the verb was
+     * accepted; false on transport failure of an attempted verb.
+     */
+    bool maybeIssueOrdersAt(int64 cycleIndex) {
+        if (explore.decisionPaused) {
+            return(true)
+        }
+        if (not explore.hasSnapshot) {
+            return(true)
+        }
+        AiPolicyShape shape = explore.lastPolicy
+        if (not explore.hasPolicy) {
+            shape = brain.generate(explore.view)
+        }
+        AiOrderIntent intent = orders.plan(explore.snapshot, shape)
+        if (intent.kind.equals("none")) {
+            return(true)
+        }
+        if (intent.kind.equals("build")) {
+            bool built = putBuild(
+                intent.buildPlanetId, intent.buildDesignId)
+            verbose.logBuild(
+                config.playerId,
+                intent.buildPlanetId,
+                intent.buildDesignId,
+                built)
+            if (cycleIndex >= 0 and built) {
+                explore.noteCycle(cycleIndex, "build")
+            }
+            return(built)
+        }
+        if (intent.kind.equals("order")) {
+            bool ok = putOrder(
+                intent.fleetId,
+                intent.order,
+                intent.destPlanetId,
+                intent.hulls)
+            verbose.logOrder(
+                config.playerId,
+                intent.fleetId,
+                intent.order,
+                intent.destPlanetId,
+                intent.hulls,
+                ok)
+            if (cycleIndex >= 0 and ok) {
+                explore.noteCycle(cycleIndex, "order")
+            }
+            return(ok)
+        }
+        return(true)
+    }
+
+    /*
+     * PUT /order for explore / take / trade / move / ambush.
+     *
+     * Purpose: same wire as HumanSession.putOrder so the server
+     * queues travel on a sitting owned fleet.
+     *
+     * Parameters:
+     *   fleetId — owned sitting fleet id.
+     *   order — order string (explore / take / …).
+     *   destPlanetId — destination rock.
+     *   hulls — peel count; 0 means the whole stack.
+     *
+     * Returns: true when the server accepted the order.
+     */
+    bool putOrder(
+        int64 fleetId,
+        String order,
+        int64 destPlanetId,
+        int64 hulls) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        w.writeU32(destPlanetId)
+        w.writeString(order)
+        w.writeU32(hulls)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/order", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/order"))
+    }
+
+    /*
+     * PUT /build to queue a yard hull.
+     *
+     * Purpose: recreate fleets when the starter stack is gone /
+     * locked, matching HumanSession.putBuild.
+     *
+     * Parameters:
+     *   planetId — owned productive shipyard.
+     *   designId — ready design id.
+     *
+     * Returns: true when the server queued the build.
+     */
+    bool putBuild(int64 planetId, int64 designId) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(planetId)
+        w.writeU32(designId)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/build", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/build"))
+    }
+
+    /*
+     * Decode a flag-ack body for a PUT path.
+     *
+     * Purpose: shared accept check for /order and /build (same
+     * shape as HumanSession.flagAccepted).
+     *
+     * Parameters:
+     *   resp — raw response envelope bytes.
+     *   path — expected response path.
+     *
+     * Returns: true when accepted == 1.
+     */
+    bool flagAccepted(buffer resp, String path) {
+        if (resp.length < 1) {
+            explore.noteError("put_transport_failed")
+            return(false)
+        }
+        Envelope out = EnvelopeCodec().decode(resp)
+        if (not out.ok or not out.path.equals(path)) {
+            explore.noteError("put_rejected")
+            return(false)
+        }
+        WireBytes r = WireBytes()
+        r.setRead(out.body)
+        int64 accepted = r.readU8()
+        if (not r.ok() or accepted != 1) {
+            explore.noteError("put_rejected")
+            return(false)
         }
         return(true)
     }

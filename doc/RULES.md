@@ -203,6 +203,18 @@ Shipping metal to a specific yard to build is interesting and too
 much to learn; it is **out**. Loading, cover, production, and reclaim
 all hit the same pools.
 
+**Inventory (empire vs planet).** Empire inventory is the seat’s
+abstract stocks and designs (the empire pool above). **Planet
+inventory** is location-scoped **presence** on that rock — sitting
+fleets (multi-hull stacks you split and send), defenses/satellites,
+yard jobs, population / productive / shipyard flags, and allocation
+— **not** a second wealth/resource bank and **not** an Inventory
+screen. Hulls sit at a planet or ride a fleet; there is no unlocated
+hangar. Builds pay the empire pool and spawn/merge sitting fleets at
+that yard. Do not invent ferry-to-yard logistics. (Planet
+`resources` / livability on the rock are **quality / yield**
+attributes, not empire-style stockpiles.)
+
 ## 3. State
 
 - **Scenario**: setup coefficients / mappings (bumps, weights,
@@ -283,6 +295,12 @@ player may still change **other** policy (other fleets, role,
 allocations, agreements, …). That **particular in-flight fleet’s
 order** cannot be rewritten except by **`recall`** (same-tick cancel
 if not yet departed) or resolution that frees it.
+
+**Sitting fleets are the ship inventory.** Same-design builds merge
+into one sitting stack at the yard. **Split-dispatch** peels a hull
+count from that stack onto a new order/destination; the remainder
+stays sitting for later sends. That is the assign/send loop — not a
+separate Inventory UI or unlocated hangar.
 
 ### 5.1 Dispatch and loading (sender only)
 
@@ -678,6 +696,10 @@ for dumb legal orders. Human client uses Cwhip `DrawingArea`, pointer,
 `queueDraw`, Scrollbars, and ContextMenu for the map panel; `Scale`
 adoption for policy knobs is still open. No Cwhip GTK subclass
 framework.
+
+**No Inventory screen.** Sitting hulls plus Fleets split-dispatch are
+the ship inventory chrome (§2 / §5). Do not add an Inventory tab or
+dialog.
 
 **Explored planet dialog (human client):** when a planet has been
 **explored** for that human, **pop up a dialog** showing quality /

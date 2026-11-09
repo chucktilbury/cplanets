@@ -263,8 +263,7 @@ class GuiMain {
         planetPage.planetChoice.bind(
             planetPage.planetChoice.onPrev,
             planetPage.planetChoice.onNext)
-        planetPage.planetChoice.changedAction =
-            planetPage.onPlanetChoiceChanged
+        planetPage.planetChoice.changedAction = planetPage.onPlanetChoiceChanged
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         fleetPage.examineAction = examineFleetAction
@@ -272,8 +271,7 @@ class GuiMain {
         fleetPage.fleetChoice.bind(
             fleetPage.fleetChoice.onPrev,
             fleetPage.fleetChoice.onNext)
-        fleetPage.fleetChoice.changedAction =
-            fleetPage.onFleetChoiceChanged
+        fleetPage.fleetChoice.changedAction = fleetPage.onFleetChoiceChanged
         fleetPage.orderChoice.bind(
             fleetPage.orderChoice.onPrev,
             fleetPage.orderChoice.onNext)
@@ -284,8 +282,7 @@ class GuiMain {
         yardPage.buildAction = buildAction
         yardPage.reclaimAction = reclaimAction
         yardPage.examineAction = examineShipAction
-        yardPage.reclaimHullsChangedAction =
-            yardPage.onReclaimHullsChanged
+        yardPage.reclaimHullsChangedAction = yardPage.onReclaimHullsChanged
         yardPage.kindChoice.bind(
             yardPage.kindChoice.onPrev,
             yardPage.kindChoice.onNext)
@@ -298,8 +295,7 @@ class GuiMain {
         yardPage.reclaimFleetChoice.bind(
             yardPage.reclaimFleetChoice.onPrev,
             yardPage.reclaimFleetChoice.onNext)
-        yardPage.reclaimFleetChoice.changedAction =
-            yardPage.onReclaimFleetChanged
+        yardPage.reclaimFleetChoice.changedAction = yardPage.onReclaimFleetChanged
         digestPage.sendAction = sendAction
         digestPage.toChoice.bind(
             digestPage.toChoice.onPrev,
@@ -791,7 +787,7 @@ class GuiMain {
      * Returns: nothing.
      */
     void onDispatch() {
-        fleetPage.syncFleetIdEntry()
+        fleetPage.syncFleetChoices()
         int64 fleetId = fleetPage.fleetIdValue()
         String order = fleetPage.orderValue()
         int64 dest = fleetPage.destValue()

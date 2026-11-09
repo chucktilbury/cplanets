@@ -223,6 +223,7 @@ rather than a huge hand-built widget tree.
 | Role / enum pickers | Policy role name | `DropDown` / `ComboBox`-style (missing; Entry workaround) | **polish** |
 | Alerts | Connection errors | **Available:** `AlertDialog` | (have) |
 | File chooser | Open scenario / human config | **Available:** `FileDialog` | (have; optional for client) |
+| Top-level menubar leaf action | Click Planets/Fleets/… root to raise a panel (no nested Open) | `GtkPopoverMenuBar` only accepts **submenus** as top-level GMenu entries. Cplanets workaround: flat `Button`s beside `MenuBar`. Optional Cwhip `MenuBar.addAction(label, action)` would generalize that | **polish** (workaround ships) |
 
 ### 3.6 Theming / CSS — **polish**
 

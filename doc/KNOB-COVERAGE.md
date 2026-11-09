@@ -89,7 +89,7 @@ written — include it when merged; not required for this docs PR.
 | --- | --- | --- |
 | `start_wealth` / `start_resources` / `start_tech` / `start_power` / `start_experience` | setup | textfile already · server-textfile-only |
 | Standing policy % (expansion, escort, tech bias, `S`) | human client Entries → wire | GUI candidate (Scale later) · textfile N/A (runtime) |
-| Human dial (`player_id`, host, port) + modes (`once` / `pull` / `gui` / `test`) | `config/human-default.cfg` + CLI overlay (path `--config` excluded) | textfile already · GUI candidate (connect dialog later) |
+| Human dial (`player_id`, host, port) + modes (`once` / `pull` / `gui` / `test`) + `refresh_ms` (GUI state/digest poll; default 1000; `0`=off; distinct from presence keep-alive) | `config/human-default.cfg` + CLI overlay (path `--config` excluded; `--refresh-ms`) | textfile already · GUI candidate (connect dialog later) |
 
 ---
 

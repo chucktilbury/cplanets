@@ -1,10 +1,11 @@
 /*
- * src/client/guiYardPage.cw — Ships tab design / yard chrome.
+ * src/client/guiYardPage.cw — Ships panel design / yard chrome.
  *
  * List stand-ins for design develop + yard build / reclaim
  * (DIALOGS §6). Entry fields only — no Scale / DrawingArea.
  * Wires to timed State.queueDesignDevelop / queueYardBuild.
- * Progress footer uses Gtk.ProgressBar (dialog-ready Box).
+ * Progress footer uses Gtk.ProgressBar. Hosted in the
+ * View→Ships non-modal panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -15,6 +16,7 @@
  *               (home 0) when the Entry is empty or stale.
  *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
  *   2026-11-09  Examine design button → GuiShipDialog.
+ *   2026-11-09  Hosted in View→Ships panel dialog.
  */
 
 include "appCore.cw"
@@ -22,7 +24,7 @@ include "designRow.cw"
 include "guiProgressChrome.cw"
 
 /*
- * GuiYardPage owns the Ships notebook page widgets.
+ * GuiYardPage owns the Ships panel dialog widgets.
  *
  * Start develop → PUT /design; Queue build → PUT /build;
  * Reclaim hulls → PUT /reclaim-hulls. Lists show catalog,
@@ -88,17 +90,19 @@ class GuiYardPage {
     }
 
     /*
-     * Build the Ships notebook page widget tree.
+     * Build the Ships panel dialog widget tree.
      *
      * Purpose: design list + editor Entries + yard/reclaim
      * Entries + ProgressBar footer (DIALOGS §6).
      *
      * Parameters: none.
      *
-     * Returns: page widget for Notebook.appendPage.
+     * Returns: page widget for GuiPanelDialog.setContent.
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
+        page.setHExpand(true)
+        page.setVExpand(true)
         designList = Gtk.Label("(no designs)")
         designList.setHExpand(true)
         designList.setVExpand(true)

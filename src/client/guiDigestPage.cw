@@ -3,19 +3,21 @@
  *
  * Newspaper list, known-competitors after contact, and private /
  * broadcast compose Entries (RULES §13 / DIALOGS §7). Broadcast
- * uses the same PUT /message verb with the broadcast flag.
+ * uses the same PUT /message verb with the broadcast flag. Hosted
+ * in the View→Digest non-modal panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
  *   2026-11-07  Initial digest + compose chrome page.
+ *   2026-11-09  Hosted in View→Digest panel dialog.
  */
 
 include "appCore.cw"
 
 /*
- * GuiDigestPage owns the Digest notebook page widgets.
+ * GuiDigestPage owns the Digest panel dialog widgets.
  *
  * Compose picks a recipient id from the known list (Entry stand-in
  * for DropDown) or checks Broadcast for send-to-all-known.
@@ -50,16 +52,18 @@ class GuiDigestPage {
     }
 
     /*
-     * Build the Digest notebook page widget tree.
+     * Build the Digest panel dialog widget tree.
      *
      * Purpose: newspaper + known list + compose Entries.
      *
      * Parameters: none.
      *
-     * Returns: page widget for Notebook.appendPage.
+     * Returns: page widget for GuiPanelDialog.setContent.
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
+        page.setHExpand(true)
+        page.setVExpand(true)
         digestList = Gtk.Label("(empty)")
         digestList.setHExpand(true)
         digestList.setVExpand(true)

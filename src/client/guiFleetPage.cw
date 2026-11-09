@@ -1,9 +1,10 @@
 /*
- * src/client/guiFleetPage.cw — fleets tab + dispatch/recall chrome.
+ * src/client/guiFleetPage.cw — fleets panel + dispatch/recall chrome.
  *
  * List stand-in for map pick-to-dispatch (TUNING-PLAYABLE B2).
  * Entries + buttons only — no DrawingArea / Scale. Design/build
  * ProgressBars reuse GuiProgressChrome (same footer as Ships).
+ * Hosted in the View→Fleets non-modal panel dialog.
  *
  * Created: 2026-11-06
  * Author: Auto
@@ -15,6 +16,7 @@
  *               (never leave 0 — fleets start at 1).
  *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
  *   2026-11-09  Examine fleet button → GuiFleetDialog.
+ *   2026-11-09  Hosted in View→Fleets panel dialog.
  */
 
 include "appCore.cw"
@@ -22,7 +24,7 @@ include "fleetRow.cw"
 include "guiProgressChrome.cw"
 
 /*
- * GuiFleetPage owns the Fleets notebook page widgets.
+ * GuiFleetPage owns the Fleets panel dialog widgets.
  *
  * Dispatch Entries feed PUT /order; Recall uses PUT /recall.
  * Hulls Entry peels a subset from a multi-hull sitting stack
@@ -73,17 +75,19 @@ class GuiFleetPage {
     }
 
     /*
-     * Build the Fleets notebook page widget tree.
+     * Build the Fleets panel dialog widget tree.
      *
      * Purpose: scrolled list + Entry dispatch/recall + progress
-     * bars (dialog-ready footer Box).
+     * bars (footer Box inside the non-modal dialog).
      *
      * Parameters: none.
      *
-     * Returns: page widget for Notebook.appendPage.
+     * Returns: page widget for GuiPanelDialog.setContent.
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
+        page.setHExpand(true)
+        page.setVExpand(true)
         fleetList = Gtk.Label("(no fleets)")
         fleetList.setHExpand(true)
         fleetList.setVExpand(true)
@@ -286,7 +290,7 @@ class GuiFleetPage {
      * Write the destination planet Entry from a map pick.
      *
      * Purpose: GuiMapPage primary-click / ContextMenu dispatch
-     * feeds the existing Fleets-tab PUT /order chrome (fewest
+     * feeds the existing Fleets panel PUT /order chrome (fewest
      * hoops — no second dest control).
      *
      * Parameters:

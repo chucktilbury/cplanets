@@ -1,11 +1,13 @@
 /*
  * src/client/guiMain.cw — GTK human client main window (G / B / I).
  *
- * Paned: map canvas (Phase I) beside the list notebook (Planets,
- * Fleets, Ships, Digest, Policy). Pause gated to one human; fleet
- * dispatch/recall; design/yard; planet budget Scales; known-
- * competitor compose; explored dialog auto-presents on quality /
- * productive changes. Policy % uses Gtk.Scale.
+ * Map canvas is the main panel. Former Notebook tabs (Planets,
+ * Fleets, Ships, Digest, Policy) open as non-modal View-menu
+ * TransientWindows. Pause gated to one human; fleet dispatch/
+ * recall; design/yard; planet budget Scales; known-competitor
+ * compose; explored dialog auto-presents on quality / productive
+ * changes. Develop/build ProgressBars live in Fleets / Ships
+ * panel dialogs.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -23,6 +25,7 @@
  *   2026-11-07  Dispatch preflight: missing fleet id + server reason.
  *   2026-11-08  AFK CheckButton → PUT /suspended.
  *   2026-11-09  Fleet / design examine TransientWindows (Section C).
+ *   2026-11-09  Notebook → View menu + non-modal panel dialogs.
  */
 
 include "appCore.cw"
@@ -32,6 +35,7 @@ include "guiDigestPage.cw"
 include "guiFleetDialog.cw"
 include "guiFleetPage.cw"
 include "guiMapPage.cw"
+include "guiPanelHost.cw"
 include "guiPlanetDialog.cw"
 include "guiPlanetPage.cw"
 include "guiPolicyPage.cw"
@@ -41,11 +45,12 @@ include "fleetRow.cw"
 include "planetRow.cw"
 
 /*
- * GuiMain owns the human list debugger window.
+ * GuiMain owns the human client window.
  *
  * Policy Apply PUTs standing policy with no dumb-order warnings.
  * Pause CheckButton is sensitive only when pauseOffered().
  * AFK CheckButton sends PUT /suspended (handshake_miss hold).
+ * View menu raises non-modal panel dialogs for list chrome.
  */
 class GuiMain {
     AppCore core
@@ -62,7 +67,7 @@ class GuiMain {
     GuiDigestPage digestPage
     GuiPolicyPage policyPage
     GuiMapPage mapPage
-    Gtk.Notebook notebook
+    GuiPanelHost panels
     ExploredTrack explored
     bool suppressPauseToggle
     bool suppressAfkToggle
@@ -118,7 +123,12 @@ class GuiMain {
         digestPage = GuiDigestPage(appCore)
         policyPage = GuiPolicyPage(appCore)
         mapPage = GuiMapPage(appCore)
-        notebook = null
+        panels = GuiPanelHost()
+        panels.showPlanetsAction = panels.showPlanets
+        panels.showFleetsAction = panels.showFleets
+        panels.showShipsAction = panels.showShips
+        panels.showDigestAction = panels.showDigest
+        panels.showPolicyAction = panels.showPolicy
         explored = ExploredTrack()
         suppressPauseToggle = false
         suppressAfkToggle = false
@@ -167,7 +177,7 @@ class GuiMain {
     /*
      * Present an operator-facing failure (status + optional alert).
      *
-     * Purpose: shared path for connect errors and Ships-tab verb
+     * Purpose: shared path for connect errors and Ships-panel verb
      * rejects so Start develop / build / reclaim never fail silent.
      *
      * Parameters:
@@ -202,12 +212,19 @@ class GuiMain {
         }
         window = Gtk.Window("CPlanets")
         window.setDefaultSize(960, 640)
+        panels.setParent(window)
         Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 0)
         window.setChild(root)
         Gtk.MenuBar menu = Gtk.MenuBar()
         int64 fileMenu = menu.addMenu("File")
         menu.addItem(fileMenu, "Refresh", refreshAction)
         menu.addItem(fileMenu, "Quit", closeAction)
+        int64 viewMenu = menu.addMenu("View")
+        menu.addItem(viewMenu, "Planets", panels.showPlanetsAction)
+        menu.addItem(viewMenu, "Fleets", panels.showFleetsAction)
+        menu.addItem(viewMenu, "Ships", panels.showShipsAction)
+        menu.addItem(viewMenu, "Digest", panels.showDigestAction)
+        menu.addItem(viewMenu, "Policy", panels.showPolicyAction)
         root.append(menu)
         Gtk.Box top = Gtk.Box(Gtk.Box.HORIZONTAL, 8)
         status = Gtk.Label("Ready")
@@ -224,9 +241,6 @@ class GuiMain {
         }
         top.append(afkBtn)
         root.append(top)
-        Gtk.Paned split = Gtk.Paned(Gtk.Paned.HORIZONTAL)
-        split.setHExpand(true)
-        split.setVExpand(true)
         mapPage.showExploredAction = showMapExploredAction
         mapPage.planetPickedAction = mapPickAction
         mapPage.dispatchHereAction = mapDispatchAction
@@ -240,34 +254,25 @@ class GuiMain {
         mapPage.vScrollAction = mapPage.onVScroll
         mapPage.showSelectedAction = mapPage.onShowSelected
         mapPage.zoomPlanetAction = mapPage.zoomToPlanet
-        split.append(mapPage.buildPage())
-        notebook = Gtk.Notebook()
-        notebook.setHExpand(true)
-        notebook.setVExpand(true)
+        root.append(mapPage.buildPage())
         planetPage.showExploredAction = showExploredAction
         planetPage.budgetAction = budgetAction
         planetPage.budgetChangedAction = planetPage.onBudgetChanged
-        notebook.appendPage(planetPage.buildPage(), "Planets")
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         fleetPage.examineAction = examineFleetAction
-        notebook.appendPage(fleetPage.buildPage(), "Fleets")
         yardPage.developAction = developAction
         yardPage.buildAction = buildAction
         yardPage.reclaimAction = reclaimAction
         yardPage.examineAction = examineShipAction
-        notebook.appendPage(yardPage.buildPage(), "Ships")
         digestPage.sendAction = sendAction
-        notebook.appendPage(digestPage.buildPage(), "Digest")
         policyPage.applyAction = applyAction
         policyPage.expansionChangedAction = policyPage.onExpansionChanged
         policyPage.escortChangedAction = policyPage.onEscortChanged
         policyPage.agreementChangedAction = policyPage.onAgreementChanged
         policyPage.techChangedAction = policyPage.onTechChanged
-        notebook.appendPage(policyPage.buildPage(), "Policy")
-        split.append(notebook)
-        split.setPosition(520)
-        root.append(split)
+        panels.wire(
+            planetPage, fleetPage, yardPage, digestPage, policyPage)
         planetDialog.closeAction = dialogCloseAction
         planetDialog.closeRequestAction = planetDialog.onCloseRequest
         fleetDialog.closeAction = dialogCloseAction
@@ -401,7 +406,7 @@ class GuiMain {
     /*
      * Open explored dialog for the first qualityKnown visible rock.
      *
-     * Purpose: manual Planets-tab button (still useful offline).
+     * Purpose: manual Planets panel button (still useful offline).
      *
      * Parameters: none.
      *
@@ -436,7 +441,7 @@ class GuiMain {
     }
 
     /*
-     * Open fleet examine dialog for the Fleets-tab id Entry.
+     * Open fleet examine dialog for the Fleets panel id Entry.
      *
      * Purpose: Section C — Inspect was a Label dump only; this
      * presents GuiFleetDialog for the selected (or first sitting)
@@ -475,7 +480,7 @@ class GuiMain {
     }
 
     /*
-     * Open design examine dialog for the Ships-tab design Entry.
+     * Open design examine dialog for the Ships panel design Entry.
      *
      * Purpose: Section C — Designs (inspect) was Label-only; this
      * presents GuiShipDialog and pins designIdEntry.
@@ -512,15 +517,16 @@ class GuiMain {
         fleetPage.setDestPlanet(planetId)
         if (status != null) {
             status.setText(format(
-                "map dest={} (Fleets → Dispatch)", planetId))
+                "map dest={} (View→Fleets → Dispatch)", planetId))
         }
     }
 
     /*
      * Map ContextMenu: dispatch toward the selected rock.
      *
-     * Purpose: set dest from selection then reuse onDispatch
-     * (fleet id + order still come from Fleets Entries).
+     * Purpose: set dest from selection, raise Fleets panel, then
+     * reuse onDispatch (fleet id + order still come from Fleets
+     * Entries).
      *
      * Parameters: none.
      *
@@ -532,17 +538,15 @@ class GuiMain {
             return()
         }
         fleetPage.setDestPlanet(mapPage.selectedId)
-        if (notebook != null) {
-            notebook.setCurrentPage(1)
-        }
+        panels.showFleets()
         onDispatch()
     }
 
     /*
      * Map ContextMenu: open Planets budget for the rock.
      *
-     * Purpose: fill allocation Entry/Scale for an owned planet;
-     * Apply still uses PUT /budget.
+     * Purpose: fill allocation Entry/Scale for an owned planet and
+     * raise the Planets panel; Apply still uses PUT /budget.
      *
      * Parameters: none.
      *
@@ -559,19 +563,17 @@ class GuiMain {
             return()
         }
         planetPage.setPlanetId(row.id)
-        if (notebook != null) {
-            notebook.setCurrentPage(0)
-        }
+        panels.showPlanets()
         if (status != null) {
             status.setText(format(
-                "budget planet={} (Planets → Apply)", row.id))
+                "budget planet={} (View→Planets → Apply)", row.id))
         }
     }
 
     /*
      * Apply policy from Scale / Entry widgets.
      *
-     * Purpose: Policy tab Apply — no order warnings.
+     * Purpose: Policy panel Apply — no order warnings.
      *
      * Parameters: none.
      *
@@ -593,7 +595,7 @@ class GuiMain {
     /*
      * Apply planet budget Scale via PUT /budget.
      *
-     * Purpose: Planets-tab allocation stand-in (DIALOGS §4.2).
+     * Purpose: Planets panel allocation stand-in (DIALOGS §4.2).
      *
      * Parameters: none.
      *
@@ -626,7 +628,7 @@ class GuiMain {
     /*
      * Send private / broadcast compose via PUT /message.
      *
-     * Purpose: Digest-tab compose-to-pick (RULES §13).
+     * Purpose: Digest panel compose-to-pick (RULES §13).
      *
      * Parameters: none.
      *
@@ -834,7 +836,7 @@ class GuiMain {
     }
 
     /*
-     * Start develop: PUT /design from Ships Entries.
+     * Start develop: PUT /design from Ships panel Entries.
      *
      * Purpose: non-instant design development (RULES §5.3). Status
      * ack is applied after refreshLists so it is not overwritten.
@@ -868,7 +870,7 @@ class GuiMain {
     }
 
     /*
-     * Queue build: PUT /build from Ships Entries.
+     * Queue build: PUT /build from Ships panel Entries.
      *
      * Purpose: non-instant yard hull production (RULES §5.3).
      * Yard planet defaults to home (0); status ack after refresh.
@@ -902,7 +904,7 @@ class GuiMain {
     }
 
     /*
-     * Reclaim hulls: PUT /reclaim-hulls from Ships Entries.
+     * Reclaim hulls: PUT /reclaim-hulls from Ships panel Entries.
      *
      * Purpose: yard reclaim path for sitting hulls (RULES §5.2).
      * Status ack is applied after refreshLists.
@@ -945,6 +947,7 @@ class GuiMain {
      * Returns: nothing.
      */
     void onClose() {
+        panels.closeAll()
         planetDialog.close()
         fleetDialog.close()
         shipDialog.close()

@@ -3,19 +3,21 @@
  *
  * Empire-wide role Entry + expansion / escort / agreement S /
  * tech bias Scales (DIALOGS §4.1). Apply PUTs /policy with no
- * dumb-order warnings. Scale replaces prior Entry % knobs.
+ * dumb-order warnings. Hosted in the View→Policy non-modal
+ * panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
  *   2026-11-07  Initial policy Scales page.
+ *   2026-11-09  Hosted in View→Policy panel dialog.
  */
 
 include "appCore.cw"
 
 /*
- * GuiPolicyPage owns the Policy notebook page widgets.
+ * GuiPolicyPage owns the Policy panel dialog widgets.
  *
  * Scales are 0..100; role stays an Entry (enum polish later).
  */
@@ -67,16 +69,18 @@ class GuiPolicyPage {
     }
 
     /*
-     * Build the Policy notebook page widget tree.
+     * Build the Policy panel dialog widget tree.
      *
      * Purpose: role Entry + % Scales + Apply.
      *
      * Parameters: none.
      *
-     * Returns: page widget for Notebook.appendPage.
+     * Returns: page widget for GuiPanelDialog.setContent.
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
+        page.setHExpand(true)
+        page.setVExpand(true)
         roleEntry = Gtk.Entry(core.draft.roleName)
         page.append(Gtk.Label("Role"))
         page.append(roleEntry)

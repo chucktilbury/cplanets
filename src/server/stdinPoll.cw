@@ -9,6 +9,8 @@
  *
  * Changelog:
  *   2026-11-08  Initial StdinPoll binding.
+ *   2026-11-09  pending() also true for stdio-buffered bytes after
+ *               a prior readLine (shared hook for serve/AI gates).
  */
 
 /*
@@ -16,7 +18,9 @@
  *
  * Construct a throwaway instance and call pending() between accept
  * cycles. Does not consume input; the caller still uses StandardIO
- * readLine when pending is true.
+ * readLine when pending is true. pending() covers both kernel POLLIN
+ * and bytes already sitting in the stdio FILE buffer so a drain loop
+ * can keep reading after the first line of a piped burst.
  */
 class StdinPoll {
     /*
@@ -35,10 +39,14 @@ class StdinPoll {
      * True when stdin has at least one byte ready (non-blocking).
      *
      * Purpose: serve-loop stdin watcher without blocking accept.
+     * After one readLine(), later pipe lines often live only in the
+     * stdio buffer while poll(2) is idle — this still returns true
+     * so ServeMenuGate can drain through to a following `m`.
      *
      * Parameters: none.
      *
-     * Returns: true when poll(POLLIN) on stdin succeeds with data.
+     * Returns: true when poll(POLLIN) fires or stdio can yield a byte
+     * without blocking.
      */
     bool pending()
 }

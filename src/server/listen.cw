@@ -21,6 +21,7 @@
  *   2026-11-05  Initial TCP listener with timeout accept.
  *   2026-11-06  Document one-shot TCP client contract.
  *   2026-11-08  Poll ServeMenuGate between accept / maybeTick cycles.
+ *   2026-11-09  Menu gate drains stray stdin; lobby Go closes menu.
  */
 
 import networking as Networking

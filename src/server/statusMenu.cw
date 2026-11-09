@@ -14,6 +14,7 @@
  *   2026-11-08  Initial interactive status menu.
  *   2026-11-08  Serve-time only: drop --menu pre-serve / exit-without-serve.
  *   2026-11-08  Lobby Go command (g) shares operator go path.
+ *   2026-11-09  Lobby Go exits the menu so pause restores and play starts.
  */
 
 # Caller (cplanets-server) imports system as Sys; included files must
@@ -109,15 +110,18 @@ class StatusMenu {
         print("5) Designs / jobs\n")
         print("6) Config (read-only)\n")
         if (views.driver.inLobby()) {
-            print("g) Go — leave lobby; start wall ticks\n")
+            print("g) Go — leave lobby, close menu, start wall ticks\n")
         }
-        print("q) Quit menu (resume serve)\n")
+        print("q) Quit menu (resume serve; stay lobby if not gone)\n")
     }
 
     /*
-     * Run the interactive top loop until quit / EOF.
+     * Run the interactive top loop until quit / go / EOF.
      *
      * Purpose: operator explore while serve is running (stdin `m`).
+     * Lobby `g` leaves lobby and returns so the serve gate can
+     * restore the prior pause flag and let clients play. Top-level
+     * `q` (or empty/EOF) returns without calling go().
      *
      * Parameters: none.
      *
@@ -127,7 +131,8 @@ class StatusMenu {
         print("cplanets-server status menu\n")
         print("MENU=1\n")
         print("Note: ticks stay paused while this menu is open; ")
-        print("q returns to TCP accept / cadence.\n")
+        print("q resumes prior pause; lobby g starts the game ")
+        print("and closes this menu.\n")
         io.flush()
         while (true) {
             printTopMenu()
@@ -139,12 +144,8 @@ class StatusMenu {
                 return()
             }
             if (choice.equals("g") or choice.equals("G")) {
-                if (views.driver.go()) {
-                    print("GO=1 PHASE=running (ticks may advance)\n")
-                } else (views.driver.running) {
-                    print("Already running.\n")
-                } else {
-                    print("Go rejected.\n")
+                if (handleLobbyGo()) {
+                    return()
                 }
             } else (choice.equals("1")) {
                 print(views.statusSummary())
@@ -162,6 +163,36 @@ class StatusMenu {
                 print("Unknown choice. Use 1-6, g (go), or q.\n")
             }
         }
+    }
+
+    /*
+     * Handle top-menu Go: leave lobby and signal the caller to close.
+     *
+     * Purpose: from lobby, `g` must start the game — leave lobby and
+     * exit the status menu so ServeMenuGate restores the prior pause
+     * flag and clients are no longer held. When already running, keep
+     * the menu open and print a short note. Does not mutate pause
+     * itself; openMenuPaused owns pause restore on return.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when the menu should close (go succeeded);
+     * false when the operator should stay in the menu.
+     */
+    bool handleLobbyGo() {
+        if (views.driver.go()) {
+            print("GO=1 PHASE=running (leaving menu; ticks may advance)\n")
+            io.flush()
+            return(true)
+        }
+        if (views.driver.running) {
+            print("Already running (use q to resume serve).\n")
+            io.flush()
+            return(false)
+        }
+        print("Go rejected.\n")
+        io.flush()
+        return(false)
     }
 
     /*

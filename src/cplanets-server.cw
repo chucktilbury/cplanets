@@ -33,6 +33,7 @@
  *   2026-11-08  Drop --menu; on-demand status via stdin m while serving.
  *   2026-11-08  Lobby until operator go (stdin g); reconnect tokens.
  *   2026-11-08  players soft max (0=unlimited); seats grow on connect.
+ *   2026-11-09  Banner: menu Go closes menu; stray stdin keys flushed.
  */
 
 import cli as Cli
@@ -431,11 +432,15 @@ class ServerMain {
         print(
             "Lobby: wall ticks do not advance until go. ")
         print(
-            "Type g then Enter to start (or status-menu Go). ")
+            "Type g then Enter to start (or status-menu Go, ")
+        print(
+            "which also closes the menu). ")
         print(
             "Status menu: type m then Enter ")
         print(
-            "(ticks pause while open; q resumes prior pause).\n")
+            "(ticks pause while open; q resumes prior pause; ")
+        print(
+            "stray keys are flushed).\n")
         # Flush so Python functional tests see PORT= before accept.
         Sys.StandardIO().flush()
         listener.serve()

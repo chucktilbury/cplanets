@@ -408,4 +408,24 @@ if(BUILD_TESTING)
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_ai_serve_continuous.cmake")
+    # Config files use relative setup= paths (scenarios/...). CTest's
+    # default cwd is the build tree; run functionals from the source
+    # root so those paths resolve the same as an operator launch.
+    set(_cplanets_functional_tests
+        functional_server_smoke
+        functional_server_verbose
+        functional_ai_verbose
+        functional_setup_path
+        functional_client_once
+        functional_client_pull
+        functional_client_connect_fail
+        functional_list_chrome
+        functional_design_yard
+        functional_session_harness
+        functional_cli_config_defaults
+        functional_status_menu
+        functional_ai_status_menu
+        functional_ai_serve_continuous)
+    set_tests_properties(${_cplanets_functional_tests} PROPERTIES
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()

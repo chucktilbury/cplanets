@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-08  Initial AI client status formatters.
  *   2026-11-08  Summary line includes suspended flag.
+ *   2026-11-09  configDump includes loopPeriodMs.
  */
 
 include "../client/designRow.cw"
@@ -484,6 +485,9 @@ class AiStatusViews {
             cfg.cycles,
             once,
             serveLoop))
+        text.append(format(
+            "loopPeriodMs={}\n",
+            cfg.loopPeriodMs))
         text.append(format(
             "aggression={} stickiness={} expansion={} escort={}\n",
             cfg.aggression,

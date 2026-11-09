@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-08  Initial AI status menu unit program.
+ *   2026-11-09  Assert configDump includes loopPeriodMs.
  */
 
 include "ai/config.cw"
@@ -143,6 +144,9 @@ start {
         ok = false
     }
     if (not config.contains("playerId=1")) {
+        ok = false
+    }
+    if (not config.contains("loopPeriodMs=")) {
         ok = false
     }
 

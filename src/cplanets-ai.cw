@@ -33,6 +33,7 @@
  *   2026-11-08  CLI --serve-loop without --cycles forces continuous.
  *   2026-11-08  TCP seats from handshake; offline --once pins seat 0.
  *   2026-11-08  Serve-loop re-handshakes each cycle (presence).
+ *   2026-11-09  loop_period_ms / --loop-period-ms frame-budget sleep.
  */
 
 import cli as Cli
@@ -156,6 +157,15 @@ class AiMain {
         verbosity.hasDefault = true
         verbosity.defaultValue = "0"
         commandLine.addOption(verbosity)
+        Cli.Option loopPeriod = Cli.Option()
+        loopPeriod.longName = "loop-period-ms"
+        loopPeriod.name = "loop-period-ms"
+        loopPeriod.description = (
+            "serve-loop target period ms (config loop_period_ms)")
+        loopPeriod.valueType = Cli.ValueType().NUMBER
+        loopPeriod.hasDefault = true
+        loopPeriod.defaultValue = "100"
+        commandLine.addOption(loopPeriod)
         return(commandLine)
     }
 
@@ -223,12 +233,12 @@ class AiMain {
 
     /*
      * Load AiConfig from required --config with host/port/verbosity
-     * overlays.
+     * / loop-period overlays.
      *
-     * Purpose: own config file path; argv may override dial and
-     * verbosity. Overlays apply only when the option was provided.
-     * Unknown config keys fail loud and exit(1). Caller already
-     * required a non-empty --config path.
+     * Purpose: own config file path; argv may override dial,
+     * verbosity, and loop_period_ms. Overlays apply only when the
+     * option was provided. Unknown config keys fail loud and
+     * exit(1). Caller already required a non-empty --config path.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -274,6 +284,10 @@ class AiMain {
         if (commandLine.wasProvided("serve-loop")) {
             cfg.serveLoop = commandLine.switchValue("serve-loop")
         }
+        if (commandLine.wasProvided("loop-period-ms")) {
+            cfg.loopPeriodMs = (
+                commandLine.value("loop-period-ms").toInt64())
+        }
         cfg.clampAll()
         return(cfg)
     }
@@ -318,10 +332,14 @@ class AiMain {
      * stopped; cycles > 0 caps attempts (smoke / harness). Between
      * cycles, stdin line `m` opens the read-only status menu
      * (decisions pause while open; `q` resumes). Banner prints
-     * MENU_KEY=m and CYCLES= (0 means continuous).
+     * MENU_KEY=m, CYCLES= (0 means continuous), and
+     * LOOP_PERIOD_MS= (serve-loop frame budget). Continuous cycles
+     * use a classic frame budget: measure work, then sleep
+     * max(0, loop_period_ms − elapsed). Finite smoke stays snappy
+     * (no period sleep). reaction_lag_* stay separate PUT gates.
      *
      * Parameters:
-     *   cfg — loaded AI config with host/port.
+     *   cfg — loaded AI config with host/port / loopPeriodMs.
      *   cycles — 0 = until stop reason; N > 0 = attempt cap.
      *
      * Returns: nothing.
@@ -344,6 +362,7 @@ class AiMain {
         print(format("PLAYER={}\n", cfg.playerId))
         print(format("CYCLES={}\n", cycles))
         print(format("VERBOSITY={}\n", cfg.verbosity))
+        print(format("LOOP_PERIOD_MS={}\n", cfg.loopPeriodMs))
         print("MENU_KEY=m\n")
         if (cycles < 1) {
             print(
@@ -362,6 +381,7 @@ class AiMain {
             if (not unlimited and index >= cycles) {
                 break
             }
+            uint64 cycleStartMs = wall.monotonicMilliseconds()
             # Keep-alive before pull so handshake_miss cannot drop
             # the seat while the serve-loop is still alive (lobby
             # and running). Then pull / decide so a buffered stdin
@@ -388,9 +408,10 @@ class AiMain {
             if (stopReason.length > 0) {
                 break
             }
-            # Pace continuous play; finite smoke stays snappy.
+            # Frame budget for continuous play; finite smoke stays
+            # snappy (no leftover sleep).
             if (unlimited) {
-                wall.sleepMilliseconds(100u)
+                sleepLoopLeftover(wall, cycleStartMs, cfg.loopPeriodMs)
             }
         }
         client.close()
@@ -401,6 +422,39 @@ class AiMain {
             print("\n")
         } else {
             print("ok\n")
+        }
+    }
+
+    /*
+     * Sleep the leftover of one serve-loop frame budget.
+     *
+     * Purpose: keep continuous AI cadence roughly deterministic —
+     * after cycle work, sleep max(0, periodMs − elapsed) so each
+     * cycle targets loop_period_ms. Overrun (elapsed ≥ period)
+     * skips sleep. periodMs ≤ 0 means no sleep (busy loop).
+     *
+     * Parameters:
+     *   wall — Time.Clock used for monotonic stamps and sleep.
+     *   cycleStartMs — monotonicMilliseconds at cycle start.
+     *   periodMs — target period from AiConfig.loopPeriodMs.
+     *
+     * Returns: nothing.
+     */
+    void sleepLoopLeftover(
+        Time.Clock wall,
+        uint64 cycleStartMs,
+        int64 periodMs) {
+        if (periodMs <= 0) {
+            return()
+        }
+        uint64 cycleEndMs = wall.monotonicMilliseconds()
+        uint64 elapsed = 0u
+        if (cycleEndMs >= cycleStartMs) {
+            elapsed = cycleEndMs - cycleStartMs
+        }
+        uint64 period = uint64(periodMs)
+        if (elapsed < period) {
+            wall.sleepMilliseconds(period - elapsed)
         }
     }
 

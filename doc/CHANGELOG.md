@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **AI serve-loop period (`loop_period_ms`):** continuous
+  `--serve-loop` replaces the hard-coded 100 ms sleep with a
+  settable frame budget. Config key `loop_period_ms` (default
+  **100**) and CLI `--loop-period-ms` (argv overlays). Each cycle
+  measures work then sleeps `max(0, period − elapsed)`; `0` means
+  no leftover sleep. Finite `--cycles N` stays snappy (no period
+  sleep). Banner prints `LOOP_PERIOD_MS=`. Distinct from
+  `reaction_lag_ticks` / `reaction_lag_seconds`. Samples under
+  `config/ai-*.cfg` and `tests/config/ai-*.cfg`. Tests:
+  `unit_aiConfig`, `unit_aiStatusMenu`, `functional_ai_loop_period`.
 - **CTest headless configs + stdin EOF:** smoke / functional harnesses
   use `tests/config/*` (gui=false, serve=false / port 0 as needed) so
   ctest does not open human GTK windows or dial operator port 7700.

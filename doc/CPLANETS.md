@@ -273,6 +273,7 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | `--once` | `once` | Print one local policy shape (no TCP; one-shot) |
 | `--serve-loop` | `serve_loop` | Dial and PUT policy until eliminated / ended (needs `port > 0`). CLI form without `--cycles` forces continuous (`CYCLES=0`) even if the config still has `cycles = 1`. |
 | `--cycles N` | `cycles` | Loop attempts (`0` = until eliminated/ended/stop; `N>0` caps for smoke). Required on argv to override the continuous CLI `--serve-loop` default. |
+| `--loop-period-ms N` | `loop_period_ms` | Continuous serve-loop target period in milliseconds (default **100**). Each cycle measures work, then sleeps `max(0, period − elapsed)` so cadence is roughly deterministic. `0` skips leftover sleep. Distinct from `reaction_lag_ticks` / `reaction_lag_seconds` (PUT gates). Banner prints `LOOP_PERIOD_MS=`. |
 
 **Verbosity** (headless stdout, not a GUI): scale **0–10**
 (default `0`). Out-of-range values **clamp** into `0..10`.
@@ -287,10 +288,11 @@ Category thresholds are **provisional**:
 | `10` | Full decision dumps / statistics (gate only; no extra spam yet) |
 
 Same keys in the AI config file (`verbosity`, `cycles`, `once`,
-`serve_loop`, dial). TCP `player_id` is not seating authority —
-the server assigns on handshake. CLI flags present on argv overlay
-silently. `--once` / `--serve-loop` print `VERBOSITY=<n>` with the
-summary.
+`serve_loop`, `loop_period_ms`, dial). TCP `player_id` is not seating
+authority — the server assigns on handshake. CLI flags present on
+argv overlay silently. `--once` / `--serve-loop` print
+`VERBOSITY=<n>` with the summary; serve-loop also prints
+`LOOP_PERIOD_MS=<n>`.
 
 **Status menu (while `--serve-loop`):** type `m` then Enter on the
 AI console (banner prints `MENU_KEY=m`). Opens a read-only
@@ -355,8 +357,9 @@ bin/cplanets-ai --config config/ai-mid.cfg --serve-loop
 CLI default) keeps the client connected and deciding until the seat
 is eliminated (no owned planets after a home was seen), the published
 game ends, or the process is stopped. Pass `--cycles N` (`N > 0`) for
-a short smoke/harness run. `--once` remains the local one-shot (no
-TCP).
+a short smoke/harness run. Continuous cycles target
+`loop_period_ms` / `--loop-period-ms` (default 100): work first, then
+sleep leftover. `--once` remains the local one-shot (no TCP).
 
 **Solo human (no AI):** leave `--players 0` (unlimited) and connect one
 human — pause is offered when exactly one live human seat exists. Soft

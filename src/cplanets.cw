@@ -34,6 +34,7 @@
  *   2026-11-09  View-menu panel dialogs (GuiPanelHost).
  *   2026-11-09  Panel openers → top-level menubar (not View).
  *   2026-11-09  Wire GUI presence keep-alive action.
+ *   2026-11-09  refresh_ms / --refresh-ms GUI state+digest poll.
  */
 
 import cli as Cli
@@ -152,6 +153,15 @@ class HumanMain {
         test.description = "GTK path that auto-quits (test mode)"
         test.valueType = Cli.ValueType().FLAG
         commandLine.addOption(test)
+        Cli.Option refreshMs = Cli.Option()
+        refreshMs.longName = "refresh-ms"
+        refreshMs.name = "refresh-ms"
+        refreshMs.description = (
+            "GUI GET /state+/digest poll ms (0=off; config refresh_ms)")
+        refreshMs.valueType = Cli.ValueType().NUMBER
+        refreshMs.hasDefault = true
+        refreshMs.defaultValue = "1000"
+        commandLine.addOption(refreshMs)
         return(commandLine)
     }
 
@@ -219,11 +229,12 @@ class HumanMain {
 
     /*
      * Load HumanConfig from required --config with host/port/player
-     * overlays.
+     * / refresh overlays.
      *
      * Purpose: own settings file; argv may override dial / seat /
-     * mode flags. Overlays apply only when the option was provided.
-     * Caller already required a non-empty --config path.
+     * mode flags / refresh_ms. Overlays apply only when the option
+     * was provided. Caller already required a non-empty --config
+     * path.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -267,6 +278,10 @@ class HumanMain {
         }
         if (commandLine.wasProvided("test")) {
             cfg.test = commandLine.switchValue("test")
+        }
+        if (commandLine.wasProvided("refresh-ms")) {
+            cfg.refreshMs = (
+                commandLine.value("refresh-ms").toInt64())
         }
         cfg.clampAll()
         return(cfg)
@@ -371,6 +386,7 @@ class HumanMain {
         gui.afkAction = gui.onAfkToggled
         gui.testAction = gui.onTest
         gui.keepAliveAction = gui.onPresenceKeepAlive
+        gui.refreshPollAction = gui.onRefreshPoll
         gui.mapPickAction = gui.onMapPlanetPicked
         gui.mapDispatchAction = gui.onMapDispatchHere
         gui.mapBudgetAction = gui.onMapBudgetHere

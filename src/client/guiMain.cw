@@ -33,6 +33,8 @@
  *               submenu — GtkPopoverMenuBar cannot host leaf roots).
  *   2026-11-09  TCP presence keep-alive timer (handshake only) so
  *               idle GUI does not miss-drop the human seat before go.
+ *   2026-11-09  Periodic GET /state+/digest poll (refresh_ms);
+ *               keep-alive handshake stays a separate timer.
  */
 
 include "appCore.cw"
@@ -61,7 +63,9 @@ include "planetRow.cw"
  * raise non-modal panel dialogs for list chrome. TCP sessions
  * schedule a presence keep-alive (handshake only) under the
  * server handshake_miss window so an idle window does not drop
- * the human seat before operator go.
+ * the human seat before operator go. A separate refresh_ms timer
+ * pulls GET /state + GET /digest so ProgressBars and lists move
+ * without File→Refresh (pull-only wire; 0 disables).
  */
 class GuiMain {
     AppCore core
@@ -103,6 +107,7 @@ class GuiMain {
     void<bool> afkAction
     void<> testAction
     void<> keepAliveAction
+    void<> refreshPollAction
     void<int64> mapPickAction
     void<> mapDispatchAction
     void<> mapBudgetAction
@@ -112,6 +117,9 @@ class GuiMain {
     # Token from Gtk.Application.schedule for presence keep-alive;
     # 0 when idle / cancelled.
     int64 keepAliveToken
+    # Token from Gtk.Application.schedule for state/digest poll;
+    # 0 when idle / cancelled / refresh_ms off.
+    int64 refreshPollToken
 
     enum {
         # One-shot reschedule period for presence keep-alive (ms).
@@ -174,12 +182,14 @@ class GuiMain {
         afkAction = null
         testAction = null
         keepAliveAction = null
+        refreshPollAction = null
         mapPickAction = null
         mapDispatchAction = null
         mapBudgetAction = null
         testMode = false
         startupError = ""
         keepAliveToken = 0
+        refreshPollToken = 0
     }
 
     /*
@@ -368,6 +378,7 @@ class GuiMain {
             Gtk.Application().schedule(150, testAction)
         } else {
             startPresenceKeepAlive()
+            startRefreshPoll()
         }
     }
 
@@ -377,7 +388,8 @@ class GuiMain {
      * Purpose: idle GUI must still PUT /handshake under the server
      * miss window so the human seat stays connected through lobby
      * and after go. No-op offline (port 0) or when the keep-alive
-     * action was never wired.
+     * action was never wired. Distinct from startRefreshPoll
+     * (state/digest pull).
      *
      * Parameters: none.
      *
@@ -400,6 +412,7 @@ class GuiMain {
      * Purpose: schedule() is one-shot; chain calls so the seat stays
      * alive for the life of the window. Failures stay quiet (status
      * only when already empty) — Refresh still surfaces pull errors.
+     * Does not GET /state or /digest (that is onRefreshPoll).
      *
      * Parameters: none.
      *
@@ -437,6 +450,84 @@ class GuiMain {
         }
         Gtk.Application().cancel(keepAliveToken)
         keepAliveToken = 0
+    }
+
+    /*
+     * Arm the first state/digest poll one-shot when enabled.
+     *
+     * Purpose: live GUI must re-pull GET /state + GET /digest on
+     * refresh_ms so develop/build ProgressBars and lists update
+     * without File→Refresh. Wire is pull-only (server does not
+     * push). No-op when refresh_ms is 0, offline, offline, or the
+     * poll action was never wired. Distinct from presence
+     * keep-alive (handshake only).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void startRefreshPoll() {
+        if (core.config.port < 1
+            or core.config.refreshMs < 1
+            or refreshPollAction == null) {
+            return()
+        }
+        if (refreshPollToken != 0) {
+            return()
+        }
+        refreshPollToken = Gtk.Application().schedule(
+            core.config.refreshMs, refreshPollAction)
+    }
+
+    /*
+     * Poll tick: pull state+digest, redraw, reschedule one-shot.
+     *
+     * Purpose: chain schedule() so chrome tracks the published
+     * snapshot for the life of the window. Failures stay quiet
+     * (no AlertDialog spam) — File→Refresh still surfaces errors.
+     * Does not replace presence keep-alive.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onRefreshPoll() {
+        refreshPollToken = 0
+        if (testMode
+            or core.config.port < 1
+            or core.config.refreshMs < 1) {
+            return()
+        }
+        if (window == null or window.disposed()) {
+            return()
+        }
+        if (core.pullRemote()) {
+            refreshLists()
+        }
+        if (refreshPollAction == null
+            or core.config.refreshMs < 1) {
+            return()
+        }
+        refreshPollToken = Gtk.Application().schedule(
+            core.config.refreshMs, refreshPollAction)
+    }
+
+    /*
+     * Cancel a pending state/digest poll schedule token.
+     *
+     * Purpose: File→Quit / teardown must not leave a callback
+     * pulling after the window is gone.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void stopRefreshPoll() {
+        if (refreshPollToken == 0) {
+            return()
+        }
+        Gtk.Application().cancel(refreshPollToken)
+        refreshPollToken = 0
     }
 
     /*
@@ -1098,6 +1189,7 @@ class GuiMain {
      */
     void onClose() {
         stopPresenceKeepAlive()
+        stopRefreshPoll()
         panels.closeAll()
         planetDialog.close()
         fleetDialog.close()

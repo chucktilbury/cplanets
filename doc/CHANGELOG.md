@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Human GUI periodic refresh (`refresh_ms`):** live `--gui` polls
+  `GET /state` + `GET /digest` on a settable period so develop/build
+  ProgressBars and list chrome update without File→Refresh. Config
+  key `refresh_ms` (default **1000**; `0` = off) and CLI
+  `--refresh-ms` (argv overlays). Wire stays pull-only; presence
+  keep-alive handshake (~2s) remains a separate timer. Timed-pull
+  failures stay quiet; File→Refresh still alerts. Docs:
+  [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md),
+  [CPLANETS.md](CPLANETS.md). Test: `unit_clientConfig`.
 - **Human seat + operator go:** lobby miss-dropped human seats
   (token cleared) no longer make `g` / `PUT /admin/go` exit via
   `all_humans_quit` while AI or live humans remain. `go()` retires

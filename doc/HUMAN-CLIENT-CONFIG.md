@@ -38,6 +38,25 @@ allocate / reclaim a seat.
 
 ---
 
+## Live GUI poll
+
+Wire is **pull-only**: the server rebuilds published blobs after
+each tick; the human client sees them only via `GET /state` and
+`GET /digest`. Live `--gui` schedules a separate timer (not the
+presence keep-alive) that re-pulls both verbs so develop/build
+ProgressBars, travel bars, and list chrome update without
+File→Refresh.
+
+| Key | Type | Code default | Sample (`human-default`) | Reasonable range | Purpose |
+| --- | --- | --- | --- | --- | --- |
+| `refresh_ms` | int | `1000` | `1000` | `0` or `≥ 50` (practical: 100–5000) | GUI poll period (ms) for `GET /state` + `GET /digest`. `0` = off (manual File→Refresh only). Default ~1000 for near-tick feel under typical `tick_period_seconds`. CLI `--refresh-ms`. Distinct from presence keep-alive (~2s handshake). |
+
+Offline (`port = 0`) and `--test` auto-quit do not arm the poll.
+Failed timed pulls stay quiet (no AlertDialog spam); File→Refresh
+still surfaces host:port errors.
+
+---
+
 ## Mode flags (CLI mirrors)
 
 | Key | Type | Code default | Sample | Reasonable range | Purpose |

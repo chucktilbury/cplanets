@@ -33,7 +33,7 @@ Context: `design-decisions.md`, `project-context.md`,
 | Surface | Role | Contents / actions | Status |
 | --- | --- | --- | --- |
 | **Main window** | Always-on client shell; never ticks | Title; File + Planets/Fleets/Ships/Digest/Policy menus; status line (tick / counts); map canvas | **Exists (Phase G + menubar)** |
-| **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
+| **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** + live GUI also polls state+digest on `refresh_ms` (default 1000; `0`=off; distinct from presence keep-alive) |
 | **Panel openers** | Former Notebook tab names at menubar root | Planets / Fleets / Ships / Digest / Policy — each root label click raises its non-modal panel dialog (flat Buttons beside File; no nested Open) | **Exists** |
 | **Map canvas panel** | Galaxy graphic as the main client surface | Hot spots; status colors; dotted ETA paths; pan/zoom; pick→fleet dest; ContextMenu status + zoom-to-known + dispatch/budget | **Exists (Phase I + pick-to-dispatch)** |
 

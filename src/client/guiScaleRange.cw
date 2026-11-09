@@ -1,24 +1,25 @@
 /*
- * src/client/guiScaleRange.cw — safe Gtk.Scale.configure args.
+ * src/client/guiScaleRange.cw — safe Scale/SpinButton.configure args.
  *
- * Cwhip GTK Scale.configure fatals when !(upper > lower) or
- * !(step > 0). Hull Scales (dispatch peel / reclaim) can hit
- * empty fleets, zero hulls, or a single-hull stack where the
- * logical min equals the logical max — this helper widens the
- * range just enough for GTK while callers keep clamping reads.
+ * Cwhip GTK Scale.configure and SpinButton.configure fatal when
+ * !(upper > lower) or !(step > 0). Hull SpinButtons (dispatch peel /
+ * reclaim) can hit empty fleets, zero hulls, or a single-hull stack
+ * where the logical min equals the logical max — this helper widens
+ * the range just enough for GTK while callers keep clamping reads.
  *
  * Created: 2026-11-09
  * Author: Auto
  *
  * Changelog:
  *   2026-11-09  Initial normalize for hull Scale crash fix.
+ *   2026-11-09  Same helper covers SpinButton.configure.
  */
 
 /*
- * GuiScaleRange holds one sanitized Scale.configure quadruple.
+ * GuiScaleRange holds one sanitized configure quadruple.
  *
- * Call normalize() before every configure() that may see an
- * empty selection or a degenerate hull count.
+ * Call normalize() before every Scale/SpinButton.configure() that
+ * may see an empty selection or a degenerate hull count.
  */
 class GuiScaleRange {
     fp64 value
@@ -43,10 +44,10 @@ class GuiScaleRange {
     }
 
     /*
-     * Sanitize value/lower/upper/step for Gtk.Scale.configure.
+     * Sanitize value/lower/upper/step for Scale/SpinButton.configure.
      *
      * Purpose: guarantee upper > lower and step > 0 so the GTK
-     * binding never fatals "invalid scale range or step".
+     * binding never fatals on an invalid range or step.
      *
      * Parameters:
      *   nextValue — desired thumb position (clamped into range).

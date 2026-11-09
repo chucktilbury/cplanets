@@ -1,34 +1,34 @@
 /*
- * src/client/guiChoiceRow.cw — combo stand-in (prev / next cycle).
+ * src/client/guiChoiceRow.cw — DropDown wrapper for View dialogs.
  *
- * Cwhip GTK has no DropDown / ComboBox yet (GTK-FEATURE-GAPS).
- * This product helper cycles a fixed or refreshed string list so
- * View dialogs stop relying on free-text for enums and id picks.
+ * Product helper around Gtk.DropDown that preserves the prior
+ * setChoices / setValue / value / intValue / changedAction API used
+ * by Policy / Planets / Fleets / Ships / Digest panels.
  *
  * Created: 2026-11-09
  * Author: Auto
  *
  * Changelog:
  *   2026-11-09  Initial GuiChoiceRow for View dialog usability.
+ *   2026-11-09  Rewrap as Gtk.DropDown (replace prev/next stand-in).
  */
 
 /*
- * GuiChoiceRow is one labeled prev/value/next picker row.
+ * GuiChoiceRow is one DropDown picker with optional change notify.
  *
  * Choices are plain strings (role names, order verbs, decimal
  * ids). Callers refresh the list from the published snapshot and
- * read value() when building PUT bodies.
+ * read value() when building PUT bodies. setChoices / setValue may
+ * run before buildWidget(); pending state is applied when the
+ * DropDown is created.
  */
 class GuiChoiceRow {
-    list choices
-    int64 index
-    Gtk.Label valueLabel
-    Gtk.Button prevBtn
-    Gtk.Button nextBtn
-    Gtk.Box row
+    Gtk.DropDown drop
+    list pendingChoices
+    String pendingValue
+    bool hasPendingValue
     void<> changedAction
-    void<> prevAction
-    void<> nextAction
+    void<int64> selectedAction
     String emptyText
 
     /*
@@ -38,76 +38,55 @@ class GuiChoiceRow {
      *
      * Parameters: none.
      *
-     * Returns: GuiChoiceRow with no choices and index 0.
+     * Returns: GuiChoiceRow with no DropDown yet.
      */
     GuiChoiceRow() {
-        choices = []
-        index = 0
-        valueLabel = null
-        prevBtn = null
-        nextBtn = null
-        row = null
+        drop = null
+        pendingChoices = []
+        pendingValue = ""
+        hasPendingValue = false
         changedAction = null
-        prevAction = null
-        nextAction = null
+        selectedAction = null
         emptyText = "(none)"
     }
 
     /*
-     * Bind prev/next handlers with explicit receivers.
+     * Bind selected handler with an explicit receiver.
      *
-     * Purpose: Cwhip method refs need a receiver (bare names in
-     * constructors fail). Call from GuiMain before buildWidget:
-     * `row.bind(row.onPrev, row.onNext)`.
+     * Purpose: Cwhip method refs need a receiver. Call from GuiMain
+     * before buildWidget: `row.bindSelected(row.onSelected)`.
      *
      * Parameters:
-     *   prev — usually this.onPrev.
-     *   next — usually this.onNext.
+     *   selected — usually this.onSelected.
      *
      * Returns: nothing.
      */
-    void bind(void<> prev, void<> next) {
-        prevAction = prev
-        nextAction = next
+    void bindSelected(void<int64> selected) {
+        selectedAction = selected
     }
 
     /*
-     * Build the prev / value / next widget row.
+     * Build the DropDown widget.
      *
-     * Purpose: drop into a panel dialog Box in place of an Entry
-     * for enum-like or id-list fields. Call bind() first.
+     * Purpose: drop into a panel dialog Box for enum-like or id-list
+     * fields. Call bindSelected() first.
      *
      * Parameters:
-     *   tooltip — hover text for the whole row (and buttons).
+     *   tooltip — hover text for the DropDown.
      *
-     * Returns: horizontal Box ready for page.append.
+     * Returns: DropDown ready for page.append (as Gtk.Widget).
      */
     Gtk.Widget buildWidget(String tooltip) {
-        row = Gtk.Box(Gtk.Box.HORIZONTAL, 4)
-        row.setHExpand(true)
+        drop = Gtk.DropDown()
+        drop.setHExpand(true)
         if (tooltip.length > 0) {
-            row.setTooltip(tooltip)
+            drop.setTooltip(tooltip)
         }
-        prevBtn = Gtk.Button("<")
-        nextBtn = Gtk.Button(">")
-        valueLabel = Gtk.Label(emptyText)
-        valueLabel.setHExpand(true)
-        if (tooltip.length > 0) {
-            prevBtn.setTooltip(tooltip)
-            nextBtn.setTooltip(tooltip)
-            valueLabel.setTooltip(tooltip)
+        if (selectedAction != null) {
+            drop.onSelected(selectedAction)
         }
-        if (prevAction != null) {
-            prevBtn.onClicked(prevAction)
-        }
-        if (nextAction != null) {
-            nextBtn.onClicked(nextAction)
-        }
-        row.append(prevBtn)
-        row.append(valueLabel)
-        row.append(nextBtn)
-        redraw()
-        return(row)
+        applyPending()
+        return(drop)
     }
 
     /*
@@ -123,21 +102,15 @@ class GuiChoiceRow {
      * Returns: nothing.
      */
     void setChoices(list newChoices) {
-        String prior = value()
-        choices = newChoices
-        index = 0
-        if (prior.length > 0) {
-            int64 found = findIndex(prior)
-            if (found >= 0) {
-                index = found
-            }
+        pendingChoices = newChoices
+        if (drop == null) {
+            return()
         }
-        clampIndex()
-        redraw()
+        applyChoices(newChoices)
     }
 
     /*
-     * Select a value if it is in the list (else leave index alone).
+     * Select a value if it is in the list (else leave selection alone).
      *
      * Purpose: map pick fills dest; sync from draft role name.
      *
@@ -147,13 +120,12 @@ class GuiChoiceRow {
      * Returns: true when the value was found and selected.
      */
     bool setValue(String wanted) {
-        int64 found = findIndex(wanted)
-        if (found < 0) {
+        pendingValue = wanted
+        hasPendingValue = true
+        if (drop == null) {
             return(false)
         }
-        index = found
-        redraw()
-        return(true)
+        return(selectText(wanted))
     }
 
     /*
@@ -163,14 +135,23 @@ class GuiChoiceRow {
      *
      * Parameters: none.
      *
-     * Returns: selected string, or "" when the list is empty.
+     * Returns: selected string, or "" when empty / placeholder.
      */
     String value() {
-        if (choices.length < 1) {
+        if (drop == null) {
+            if (hasPendingValue) {
+                return(pendingValue)
+            }
             return("")
         }
-        clampIndex()
-        return(choices[index])
+        if (drop.size() < 1) {
+            return("")
+        }
+        String text = drop.selectedText()
+        if (text.equals(emptyText)) {
+            return("")
+        }
+        return(text)
     }
 
     /*
@@ -191,51 +172,88 @@ class GuiChoiceRow {
     }
 
     /*
-     * Step to the previous choice (wrap).
+     * DropDown selection changed.
      *
-     * Purpose: "<" button handler.
+     * Purpose: default onSelected → optional changedAction.
      *
-     * Parameters: none.
+     * Parameters:
+     *   index — new selected index (ignored; value() is source of truth).
      *
      * Returns: nothing.
      */
-    void onPrev() {
-        if (choices.length < 1) {
-            return()
-        }
-        index = index - 1
-        if (index < 0) {
-            index = choices.length - 1
-        }
-        redraw()
+    void onSelected(int64 index) {
         notifyChanged()
     }
 
     /*
-     * Step to the next choice (wrap).
+     * Apply any setChoices / setValue that ran before buildWidget.
      *
-     * Purpose: ">" button handler.
+     * Purpose: buildWidget finish.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
-    void onNext() {
-        if (choices.length < 1) {
+    void applyPending() {
+        applyChoices(pendingChoices)
+        if (hasPendingValue) {
+            selectText(pendingValue)
+        }
+    }
+
+    /*
+     * Push a choice list into the live DropDown.
+     *
+     * Purpose: setChoices / applyPending. Empty lists show a disabled
+     * placeholder so the control stays visible.
+     *
+     * Parameters:
+     *   newChoices — list of String labels.
+     *
+     * Returns: nothing.
+     */
+    void applyChoices(list newChoices) {
+        if (drop == null) {
             return()
         }
-        index = index + 1
-        if (index >= choices.length) {
-            index = 0
+        if (newChoices.length < 1) {
+            list placeholder = []
+            placeholder.append(emptyText)
+            drop.setChoices(placeholder)
+            drop.setSelected(0)
+            drop.setSensitive(false)
+            return()
         }
-        redraw()
-        notifyChanged()
+        drop.setSensitive(true)
+        drop.setChoices(newChoices)
+    }
+
+    /*
+     * Select by exact label on the live DropDown.
+     *
+     * Purpose: setValue / applyPending.
+     *
+     * Parameters:
+     *   wanted — exact choice string.
+     *
+     * Returns: true when selected.
+     */
+    bool selectText(String wanted) {
+        if (drop == null) {
+            return(false)
+        }
+        int64 found = findIndex(wanted)
+        if (found < 0) {
+            return(false)
+        }
+        drop.setSelected(found)
+        return(true)
     }
 
     /*
      * Find the index of a choice string.
      *
-     * Purpose: setChoices / setValue lookup.
+     * Purpose: selectText lookup.
      *
      * Parameters:
      *   wanted — exact string to match.
@@ -243,9 +261,12 @@ class GuiChoiceRow {
      * Returns: index, or −1 when missing.
      */
     int64 findIndex(String wanted) {
+        if (drop == null) {
+            return(-1)
+        }
         int64 i = 0
-        while (i < choices.length) {
-            String item = choices[i]
+        while (i < drop.size()) {
+            String item = drop.item(i)
             if (item.equals(wanted)) {
                 return(i)
             }
@@ -255,58 +276,9 @@ class GuiChoiceRow {
     }
 
     /*
-     * Keep index inside [0, length) or 0 when empty.
-     *
-     * Purpose: defensive clamp after list swaps.
-     *
-     * Parameters: none.
-     *
-     * Returns: nothing.
-     */
-    void clampIndex() {
-        if (choices.length < 1) {
-            index = 0
-            return()
-        }
-        if (index < 0) {
-            index = 0
-        }
-        if (index >= choices.length) {
-            index = choices.length - 1
-        }
-    }
-
-    /*
-     * Refresh the value Label and button sensitivity.
-     *
-     * Purpose: after index / list changes.
-     *
-     * Parameters: none.
-     *
-     * Returns: nothing.
-     */
-    void redraw() {
-        if (valueLabel == null) {
-            return()
-        }
-        if (choices.length < 1) {
-            valueLabel.setText(emptyText)
-        } else {
-            valueLabel.setText(value())
-        }
-        bool enabled = choices.length > 1
-        if (prevBtn != null) {
-            prevBtn.setSensitive(enabled)
-        }
-        if (nextBtn != null) {
-            nextBtn.setSensitive(enabled)
-        }
-    }
-
-    /*
      * Fire the optional changedAction callback.
      *
-     * Purpose: let parents sync dependent chrome (hull Scale).
+     * Purpose: let parents sync dependent chrome (hull SpinButton).
      *
      * Parameters: none.
      *

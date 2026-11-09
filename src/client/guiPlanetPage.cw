@@ -1,8 +1,8 @@
 /*
- * src/client/guiPlanetPage.cw — planets list + budget Scales.
+ * src/client/guiPlanetPage.cw — planets list + budget SpinButton.
  *
  * Visibility-limited planet list plus per-owned-planet allocation
- * Scale (DIALOGS §4.2). PUT /budget stores allocationPct; the
+ * SpinButton (DIALOGS §4.2). PUT /budget stores allocationPct; the
  * production tick scales empire-pool credit by pct/100. Hosted in
  * the Planets menubar non-modal panel dialog.
  *
@@ -16,6 +16,7 @@
  *   2026-11-09  Hosted in View→Planets panel dialog.
  *   2026-11-09  Menubar opener is root Planets click (no Open submenu).
  *   2026-11-09  Planet id choice row + tooltips (View usable).
+ *   2026-11-09  DropDown + SpinButton replace GuiChoiceRow/Scale stand-ins.
  */
 
 include "appCore.cw"
@@ -25,19 +26,19 @@ include "planetRow.cw"
 /*
  * GuiPlanetPage owns the Planets panel dialog widgets.
  *
- * Planet id uses GuiChoiceRow; Scale sets allocationPct;
- * Apply → PUT /budget when live.
+ * Planet id uses GuiChoiceRow (DropDown); SpinButton sets
+ * allocationPct; Apply → PUT /budget when live.
  */
 class GuiPlanetPage {
     AppCore core
     Gtk.Label planetList
     GuiChoiceRow planetChoice
-    Gtk.Scale budgetScale
+    Gtk.SpinButton budgetSpin
     Gtk.Label budgetLabel
     void<> showExploredAction
     void<> budgetAction
     void<fp64> budgetChangedAction
-    bool suppressScale
+    bool suppressSpin
 
     /*
      * Construct a planets page bound to an AppCore.
@@ -53,18 +54,18 @@ class GuiPlanetPage {
         core = appCore
         planetList = null
         planetChoice = GuiChoiceRow()
-        budgetScale = null
+        budgetSpin = null
         budgetLabel = null
         showExploredAction = null
         budgetAction = null
         budgetChangedAction = null
-        suppressScale = false
+        suppressSpin = false
     }
 
     /*
      * Build the Planets panel dialog widget tree.
      *
-     * Purpose: scrolled list + explored button + budget Scale.
+     * Purpose: scrolled list + explored button + budget SpinButton.
      *
      * Parameters: none.
      *
@@ -95,19 +96,18 @@ class GuiPlanetPage {
             "Planet budget (owned; allocation %)"))
         page.append(Gtk.Label("Planet id"))
         page.append(planetChoice.buildWidget(
-            "Cycle visible planets (owned rocks for Apply budget)."))
+            "Select a visible planet (owned rocks for Apply budget)."))
         budgetLabel = Gtk.Label("Allocation % (100)")
         budgetLabel.setTooltip(
             "Production fraction for this rock (default 100).")
         page.append(budgetLabel)
-        budgetScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        budgetScale.configure(100.0, 0.0, 100.0, 1.0)
-        budgetScale.setTooltip(
-            "Allocation % — slider stand-in for a spin (0–100).")
+        budgetSpin = Gtk.SpinButton()
+        budgetSpin.configure(100.0, 0.0, 100.0, 1.0)
+        budgetSpin.setTooltip("Allocation % (0–100).")
         if (budgetChangedAction != null) {
-            budgetScale.onValueChanged(budgetChangedAction)
+            budgetSpin.onValueChanged(budgetChangedAction)
         }
-        page.append(budgetScale)
+        page.append(budgetSpin)
         Gtk.Button apply = Gtk.Button("Apply budget")
         apply.setTooltip("PUT /budget for the selected owned planet.")
         if (budgetAction != null) {
@@ -150,7 +150,7 @@ class GuiPlanetPage {
     /*
      * Rebuild planet id choices from visible rocks.
      *
-     * Purpose: Combo stand-in for the budget Entry.
+     * Purpose: DropDown for the budget planet picker.
      *
      * Parameters: none.
      *
@@ -170,7 +170,7 @@ class GuiPlanetPage {
     }
 
     /*
-     * Load allocationPct for the selected planet into the Scale.
+     * Load allocationPct for the selected planet into the SpinButton.
      *
      * Purpose: echo published budget after refresh / id change.
      *
@@ -179,7 +179,7 @@ class GuiPlanetPage {
      * Returns: nothing.
      */
     void syncBudgetFromSelection() {
-        if (budgetScale == null) {
+        if (budgetSpin == null) {
             return()
         }
         int64 planetId = planetIdValue()
@@ -188,14 +188,14 @@ class GuiPlanetPage {
         if (row.id >= 0) {
             pct = row.allocationPct
         }
-        suppressScale = true
-        budgetScale.setValue(fp64(pct))
-        suppressScale = false
+        suppressSpin = true
+        budgetSpin.setValue(fp64(pct))
+        suppressSpin = false
         refreshBudgetLabel()
     }
 
     /*
-     * Planet choice stepped — reload allocation Scale.
+     * Planet choice changed — reload allocation SpinButton.
      *
      * Purpose: GuiChoiceRow.changedAction.
      *
@@ -208,7 +208,7 @@ class GuiPlanetPage {
     }
 
     /*
-     * Planet id from the budget choice row.
+     * Planet id from the budget DropDown.
      *
      * Purpose: Apply budget handler.
      *
@@ -228,7 +228,7 @@ class GuiPlanetPage {
      * surface.
      *
      * Parameters:
-     *   planetId — rock id to load into the choice / Scale.
+     *   planetId — rock id to load into the choice / SpinButton.
      *
      * Returns: nothing.
      */
@@ -238,8 +238,8 @@ class GuiPlanetPage {
             list ids = []
             ids.append(text)
             int64 index = 0
-            while (index < planetChoice.choices.length) {
-                String item = planetChoice.choices[index]
+            while (index < planetChoice.pendingChoices.length) {
+                String item = planetChoice.pendingChoices[index]
                 if (not item.equals(text)) {
                     ids.append(item)
                 }
@@ -252,7 +252,7 @@ class GuiPlanetPage {
     }
 
     /*
-     * Allocation % from the budget Scale.
+     * Allocation % from the budget SpinButton.
      *
      * Purpose: Apply budget handler.
      *
@@ -261,7 +261,7 @@ class GuiPlanetPage {
      * Returns: nearest 0..100 int.
      */
     int64 allocationValue() {
-        int64 pct = int64(budgetScale.value() + 0.5)
+        int64 pct = int64(budgetSpin.value() + 0.5)
         if (pct < 0) {
             return(0)
         }
@@ -272,9 +272,9 @@ class GuiPlanetPage {
     }
 
     /*
-     * Refresh the allocation caption from the Scale.
+     * Refresh the allocation caption from the SpinButton.
      *
-     * Purpose: live label next to the slider.
+     * Purpose: live label next to the spin.
      *
      * Parameters: none.
      *
@@ -289,17 +289,17 @@ class GuiPlanetPage {
     }
 
     /*
-     * Budget Scale moved.
+     * Budget SpinButton moved.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
-     *   value — new thumb value.
+     *   value — new spin value.
      *
      * Returns: nothing.
      */
     void onBudgetChanged(fp64 value) {
-        if (suppressScale) {
+        if (suppressSpin) {
             return()
         }
         refreshBudgetLabel()

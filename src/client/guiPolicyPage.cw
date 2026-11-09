@@ -1,8 +1,8 @@
 /*
- * src/client/guiPolicyPage.cw — standing policy Scales panel.
+ * src/client/guiPolicyPage.cw — standing policy SpinButton panel.
  *
- * Empire-wide role GuiChoiceRow + expansion / escort / agreement S /
- * tech bias Scales (DIALOGS §4.1). Apply PUTs /policy with no
+ * Empire-wide role DropDown + expansion / escort / agreement S /
+ * tech bias SpinButtons (DIALOGS §4.1). Apply PUTs /policy with no
  * dumb-order warnings. Hosted in the Policy menubar non-modal
  * panel dialog.
  *
@@ -14,6 +14,7 @@
  *   2026-11-09  Hosted in View→Policy panel dialog.
  *   2026-11-09  Menubar opener is root Policy click (no Open submenu).
  *   2026-11-09  Role choice row + tooltips (View dialogs usable).
+ *   2026-11-09  DropDown + SpinButton replace GuiChoiceRow/Scale stand-ins.
  */
 
 include "appCore.cw"
@@ -22,16 +23,15 @@ include "guiChoiceRow.cw"
 /*
  * GuiPolicyPage owns the Policy panel dialog widgets.
  *
- * Scales are 0..100; role uses GuiChoiceRow (Combo stand-in —
- * DropDown still missing from Cwhip GTK).
+ * SpinButtons are 0..100; role uses GuiChoiceRow (DropDown wrapper).
  */
 class GuiPolicyPage {
     AppCore core
     GuiChoiceRow roleChoice
-    Gtk.Scale expansionScale
-    Gtk.Scale escortScale
-    Gtk.Scale agreementScale
-    Gtk.Scale techScale
+    Gtk.SpinButton expansionSpin
+    Gtk.SpinButton escortSpin
+    Gtk.SpinButton agreementSpin
+    Gtk.SpinButton techSpin
     Gtk.Label expansionLabel
     Gtk.Label escortLabel
     Gtk.Label agreementLabel
@@ -41,7 +41,7 @@ class GuiPolicyPage {
     void<fp64> escortChangedAction
     void<fp64> agreementChangedAction
     void<fp64> techChangedAction
-    bool suppressScale
+    bool suppressSpin
 
     /*
      * Construct a policy page bound to an AppCore.
@@ -56,10 +56,10 @@ class GuiPolicyPage {
     GuiPolicyPage(AppCore appCore) {
         core = appCore
         roleChoice = GuiChoiceRow()
-        expansionScale = null
-        escortScale = null
-        agreementScale = null
-        techScale = null
+        expansionSpin = null
+        escortSpin = null
+        agreementSpin = null
+        techSpin = null
         expansionLabel = null
         escortLabel = null
         agreementLabel = null
@@ -69,13 +69,13 @@ class GuiPolicyPage {
         escortChangedAction = null
         agreementChangedAction = null
         techChangedAction = null
-        suppressScale = false
+        suppressSpin = false
     }
 
     /*
      * Build the Policy panel dialog widget tree.
      *
-     * Purpose: role choice + % Scales + Apply.
+     * Purpose: role DropDown + % SpinButtons + Apply.
      *
      * Parameters: none.
      *
@@ -94,56 +94,52 @@ class GuiPolicyPage {
         expansionLabel.setTooltip(
             "Standing expansion share of policy attention (0–100).")
         page.append(expansionLabel)
-        expansionScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        expansionScale.configure(
+        expansionSpin = Gtk.SpinButton()
+        expansionSpin.configure(
             fp64(core.draft.expansionPct), 0.0, 100.0, 1.0)
-        expansionScale.setTooltip(
-            "Expansion % — slider stand-in for a spin (0–100).")
+        expansionSpin.setTooltip("Expansion % (0–100).")
         if (expansionChangedAction != null) {
-            expansionScale.onValueChanged(expansionChangedAction)
+            expansionSpin.onValueChanged(expansionChangedAction)
         }
-        page.append(expansionScale)
+        page.append(expansionSpin)
         escortLabel = Gtk.Label("Escort %")
         escortLabel.setTooltip(
             "Standing escort share of policy attention (0–100).")
         page.append(escortLabel)
-        escortScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        escortScale.configure(
+        escortSpin = Gtk.SpinButton()
+        escortSpin.configure(
             fp64(core.draft.escortPct), 0.0, 100.0, 1.0)
-        escortScale.setTooltip(
-            "Escort % — slider stand-in for a spin (0–100).")
+        escortSpin.setTooltip("Escort % (0–100).")
         if (escortChangedAction != null) {
-            escortScale.onValueChanged(escortChangedAction)
+            escortSpin.onValueChanged(escortChangedAction)
         }
-        page.append(escortScale)
+        page.append(escortSpin)
         agreementLabel = Gtk.Label("Agreement S")
         agreementLabel.setTooltip(
             "Player–player agreement size S (0–100 stub).")
         page.append(agreementLabel)
-        agreementScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        agreementScale.configure(
+        agreementSpin = Gtk.SpinButton()
+        agreementSpin.configure(
             fp64(core.draft.agreementS), 0.0, 100.0, 1.0)
-        agreementScale.setTooltip(
-            "Agreement S — slider stand-in for a spin (0–100).")
+        agreementSpin.setTooltip("Agreement S (0–100).")
         if (agreementChangedAction != null) {
-            agreementScale.onValueChanged(agreementChangedAction)
+            agreementSpin.onValueChanged(agreementChangedAction)
         }
-        page.append(agreementScale)
+        page.append(agreementSpin)
         techLabel = Gtk.Label("Tech bias %")
         techLabel.setTooltip(
             "Standing tech bias share of policy attention (0–100).")
         page.append(techLabel)
-        techScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
-        techScale.configure(
+        techSpin = Gtk.SpinButton()
+        techSpin.configure(
             fp64(core.draft.techBiasPct), 0.0, 100.0, 1.0)
-        techScale.setTooltip(
-            "Tech bias % — slider stand-in for a spin (0–100).")
+        techSpin.setTooltip("Tech bias % (0–100).")
         if (techChangedAction != null) {
-            techScale.onValueChanged(techChangedAction)
+            techSpin.onValueChanged(techChangedAction)
         }
-        page.append(techScale)
+        page.append(techSpin)
         Gtk.Button apply = Gtk.Button("Apply policy")
-        apply.setTooltip("PUT /policy with current role and Scales.")
+        apply.setTooltip("PUT /policy with current role and SpinButtons.")
         if (applyAction != null) {
             apply.onClicked(applyAction)
         }
@@ -172,7 +168,7 @@ class GuiPolicyPage {
     }
 
     /*
-     * Sync Scale thumbs and role choice from core.draft.
+     * Sync SpinButton values and role choice from core.draft.
      *
      * Purpose: refresh after pull / offline fill.
      *
@@ -181,17 +177,17 @@ class GuiPolicyPage {
      * Returns: nothing.
      */
     void syncFromDraft() {
-        if (expansionScale == null) {
+        if (expansionSpin == null) {
             return()
         }
         roleChoice.setValue(core.draft.roleName)
-        suppressScale = true
-        expansionScale.setValue(fp64(core.draft.expansionPct))
-        escortScale.setValue(fp64(core.draft.escortPct))
-        agreementScale.setValue(fp64(core.draft.agreementS))
-        techScale.setValue(fp64(core.draft.techBiasPct))
-        suppressScale = false
-        refreshScaleLabels()
+        suppressSpin = true
+        expansionSpin.setValue(fp64(core.draft.expansionPct))
+        escortSpin.setValue(fp64(core.draft.escortPct))
+        agreementSpin.setValue(fp64(core.draft.agreementS))
+        techSpin.setValue(fp64(core.draft.techBiasPct))
+        suppressSpin = false
+        refreshSpinLabels()
     }
 
     /*
@@ -209,24 +205,24 @@ class GuiPolicyPage {
             role = "neutral"
         }
         core.draft.roleName = role
-        core.draft.expansionPct = scalePct(expansionScale)
-        core.draft.escortPct = scalePct(escortScale)
-        core.draft.agreementS = scalePct(agreementScale)
-        core.draft.techBiasPct = scalePct(techScale)
+        core.draft.expansionPct = spinPct(expansionSpin)
+        core.draft.escortPct = spinPct(escortSpin)
+        core.draft.agreementS = spinPct(agreementSpin)
+        core.draft.techBiasPct = spinPct(techSpin)
     }
 
     /*
-     * Read a Scale as a clamped 0..100 int.
+     * Read a SpinButton as a clamped 0..100 int.
      *
      * Purpose: draft / PUT body packing.
      *
      * Parameters:
-     *   scale — configured 0..100 Scale.
+     *   spin — configured 0..100 SpinButton.
      *
      * Returns: nearest int percent in band.
      */
-    int64 scalePct(Gtk.Scale scale) {
-        int64 pct = int64(scale.value() + 0.5)
+    int64 spinPct(Gtk.SpinButton spin) {
+        int64 pct = int64(spin.value() + 0.5)
         if (pct < 0) {
             return(0)
         }
@@ -237,93 +233,93 @@ class GuiPolicyPage {
     }
 
     /*
-     * Refresh label captions with live Scale values.
+     * Refresh label captions with live SpinButton values.
      *
-     * Purpose: show the current % next to each slider.
+     * Purpose: show the current % next to each spin.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
-    void refreshScaleLabels() {
+    void refreshSpinLabels() {
         if (expansionLabel == null) {
             return()
         }
         expansionLabel.setText(format(
-            "Expansion % ({})", scalePct(expansionScale)))
+            "Expansion % ({})", spinPct(expansionSpin)))
         escortLabel.setText(format(
-            "Escort % ({})", scalePct(escortScale)))
+            "Escort % ({})", spinPct(escortSpin)))
         agreementLabel.setText(format(
-            "Agreement S ({})", scalePct(agreementScale)))
+            "Agreement S ({})", spinPct(agreementSpin)))
         techLabel.setText(format(
-            "Tech bias % ({})", scalePct(techScale)))
+            "Tech bias % ({})", spinPct(techSpin)))
     }
 
     /*
-     * Expansion Scale moved.
+     * Expansion SpinButton moved.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
-     *   value — new thumb value.
+     *   value — new spin value.
      *
      * Returns: nothing.
      */
     void onExpansionChanged(fp64 value) {
-        if (suppressScale) {
+        if (suppressSpin) {
             return()
         }
-        refreshScaleLabels()
+        refreshSpinLabels()
     }
 
     /*
-     * Escort Scale moved.
+     * Escort SpinButton moved.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
-     *   value — new thumb value.
+     *   value — new spin value.
      *
      * Returns: nothing.
      */
     void onEscortChanged(fp64 value) {
-        if (suppressScale) {
+        if (suppressSpin) {
             return()
         }
-        refreshScaleLabels()
+        refreshSpinLabels()
     }
 
     /*
-     * Agreement Scale moved.
+     * Agreement SpinButton moved.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
-     *   value — new thumb value.
+     *   value — new spin value.
      *
      * Returns: nothing.
      */
     void onAgreementChanged(fp64 value) {
-        if (suppressScale) {
+        if (suppressSpin) {
             return()
         }
-        refreshScaleLabels()
+        refreshSpinLabels()
     }
 
     /*
-     * Tech bias Scale moved.
+     * Tech bias SpinButton moved.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
-     *   value — new thumb value.
+     *   value — new spin value.
      *
      * Returns: nothing.
      */
     void onTechChanged(fp64 value) {
-        if (suppressScale) {
+        if (suppressSpin) {
             return()
         }
-        refreshScaleLabels()
+        refreshSpinLabels()
     }
 }

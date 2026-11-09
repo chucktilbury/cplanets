@@ -26,6 +26,8 @@
  *   2026-11-08  AFK CheckButton → PUT /suspended.
  *   2026-11-09  Fleet / design examine TransientWindows (Section C).
  *   2026-11-09  Notebook → View menu + non-modal panel dialogs.
+ *   2026-11-09  View dialogs usable: choice rows / Scales / tooltips
+ *               / travel ProgressBar wiring.
  */
 
 include "appCore.cw"
@@ -258,15 +260,50 @@ class GuiMain {
         planetPage.showExploredAction = showExploredAction
         planetPage.budgetAction = budgetAction
         planetPage.budgetChangedAction = planetPage.onBudgetChanged
+        planetPage.planetChoice.bind(
+            planetPage.planetChoice.onPrev,
+            planetPage.planetChoice.onNext)
+        planetPage.planetChoice.changedAction = planetPage.onPlanetChoiceChanged
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         fleetPage.examineAction = examineFleetAction
+        fleetPage.hullsChangedAction = fleetPage.onHullsChanged
+        fleetPage.fleetChoice.bind(
+            fleetPage.fleetChoice.onPrev,
+            fleetPage.fleetChoice.onNext)
+        fleetPage.fleetChoice.changedAction = fleetPage.onFleetChoiceChanged
+        fleetPage.orderChoice.bind(
+            fleetPage.orderChoice.onPrev,
+            fleetPage.orderChoice.onNext)
+        fleetPage.destChoice.bind(
+            fleetPage.destChoice.onPrev,
+            fleetPage.destChoice.onNext)
         yardPage.developAction = developAction
         yardPage.buildAction = buildAction
         yardPage.reclaimAction = reclaimAction
         yardPage.examineAction = examineShipAction
+        yardPage.reclaimHullsChangedAction = yardPage.onReclaimHullsChanged
+        yardPage.kindChoice.bind(
+            yardPage.kindChoice.onPrev,
+            yardPage.kindChoice.onNext)
+        yardPage.planetChoice.bind(
+            yardPage.planetChoice.onPrev,
+            yardPage.planetChoice.onNext)
+        yardPage.designChoice.bind(
+            yardPage.designChoice.onPrev,
+            yardPage.designChoice.onNext)
+        yardPage.reclaimFleetChoice.bind(
+            yardPage.reclaimFleetChoice.onPrev,
+            yardPage.reclaimFleetChoice.onNext)
+        yardPage.reclaimFleetChoice.changedAction = yardPage.onReclaimFleetChanged
         digestPage.sendAction = sendAction
+        digestPage.toChoice.bind(
+            digestPage.toChoice.onPrev,
+            digestPage.toChoice.onNext)
         policyPage.applyAction = applyAction
+        policyPage.roleChoice.bind(
+            policyPage.roleChoice.onPrev,
+            policyPage.roleChoice.onNext)
         policyPage.expansionChangedAction = policyPage.onExpansionChanged
         policyPage.escortChangedAction = policyPage.onEscortChanged
         policyPage.agreementChangedAction = policyPage.onAgreementChanged
@@ -441,18 +478,18 @@ class GuiMain {
     }
 
     /*
-     * Open fleet examine dialog for the Fleets panel id Entry.
+     * Open fleet examine dialog for the Fleets panel fleet choice.
      *
      * Purpose: Section C — Inspect was a Label dump only; this
      * presents GuiFleetDialog for the selected (or first sitting)
-     * fleet and pins the Entry.
+     * fleet and pins the choice row.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void showFleetExamine() {
-        fleetPage.syncFleetIdEntry()
+        fleetPage.syncFleetChoices()
         int64 fleetId = fleetPage.fleetIdValue()
         FleetRow row = core.view.findFleet(fleetId)
         if (row.id < 0) {
@@ -473,37 +510,37 @@ class GuiMain {
             }
         }
         if (row.id >= 0) {
-            fleetPage.fleetIdEntry.setText(format("{}", row.id))
+            fleetPage.fleetChoice.setValue(format("{}", row.id))
             fleetDialog.presentRow(window, row)
             fleetPage.syncLockChrome()
         }
     }
 
     /*
-     * Open design examine dialog for the Ships panel design Entry.
+     * Open design examine dialog for the Ships panel design choice.
      *
      * Purpose: Section C — Designs (inspect) was Label-only; this
-     * presents GuiShipDialog and pins designIdEntry.
+     * presents GuiShipDialog and pins the design choice row.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void showShipExamine() {
-        yardPage.syncDesignIdEntry()
+        yardPage.syncDesignChoices()
         int64 designId = yardPage.designIdValue()
         DesignRow row = core.view.findDesign(designId)
         if (row.id < 0 and core.view.designs.length > 0) {
             row = core.view.designs[0]
         }
         if (row.id >= 0) {
-            yardPage.designIdEntry.setText(format("{}", row.id))
+            yardPage.designChoice.setValue(format("{}", row.id))
             shipDialog.presentRow(window, row)
         }
     }
 
     /*
-     * Map primary-click: fill Fleets dest Entry.
+     * Map primary-click: fill Fleets dest choice.
      *
      * Purpose: pick-to-dispatch fewest-hoops path — same PUT
      * /order chrome; click only sets destination.
@@ -750,7 +787,7 @@ class GuiMain {
      * Returns: nothing.
      */
     void onDispatch() {
-        fleetPage.syncFleetIdEntry()
+        fleetPage.syncFleetChoices()
         int64 fleetId = fleetPage.fleetIdValue()
         String order = fleetPage.orderValue()
         int64 dest = fleetPage.destValue()

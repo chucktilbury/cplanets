@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-09  Initial design examine dialog (Section C).
+ *   2026-11-09  Close button tooltip (View dialogs usable).
  */
 
 include "designRow.cw"
@@ -76,6 +77,7 @@ class GuiShipDialog {
         scroll.setVExpand(true)
         layout.append(scroll)
         Gtk.Button close = Gtk.Button("Close")
+        close.setTooltip("Hide this design examine dialog.")
         if (closeAction != null) {
             close.onClicked(closeAction)
         }

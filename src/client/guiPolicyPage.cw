@@ -1,7 +1,7 @@
 /*
  * src/client/guiPolicyPage.cw — standing policy Scales panel.
  *
- * Empire-wide role Entry + expansion / escort / agreement S /
+ * Empire-wide role GuiChoiceRow + expansion / escort / agreement S /
  * tech bias Scales (DIALOGS §4.1). Apply PUTs /policy with no
  * dumb-order warnings. Hosted in the View→Policy non-modal
  * panel dialog.
@@ -12,18 +12,21 @@
  * Changelog:
  *   2026-11-07  Initial policy Scales page.
  *   2026-11-09  Hosted in View→Policy panel dialog.
+ *   2026-11-09  Role choice row + tooltips (View dialogs usable).
  */
 
 include "appCore.cw"
+include "guiChoiceRow.cw"
 
 /*
  * GuiPolicyPage owns the Policy panel dialog widgets.
  *
- * Scales are 0..100; role stays an Entry (enum polish later).
+ * Scales are 0..100; role uses GuiChoiceRow (Combo stand-in —
+ * DropDown still missing from Cwhip GTK).
  */
 class GuiPolicyPage {
     AppCore core
-    Gtk.Entry roleEntry
+    GuiChoiceRow roleChoice
     Gtk.Scale expansionScale
     Gtk.Scale escortScale
     Gtk.Scale agreementScale
@@ -51,7 +54,7 @@ class GuiPolicyPage {
      */
     GuiPolicyPage(AppCore appCore) {
         core = appCore
-        roleEntry = null
+        roleChoice = GuiChoiceRow()
         expansionScale = null
         escortScale = null
         agreementScale = null
@@ -71,7 +74,7 @@ class GuiPolicyPage {
     /*
      * Build the Policy panel dialog widget tree.
      *
-     * Purpose: role Entry + % Scales + Apply.
+     * Purpose: role choice + % Scales + Apply.
      *
      * Parameters: none.
      *
@@ -81,46 +84,65 @@ class GuiPolicyPage {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
         page.setHExpand(true)
         page.setVExpand(true)
-        roleEntry = Gtk.Entry(core.draft.roleName)
+        roleChoice.setChoices(roleChoices())
+        roleChoice.setValue(core.draft.roleName)
         page.append(Gtk.Label("Role"))
-        page.append(roleEntry)
+        page.append(roleChoice.buildWidget(
+            "Empire role: neutral, conqueror, pirate, trader, hermit."))
         expansionLabel = Gtk.Label("Expansion %")
+        expansionLabel.setTooltip(
+            "Standing expansion share of policy attention (0–100).")
         page.append(expansionLabel)
         expansionScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
         expansionScale.configure(
             fp64(core.draft.expansionPct), 0.0, 100.0, 1.0)
+        expansionScale.setTooltip(
+            "Expansion % — slider stand-in for a spin (0–100).")
         if (expansionChangedAction != null) {
             expansionScale.onValueChanged(expansionChangedAction)
         }
         page.append(expansionScale)
         escortLabel = Gtk.Label("Escort %")
+        escortLabel.setTooltip(
+            "Standing escort share of policy attention (0–100).")
         page.append(escortLabel)
         escortScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
         escortScale.configure(
             fp64(core.draft.escortPct), 0.0, 100.0, 1.0)
+        escortScale.setTooltip(
+            "Escort % — slider stand-in for a spin (0–100).")
         if (escortChangedAction != null) {
             escortScale.onValueChanged(escortChangedAction)
         }
         page.append(escortScale)
         agreementLabel = Gtk.Label("Agreement S")
+        agreementLabel.setTooltip(
+            "Player–player agreement size S (0–100 stub).")
         page.append(agreementLabel)
         agreementScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
         agreementScale.configure(
             fp64(core.draft.agreementS), 0.0, 100.0, 1.0)
+        agreementScale.setTooltip(
+            "Agreement S — slider stand-in for a spin (0–100).")
         if (agreementChangedAction != null) {
             agreementScale.onValueChanged(agreementChangedAction)
         }
         page.append(agreementScale)
         techLabel = Gtk.Label("Tech bias %")
+        techLabel.setTooltip(
+            "Standing tech bias share of policy attention (0–100).")
         page.append(techLabel)
         techScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
         techScale.configure(
             fp64(core.draft.techBiasPct), 0.0, 100.0, 1.0)
+        techScale.setTooltip(
+            "Tech bias % — slider stand-in for a spin (0–100).")
         if (techChangedAction != null) {
             techScale.onValueChanged(techChangedAction)
         }
         page.append(techScale)
         Gtk.Button apply = Gtk.Button("Apply policy")
+        apply.setTooltip("PUT /policy with current role and Scales.")
         if (applyAction != null) {
             apply.onClicked(applyAction)
         }
@@ -130,7 +152,26 @@ class GuiPolicyPage {
     }
 
     /*
-     * Sync Scale thumbs and role Entry from core.draft.
+     * Fixed empire role name list.
+     *
+     * Purpose: roleChoice seed (RULES §4 / policyShape codes).
+     *
+     * Parameters: none.
+     *
+     * Returns: list of role name strings.
+     */
+    list roleChoices() {
+        list out = []
+        out.append("neutral")
+        out.append("conqueror")
+        out.append("pirate")
+        out.append("trader")
+        out.append("hermit")
+        return(out)
+    }
+
+    /*
+     * Sync Scale thumbs and role choice from core.draft.
      *
      * Purpose: refresh after pull / offline fill.
      *
@@ -139,10 +180,10 @@ class GuiPolicyPage {
      * Returns: nothing.
      */
     void syncFromDraft() {
-        if (roleEntry == null) {
+        if (expansionScale == null) {
             return()
         }
-        roleEntry.setText(core.draft.roleName)
+        roleChoice.setValue(core.draft.roleName)
         suppressScale = true
         expansionScale.setValue(fp64(core.draft.expansionPct))
         escortScale.setValue(fp64(core.draft.escortPct))
@@ -162,7 +203,11 @@ class GuiPolicyPage {
      * Returns: nothing.
      */
     void writeDraft() {
-        core.draft.roleName = roleEntry.text()
+        String role = roleChoice.value()
+        if (role.length < 1) {
+            role = "neutral"
+        }
+        core.draft.roleName = role
         core.draft.expansionPct = scalePct(expansionScale)
         core.draft.escortPct = scalePct(escortScale)
         core.draft.agreementS = scalePct(agreementScale)

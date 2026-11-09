@@ -47,19 +47,19 @@ remain separate TransientWindows.
 | Dialog | When shown | Status |
 | --- | --- | --- |
 | **Planets panel dialog** | View→Planets (or map budget ContextMenu) | **Exists** — former Planets notebook page in `GuiPanelDialog` (list + explored button + budget Scale) |
-| **Fleets panel dialog** | View→Fleets (or map dispatch ContextMenu) | **Exists** — dispatch/recall Entries; Examine fleet; develop/build **ProgressBars** |
-| **Ships panel dialog** | View→Ships | **Exists** — design/yard Entries; Examine design; develop/build **ProgressBars** |
-| **Digest panel dialog** | View→Digest | **Exists** — newspaper + known competitors + compose |
-| **Policy panel dialog** | View→Policy | **Exists** — role Entry + % Scales + Apply |
+| **Fleets panel dialog** | View→Fleets (or map dispatch ContextMenu) | **Exists** — choice rows + hulls Scale; Examine fleet; develop/build/**travel** **ProgressBars**; tooltips |
+| **Ships panel dialog** | View→Ships | **Exists** — kind/yard/design choice rows; reclaim Scale; Examine design; develop/build **ProgressBars**; tooltips |
+| **Digest panel dialog** | View→Digest | **Exists** — newspaper + known competitors + compose (recipient choice row); tooltips |
+| **Policy panel dialog** | View→Policy | **Exists** — role choice row + % Scales + Apply; tooltips |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
-| Fleet examine dialog | Fleets panel **Examine fleet** (id Entry / first visible) | **Exists** — `GuiFleetDialog` TransientWindow from `FleetRow.examineDialogText()` |
-| Design / ship examine dialog | Ships panel **Examine design** (design id Entry / first catalog) | **Exists** — `GuiShipDialog` TransientWindow from `DesignRow.examineDialogText()` |
+| Fleet examine dialog | Fleets panel **Examine fleet** (id choice / first visible) | **Exists** — `GuiFleetDialog` TransientWindow from `FleetRow.examineDialogText()` |
+| Design / ship examine dialog | Ships panel **Examine design** (design id choice / first catalog) | **Exists** — `GuiShipDialog` TransientWindow from `DesignRow.examineDialogText()` |
 | Planet status / budget menus | Click planet → menu options (README) | Budget **Exists** on Planets panel + map ContextMenu (owned) |
 | Map right-click context menu | Right-click / selected planet | **Exists** — status + explored + zoom-to-known + dispatch/budget (owned) |
-| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets panel Entries/buttons; map pick fills dest; ContextMenu “Dispatch fleet here” → `PUT /order` |
+| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets panel choice rows/buttons; map pick fills dest; ContextMenu “Dispatch fleet here” → `PUT /order` |
 | Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships panel list stand-ins) |
-| Compose private message | Player chooses send-to known competitor | **Exists** (Digest panel Entries; DropDown polish later) |
-| Known-competitors picker | Contact adds names; compose-to-pick | **Exists** (list + To Entry) |
+| Compose private message | Player chooses send-to known competitor | **Exists** (Digest panel choice row + body Entry; native DropDown still deferred) |
+| Known-competitors picker | Contact adds names; compose-to-pick | **Exists** (list + To choice row) |
 | Pause control | Exactly one human | Server gate **Exists**; client CheckButton **Exists (TUNING B)** (sensitive only when offered) |
 | Connection / drop / AFK notices | Human-visible presence feedback | **Intended playable** where human-visible; details **open** |
 | Server setup GUI hierarchy | Admin edits §14 knobs before lock | **Deferred** (not v1) |
@@ -149,7 +149,7 @@ sitting multi-hull stack so remaining hulls can go elsewhere.
 
 | Field | Control (intended) | Today | Status |
 | --- | --- | --- | --- |
-| Role (empire-wide) | Entry or dropdown; not dual roles per partner | `Entry` | **Exists**; DropDown polish **Intended** |
+| Role (empire-wide) | Entry or dropdown; not dual roles per partner | `GuiChoiceRow` (prev/next; native DropDown still missing) | **Exists**; native DropDown polish **Intended** |
 | Expansion % | Slider | `Scale` | **Exists** |
 | Escort % | Slider | `Scale` | **Exists** |
 | Agreement size `S` | Slider / spin | `Scale` | **Exists** — **player–player** `S` |
@@ -210,12 +210,14 @@ ticks) — not instant.
 | --- | --- | --- |
 | **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks | **Exists** Ships panel Entries → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in) |
 | **Yard / build queue** | Produce hulls (resources) at productive shipyard; show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships panel → `PUT /build` / `PUT /reclaim-hulls` |
-| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets panel-dialog `Gtk.ProgressBar` footer (fraction from ticksLeft / setup total; pulse if indeterminate) + detail Label from chrome trailer |
+| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets panel-dialog `Gtk.ProgressBar` footer (develop/build from ticksLeft / setup total; Fleets also has **travel** bar from eta/outboundEta; pulse if indeterminate) + detail Label from chrome trailer |
 
-List stand-ins for editor fields (Entries). ProgressBars live in the
-Fleets / Ships `GuiPanelDialog` footers (View menu). Timed
-develop/build use existing `State.queueDesignDevelop` /
-`queueYardBuild` / `queueReclaim`.
+Enum/id picks use `GuiChoiceRow` (Combo stand-in); integer
+ranges use `Scale` (Spin stand-in) because Cwhip GTK still lacks
+`DropDown` / `SpinButton`. Float design fields stay Entries.
+ProgressBars live in the Fleets / Ships `GuiPanelDialog` footers
+(View menu). Timed develop/build use existing
+`State.queueDesignDevelop` / `queueYardBuild` / `queueReclaim`.
 
 ---
 
@@ -314,18 +316,20 @@ v1. File/scenario edit remains the v1 path.
 - Explored-planet TransientWindow (1–10 + populated/productive note);
   manual “Show first explored” + auto-present on quality /
   productive / populated flips (**TUNING B**); map menu open explored
-- Policy role Entry + % **Scales** + Apply PUT; no dumb-order warnings
+- Policy role **choice row** + % **Scales** + Apply PUT; no
+  dumb-order warnings; View-dialog tooltips
 - Planets panel budget Scale → `PUT /budget` (allocationPct; tick
   spend); map ContextMenu budget raises Planets panel for owned rocks
 - Digest known-competitors + private/broadcast compose →
-  `PUT /message` (seat-scoped digest)
+  `PUT /message` (seat-scoped digest; recipient choice row)
 - TCP pull of seat-scoped publish flags (no second fog)
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
-- Fleet Dispatch / Recall Entries → `PUT /order` / `PUT /recall`
-  with in-flight lock labels (**B**); hulls peel for split-
+- Fleet Dispatch / Recall choice rows → `PUT /order` / `PUT /recall`
+  with in-flight lock labels (**B**); hulls Scale peel for split-
   dispatch of sitting stacks; map pick-to-dispatch
-- Design/build **ProgressBars** + reclaim detail from chrome trailer
-  (**B** + **CPL-72**) inside Fleets / Ships panel dialogs
+- Design/build **ProgressBars** + Fleets **travel** ProgressBar +
+  reclaim detail from chrome trailer (**B** + **CPL-72**) inside
+  Fleets / Ships panel dialogs
 - Ships panel design develop / yard build / reclaim + design catalog
   (`PUT /design`, `/build`, `/reclaim-hulls`)
 
@@ -336,7 +340,8 @@ v1. File/scenario edit remains the v1 path.
 - Richer design editor (weapons/shields fields) beyond Entries
 - Human-visible AFK / drop notices (peer notify still open)
 - Full multi-partner agreements UI beyond single `agreementS` stub
-- DropDown polish for role / compose recipient
+- Native Cwhip `DropDown` / `SpinButton` once bound (choice-row /
+  Scale stand-ins cover role / order / kind / ids / hulls today)
 
 ### Deferred
 

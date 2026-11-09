@@ -12,6 +12,7 @@
  *   2026-11-06  TUNING B: pendingDeparture / recallRequested /
  *               orderLocked for dispatch chrome.
  *   2026-11-07  Phase I: outboundEta for map hop progress.
+ *   2026-11-09  examineDialogText for fleet TransientWindow.
  */
 
 /*
@@ -147,5 +148,51 @@ class FleetRow {
             "Fleet {} owner={} order={} hulls={} eta={} loc={} dest={}{}",
             id, ownerId, order, hullCount, eta,
             locationPlanetId, destPlanetId, lock))
+    }
+
+    /*
+     * Build the fleet examine dialog body text.
+     *
+     * Purpose: human TransientWindow inspect for a visible fleet
+     * (Section C). Mirrors PlanetRow.exploredDialogText style —
+     * multi-line status, not a second fog engine.
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line dialog body, or empty when id is invalid.
+     */
+    String examineDialogText() {
+        if (id < 0) {
+            return("")
+        }
+        String text = format(
+            "Fleet {}\nOwner: {}\nOrder: {}\nHulls: {}\n",
+            id, ownerId, order, hullCount)
+        text.append(format(
+            "Location planet: {}\nDestination planet: {}\n",
+            locationPlanetId, destPlanetId))
+        text.append(format(
+            "ETA: {}\nOutbound ETA: {}\n", eta, outboundEta))
+        if (sitting) {
+            text.append("State: sitting\n")
+        } else (departed) {
+            text.append("State: departed / in flight\n")
+        } else (pendingDeparture) {
+            text.append("State: pending departure\n")
+        } else {
+            text.append("State: other\n")
+        }
+        if (orderLocked()) {
+            text.append("Lock: mid-dispatch (Recall only)\n")
+        } else {
+            text.append("Lock: open (Dispatch OK)\n")
+        }
+        if (recallRequested) {
+            text.append("Recall: requested\n")
+        }
+        if (not visible) {
+            text.append("Visibility: hidden\n")
+        }
+        return(text)
     }
 }

@@ -14,9 +14,11 @@
  *   2026-11-07  Refresh keeps Yard planet id on first owned yard
  *               (home 0) when the Entry is empty or stale.
  *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
+ *   2026-11-09  Examine design button → GuiShipDialog.
  */
 
 include "appCore.cw"
+include "designRow.cw"
 include "guiProgressChrome.cw"
 
 /*
@@ -44,9 +46,11 @@ class GuiYardPage {
     Gtk.Button developBtn
     Gtk.Button buildBtn
     Gtk.Button reclaimBtn
+    Gtk.Button examineBtn
     void<> developAction
     void<> buildAction
     void<> reclaimAction
+    void<> examineAction
 
     /*
      * Construct a Ships page bound to an AppCore.
@@ -76,9 +80,11 @@ class GuiYardPage {
         developBtn = null
         buildBtn = null
         reclaimBtn = null
+        examineBtn = null
         developAction = null
         buildAction = null
         reclaimAction = null
+        examineAction = null
     }
 
     /*
@@ -102,6 +108,11 @@ class GuiYardPage {
         scroll.setVExpand(true)
         page.append(Gtk.Label("Designs (inspect)"))
         page.append(scroll)
+        examineBtn = Gtk.Button("Examine design")
+        if (examineAction != null) {
+            examineBtn.onClicked(examineAction)
+        }
+        page.append(examineBtn)
         yardHint = Gtk.Label("(yards)")
         yardHint.setHExpand(true)
         page.append(yardHint)
@@ -183,6 +194,7 @@ class GuiYardPage {
             progressChrome.refresh()
         }
         syncYardPlanetEntry()
+        syncDesignIdEntry()
     }
 
     /*
@@ -317,6 +329,40 @@ class GuiYardPage {
      */
     int64 designIdValue() {
         return(designIdEntry.text().toInt64())
+    }
+
+    /*
+     * Pin Design id Entry to the first catalog row when empty/stale.
+     *
+     * Purpose: Examine design and Queue build need a live id; avoid
+     * leaving 0 when designs start at 0 but the Entry is empty, or
+     * a stale id after catalog refresh.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncDesignIdEntry() {
+        if (designIdEntry == null) {
+            return()
+        }
+        if (core.view.designs.length < 1) {
+            return()
+        }
+        DesignRow first = core.view.designs[0]
+        if (first.id < 0) {
+            return()
+        }
+        String text = designIdEntry.text()
+        if (text.length < 1) {
+            designIdEntry.setText(format("{}", first.id))
+            return()
+        }
+        int64 current = text.toInt64()
+        DesignRow row = core.view.findDesign(current)
+        if (row.id < 0) {
+            designIdEntry.setText(format("{}", first.id))
+        }
     }
 
     /*

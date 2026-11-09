@@ -22,16 +22,20 @@
  *   2026-11-07  Split-dispatch: hulls Entry + clear reject status.
  *   2026-11-07  Dispatch preflight: missing fleet id + server reason.
  *   2026-11-08  AFK CheckButton → PUT /suspended.
+ *   2026-11-09  Fleet / design examine TransientWindows (Section C).
  */
 
 include "appCore.cw"
+include "designRow.cw"
 include "exploredTrack.cw"
 include "guiDigestPage.cw"
+include "guiFleetDialog.cw"
 include "guiFleetPage.cw"
 include "guiMapPage.cw"
 include "guiPlanetDialog.cw"
 include "guiPlanetPage.cw"
 include "guiPolicyPage.cw"
+include "guiShipDialog.cw"
 include "guiYardPage.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
@@ -50,6 +54,8 @@ class GuiMain {
     Gtk.CheckButton pauseBtn
     Gtk.CheckButton afkBtn
     GuiPlanetDialog planetDialog
+    GuiFleetDialog fleetDialog
+    GuiShipDialog shipDialog
     GuiPlanetPage planetPage
     GuiFleetPage fleetPage
     GuiYardPage yardPage
@@ -68,6 +74,8 @@ class GuiMain {
     void<> dialogCloseAction
     void<> showExploredAction
     void<> showMapExploredAction
+    void<> examineFleetAction
+    void<> examineShipAction
     void<> dispatchAction
     void<> recallAction
     void<> developAction
@@ -102,6 +110,8 @@ class GuiMain {
         pauseBtn = null
         afkBtn = null
         planetDialog = GuiPlanetDialog()
+        fleetDialog = GuiFleetDialog()
+        shipDialog = GuiShipDialog()
         planetPage = GuiPlanetPage(appCore)
         fleetPage = GuiFleetPage(appCore)
         yardPage = GuiYardPage(appCore)
@@ -120,6 +130,8 @@ class GuiMain {
         dialogCloseAction = null
         showExploredAction = null
         showMapExploredAction = null
+        examineFleetAction = null
+        examineShipAction = null
         dispatchAction = null
         recallAction = null
         developAction = null
@@ -238,10 +250,12 @@ class GuiMain {
         notebook.appendPage(planetPage.buildPage(), "Planets")
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
+        fleetPage.examineAction = examineFleetAction
         notebook.appendPage(fleetPage.buildPage(), "Fleets")
         yardPage.developAction = developAction
         yardPage.buildAction = buildAction
         yardPage.reclaimAction = reclaimAction
+        yardPage.examineAction = examineShipAction
         notebook.appendPage(yardPage.buildPage(), "Ships")
         digestPage.sendAction = sendAction
         notebook.appendPage(digestPage.buildPage(), "Digest")
@@ -256,6 +270,10 @@ class GuiMain {
         root.append(split)
         planetDialog.closeAction = dialogCloseAction
         planetDialog.closeRequestAction = planetDialog.onCloseRequest
+        fleetDialog.closeAction = dialogCloseAction
+        fleetDialog.closeRequestAction = fleetDialog.onCloseRequest
+        shipDialog.closeAction = dialogCloseAction
+        shipDialog.closeRequestAction = shipDialog.onCloseRequest
         window.present()
         refreshLists()
         if (startupError.length > 0) {
@@ -414,6 +432,68 @@ class GuiMain {
         PlanetRow row = mapPage.selectedPlanet()
         if (row.id >= 0 and row.qualityKnown) {
             planetDialog.presentRow(window, row)
+        }
+    }
+
+    /*
+     * Open fleet examine dialog for the Fleets-tab id Entry.
+     *
+     * Purpose: Section C — Inspect was a Label dump only; this
+     * presents GuiFleetDialog for the selected (or first sitting)
+     * fleet and pins the Entry.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void showFleetExamine() {
+        fleetPage.syncFleetIdEntry()
+        int64 fleetId = fleetPage.fleetIdValue()
+        FleetRow row = core.view.findFleet(fleetId)
+        if (row.id < 0) {
+            int64 sit = core.view.firstSittingOwnedFleetId()
+            if (sit >= 0) {
+                row = core.view.findFleet(sit)
+            }
+        }
+        if (row.id < 0) {
+            int64 index = 0
+            while (index < core.view.fleets.length) {
+                FleetRow cand = core.view.fleets[index]
+                if (cand.visible and cand.id >= 0) {
+                    row = cand
+                    break
+                }
+                index = index + 1
+            }
+        }
+        if (row.id >= 0) {
+            fleetPage.fleetIdEntry.setText(format("{}", row.id))
+            fleetDialog.presentRow(window, row)
+            fleetPage.syncLockChrome()
+        }
+    }
+
+    /*
+     * Open design examine dialog for the Ships-tab design Entry.
+     *
+     * Purpose: Section C — Designs (inspect) was Label-only; this
+     * presents GuiShipDialog and pins designIdEntry.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void showShipExamine() {
+        yardPage.syncDesignIdEntry()
+        int64 designId = yardPage.designIdValue()
+        DesignRow row = core.view.findDesign(designId)
+        if (row.id < 0 and core.view.designs.length > 0) {
+            row = core.view.designs[0]
+        }
+        if (row.id >= 0) {
+            yardPage.designIdEntry.setText(format("{}", row.id))
+            shipDialog.presentRow(window, row)
         }
     }
 
@@ -866,15 +946,17 @@ class GuiMain {
      */
     void onClose() {
         planetDialog.close()
+        fleetDialog.close()
+        shipDialog.close()
         if (window != null and not window.disposed()) {
             window.close()
         }
     }
 
     /*
-     * Close only the planet dialog.
+     * Hide explore / fleet / design examine dialogs.
      *
-     * Purpose: dialog Close button.
+     * Purpose: shared Close button for TransientWindow shells.
      *
      * Parameters: none.
      *
@@ -882,6 +964,8 @@ class GuiMain {
      */
     void onDialogClose() {
         planetDialog.close()
+        fleetDialog.close()
+        shipDialog.close()
     }
 
     /*

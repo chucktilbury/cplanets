@@ -35,8 +35,8 @@ Context: `design-decisions.md`, `project-context.md`,
 | **Main window** | Always-on client shell; never ticks | Title; File menu; status line (tick / counts) | **Exists (Phase G)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** |
 | **Planets notebook page** | Visibility-limited planet list + budget | Scrolled labels; “Show first explored”; owned-planet allocation **Scale** → PUT `/budget` (tick scales empire-pool production) | **Exists** — list + live allocation |
-| **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); Entries + Dispatch/Recall; develop/build **ProgressBars** + detail | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B + CPL-72)** |
-| **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; Start develop / Queue build / Reclaim hulls Entries; develop/build **ProgressBars** + owned yards | **Exists** (ship create chrome + CPL-72 bars) |
+| **Fleets notebook page** | Visibility-limited fleets + dispatch/recall | Scrolled labels (incl. LOCKED / recall-req); **Examine fleet** dialog; Entries + Dispatch/Recall; develop/build **ProgressBars** + detail | **Exists (Phase G)** list; **dispatch/recall/progress (TUNING B + CPL-72)**; examine dialog **Exists** |
+| **Ships notebook page** | Design editor + yard queue (list stand-ins) | Design catalog; **Examine design** dialog; Start develop / Queue build / Reclaim hulls Entries; develop/build **ProgressBars** + owned yards | **Exists** (ship create chrome + CPL-72 bars + examine) |
 | **Digest notebook page** | Newspaper + compose | Digest text; known-competitors list; private/broadcast compose → PUT `/message` | **Exists** — list + compose |
 | **Policy notebook page** | Standing policy editor | Role Entry; expansion / escort / agreement `S` / tech bias **Scales**; Apply (PUT `/policy`); no dumb-order warnings | **Exists** — Scales for policy % |
 | **Map canvas panel** | Galaxy graphic in the client layout (Paned beside notebook) | Hot spots; status colors; dotted ETA paths; pan/zoom; pick→fleet dest; ContextMenu status + zoom-to-known + dispatch/budget | **Exists (Phase I + pick-to-dispatch)** |
@@ -50,6 +50,8 @@ dominate the main surface. The map is a **panel**, not a dialog.
 | Dialog | When shown | Status |
 | --- | --- | --- |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
+| Fleet examine dialog | Fleets tab **Examine fleet** (id Entry / first visible) | **Exists** — `GuiFleetDialog` TransientWindow from `FleetRow.examineDialogText()` |
+| Design / ship examine dialog | Ships tab **Examine design** (design id Entry / first catalog) | **Exists** — `GuiShipDialog` TransientWindow from `DesignRow.examineDialogText()` |
 | Planet status / budget menus | Click planet → menu options (README) | Budget **Exists** on Planets tab + map ContextMenu (owned) |
 | Map right-click context menu | Right-click / selected planet | **Exists** — status + explored + zoom-to-known + dispatch/budget (owned) |
 | Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets-tab Entries/buttons; map pick fills dest; ContextMenu “Dispatch fleet here” → `PUT /order` |

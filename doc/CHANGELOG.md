@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **AI fleets explore + human examine (Section C):** every seated
+  empire now receives the RULES §2 starter scout fleet (not only
+  seat 0). The AI serve-loop issues `PUT /order` (explore / take)
+  and `PUT /build` from the decoded GET snapshot via `AiOrderPlan`
+  — opaque policy blobs alone never moved fleets. Human Fleets /
+  Ships tabs gain **Examine fleet** / **Examine design**
+  TransientWindows (same hide-on-close pattern as explored
+  planets). Units: `unit_aiOrderPlan`, `unit_fleetExamine`,
+  `unit_homeOnConnect`.
+
 - **Lobby AI connect abort:** lobby no longer runs end-status
   (all-humans-quit / eliminate-all) before operator go, so a
   connecting AI cannot tear down the server on handshake_miss.

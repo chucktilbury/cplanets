@@ -14,6 +14,7 @@
  *   2026-11-07  Fleet id Entry defaults/syncs to a sitting stack
  *               (never leave 0 — fleets start at 1).
  *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
+ *   2026-11-09  Examine fleet button → GuiFleetDialog.
  */
 
 include "appCore.cw"
@@ -38,9 +39,11 @@ class GuiFleetPage {
     Gtk.Entry hullsEntry
     Gtk.Button dispatchBtn
     Gtk.Button recallBtn
+    Gtk.Button examineBtn
     Gtk.Label lockHint
     void<> dispatchAction
     void<> recallAction
+    void<> examineAction
 
     /*
      * Construct a fleet page bound to an AppCore.
@@ -62,9 +65,11 @@ class GuiFleetPage {
         hullsEntry = null
         dispatchBtn = null
         recallBtn = null
+        examineBtn = null
         lockHint = null
         dispatchAction = null
         recallAction = null
+        examineAction = null
     }
 
     /*
@@ -87,6 +92,11 @@ class GuiFleetPage {
         scroll.setHExpand(true)
         scroll.setVExpand(true)
         page.append(scroll)
+        examineBtn = Gtk.Button("Examine fleet")
+        if (examineAction != null) {
+            examineBtn.onClicked(examineAction)
+        }
+        page.append(examineBtn)
         page.append(Gtk.Label(
             "Dispatch (explore/take/trade/move/ambush)"))
         fleetIdEntry = Gtk.Entry("1")

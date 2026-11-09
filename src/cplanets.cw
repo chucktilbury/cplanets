@@ -5,9 +5,9 @@
  * Missing or empty path prints help and exits 2.
  * --once: fill a closed galaxy in-process and print lists (no TCP,
  * no GTK). --pull: TCP GET state+digest summary. --gui / --test:
- * GTK map canvas + View-menu panel dialogs (planets, fleets, ships,
- * digest, policy) + explored dialog. Never ticks; never opens the
- * universe DB (RULES §2 / PLAN §4.G / §4.I).
+ * GTK map canvas + top-level menubar panel dialogs (planets,
+ * fleets, ships, digest, policy) + explored dialog. Never ticks;
+ * never opens the universe DB (RULES §2 / PLAN §4.G / §4.I).
  * User-facing argv uses stdlib `cli` (including --help / -h).
  * With all modes false from file/argv, prints smoke identity.
  *
@@ -32,6 +32,7 @@
  *   2026-11-08  --player is offline-only; TCP seats from handshake.
  *   2026-11-09  Wire fleet / design Examine dialog actions.
  *   2026-11-09  View-menu panel dialogs (GuiPanelHost).
+ *   2026-11-09  Panel openers → top-level menubar (not View).
  */
 
 import cli as Cli

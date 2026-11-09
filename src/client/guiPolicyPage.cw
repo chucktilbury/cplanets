@@ -3,7 +3,7 @@
  *
  * Empire-wide role GuiChoiceRow + expansion / escort / agreement S /
  * tech bias Scales (DIALOGS §4.1). Apply PUTs /policy with no
- * dumb-order warnings. Hosted in the View→Policy non-modal
+ * dumb-order warnings. Hosted in the Policy menubar non-modal
  * panel dialog.
  *
  * Created: 2026-11-07
@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-07  Initial policy Scales page.
  *   2026-11-09  Hosted in View→Policy panel dialog.
+ *   2026-11-09  Menubar opener is Policy→Open (not View).
  *   2026-11-09  Role choice row + tooltips (View dialogs usable).
  */
 

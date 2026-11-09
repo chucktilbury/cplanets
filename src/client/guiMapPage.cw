@@ -5,7 +5,8 @@
  * zoom-to-known + dispatch/budget). Draws visible planets with
  * status colors and in-flight dotted ETA paths when outboundEta
  * is published. Primary pick fills Fleets dest via GuiMain.
- * Main-window panel; list chrome is View-menu dialogs (PLAN §4.I).
+ * Main-window panel; list chrome is top-level menubar dialogs
+ * (PLAN §4.I).
  *
  * Created: 2026-11-07
  * Author: Auto

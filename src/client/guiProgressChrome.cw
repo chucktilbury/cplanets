@@ -3,7 +3,7 @@
  *
  * Shared footer chrome for Ships and Fleets panel dialogs.
  * Horizontal bars + detail label sit in a vertical Box inside the
- * non-modal View→Fleets / View→Ships TransientWindows (CPL-72 /
+ * non-modal Fleets / Ships TransientWindows (CPL-72 /
  * DIALOGS §6). Nothing here depends on Notebook tab chrome.
  *
  * Created: 2026-11-08

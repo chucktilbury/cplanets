@@ -2,19 +2,19 @@
  * src/client/guiMain.cw — GTK human client main window (G / B / I).
  *
  * Map canvas is the main panel. Former Notebook tabs (Planets,
- * Fleets, Ships, Digest, Policy) open as non-modal View-menu
- * TransientWindows. Pause gated to one human; fleet dispatch/
- * recall; design/yard; planet budget Scales; known-competitor
- * compose; explored dialog auto-presents on quality / productive
- * changes. Develop/build ProgressBars live in Fleets / Ships
- * panel dialogs.
+ * Fleets, Ships, Digest, Policy) open as non-modal top-level
+ * menubar TransientWindows. Pause gated to one human; fleet
+ * dispatch/recall; design/yard; planet budget Scales;
+ * known-competitor compose; explored dialog auto-presents on
+ * quality / productive changes. Develop/build ProgressBars live
+ * in Fleets / Ships panel dialogs.
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
  *   2026-11-05  Initial GuiMain window.
- *   2026-11-06  TUNING B: pause, fleet chrome, explored auto-pop.
+ *   2026-11-06  TUNING B: pause, ticket chrome, explored auto-pop.
  *   2026-11-07  Ships tab: design develop / yard build / reclaim.
  *   2026-11-07  Phase I: map canvas panel beside list notebook.
  *   2026-11-07  Budget Scales + known-competitor compose pages.
@@ -28,6 +28,7 @@
  *   2026-11-09  Notebook → View menu + non-modal panel dialogs.
  *   2026-11-09  View dialogs usable: choice rows / Scales / tooltips
  *               / travel ProgressBar wiring.
+ *   2026-11-09  Panel openers → top-level menubar menus (not View).
  */
 
 include "appCore.cw"
@@ -52,7 +53,8 @@ include "planetRow.cw"
  * Policy Apply PUTs standing policy with no dumb-order warnings.
  * Pause CheckButton is sensitive only when pauseOffered().
  * AFK CheckButton sends PUT /suspended (handshake_miss hold).
- * View menu raises non-modal panel dialogs for list chrome.
+ * Top-level Planets / Fleets / Ships / Digest / Policy menus
+ * raise non-modal panel dialogs for list chrome.
  */
 class GuiMain {
     AppCore core
@@ -221,12 +223,18 @@ class GuiMain {
         int64 fileMenu = menu.addMenu("File")
         menu.addItem(fileMenu, "Refresh", refreshAction)
         menu.addItem(fileMenu, "Quit", closeAction)
-        int64 viewMenu = menu.addMenu("View")
-        menu.addItem(viewMenu, "Planets", panels.showPlanetsAction)
-        menu.addItem(viewMenu, "Fleets", panels.showFleetsAction)
-        menu.addItem(viewMenu, "Ships", panels.showShipsAction)
-        menu.addItem(viewMenu, "Digest", panels.showDigestAction)
-        menu.addItem(viewMenu, "Policy", panels.showPolicyAction)
+        /* GtkPopoverMenuBar top-level entries are submenus; each
+         * panel name is its own root menu with a single Open item. */
+        int64 planetsMenu = menu.addMenu("Planets")
+        menu.addItem(planetsMenu, "Open", panels.showPlanetsAction)
+        int64 fleetsMenu = menu.addMenu("Fleets")
+        menu.addItem(fleetsMenu, "Open", panels.showFleetsAction)
+        int64 shipsMenu = menu.addMenu("Ships")
+        menu.addItem(shipsMenu, "Open", panels.showShipsAction)
+        int64 digestMenu = menu.addMenu("Digest")
+        menu.addItem(digestMenu, "Open", panels.showDigestAction)
+        int64 policyMenu = menu.addMenu("Policy")
+        menu.addItem(policyMenu, "Open", panels.showPolicyAction)
         root.append(menu)
         Gtk.Box top = Gtk.Box(Gtk.Box.HORIZONTAL, 8)
         status = Gtk.Label("Ready")
@@ -554,7 +562,7 @@ class GuiMain {
         fleetPage.setDestPlanet(planetId)
         if (status != null) {
             status.setText(format(
-                "map dest={} (View→Fleets → Dispatch)", planetId))
+                "map dest={} (Fleets → Dispatch)", planetId))
         }
     }
 
@@ -603,7 +611,7 @@ class GuiMain {
         panels.showPlanets()
         if (status != null) {
             status.setText(format(
-                "budget planet={} (View→Planets → Apply)", row.id))
+                "budget planet={} (Planets → Apply)", row.id))
         }
     }
 

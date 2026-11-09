@@ -5,7 +5,7 @@
  * broadcast compose (RULES §13 / DIALOGS §7). Recipient uses
  * GuiChoiceRow (Combo stand-in). Broadcast uses the same PUT
  * /message verb with the broadcast flag. Hosted in the
- * View→Digest non-modal panel dialog.
+ * Digest menubar non-modal panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -13,6 +13,7 @@
  * Changelog:
  *   2026-11-07  Initial digest + compose chrome page.
  *   2026-11-09  Hosted in View→Digest panel dialog.
+ *   2026-11-09  Menubar opener is Digest→Open (not View).
  *   2026-11-09  Recipient choice row + tooltips (View usable).
  */
 

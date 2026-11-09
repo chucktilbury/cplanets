@@ -4,7 +4,7 @@
  * Design develop + yard build / reclaim (DIALOGS §6). Kind / yard /
  * design / reclaim-fleet use GuiChoiceRow; reclaim hulls use a
  * Scale (Spin stand-in). Float fields stay Entries. Progress
- * footer uses Gtk.ProgressBar. Hosted in View→Ships panel dialog.
+ * footer uses Gtk.ProgressBar. Hosted in Ships menubar panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -16,6 +16,7 @@
  *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
  *   2026-11-09  Examine design button → GuiShipDialog.
  *   2026-11-09  Hosted in View→Ships panel dialog.
+ *   2026-11-09  Menubar opener is Ships→Open (not View).
  *   2026-11-09  Choice rows + reclaim Scale + tooltips (usable).
  *   2026-11-09  Safe Scale range via GuiScaleRange (empty/1 hull).
  */

@@ -3,8 +3,8 @@
  *
  * Newspaper list, known-competitors after contact, and private /
  * broadcast compose (RULES §13 / DIALOGS §7). Recipient uses
- * GuiChoiceRow (Combo stand-in). Broadcast uses the same PUT
- * /message verb with the broadcast flag. Hosted in the
+ * GuiChoiceRow (DropDown). Body uses TextView. Broadcast uses the
+ * same PUT /message verb with the broadcast flag. Hosted in the
  * Digest menubar non-modal panel dialog.
  *
  * Created: 2026-11-07
@@ -15,6 +15,7 @@
  *   2026-11-09  Hosted in View→Digest panel dialog.
  *   2026-11-09  Menubar opener is root Digest click (no Open submenu).
  *   2026-11-09  Recipient choice row + tooltips (View usable).
+ *   2026-11-09  DropDown + TextView replace choice-row/Entry stand-ins.
  */
 
 include "appCore.cw"
@@ -23,15 +24,15 @@ include "guiChoiceRow.cw"
 /*
  * GuiDigestPage owns the Digest panel dialog widgets.
  *
- * Compose picks a recipient id from the known list (choice row
- * stand-in for DropDown) or checks Broadcast for send-to-all-known.
+ * Compose picks a recipient id from the known list (DropDown) or
+ * checks Broadcast for send-to-all-known. Body is a multiline TextView.
  */
 class GuiDigestPage {
     AppCore core
     Gtk.Label digestList
     Gtk.Label knownList
     GuiChoiceRow toChoice
-    Gtk.Entry bodyEntry
+    Gtk.TextView bodyView
     Gtk.CheckButton broadcastBtn
     void<> sendAction
 
@@ -50,7 +51,7 @@ class GuiDigestPage {
         digestList = null
         knownList = null
         toChoice = GuiChoiceRow()
-        bodyEntry = null
+        bodyView = null
         broadcastBtn = null
         sendAction = null
     }
@@ -92,11 +93,15 @@ class GuiDigestPage {
             "Compose (private to known, or broadcast)"))
         page.append(Gtk.Label("To competitor id"))
         page.append(toChoice.buildWidget(
-            "Cycle known competitors; ignored when Broadcast is on."))
-        bodyEntry = Gtk.Entry("")
-        bodyEntry.setTooltip("Private or broadcast message body.")
+            "Known competitors; ignored when Broadcast is on."))
         page.append(Gtk.Label("Message"))
-        page.append(bodyEntry)
+        Gtk.ScrolledWindow bodyScroll = Gtk.ScrolledWindow()
+        bodyScroll.setHExpand(true)
+        bodyScroll.setVExpand(true)
+        bodyView = Gtk.TextView()
+        bodyView.setTooltip("Private or broadcast message body.")
+        bodyScroll.setChild(bodyView)
+        page.append(bodyScroll)
         broadcastBtn = Gtk.CheckButton("Broadcast to all known")
         broadcastBtn.setTooltip(
             "Send to every known competitor (same PUT /message).")
@@ -132,7 +137,7 @@ class GuiDigestPage {
     /*
      * Rebuild recipient choices from knownCompetitors.
      *
-     * Purpose: Combo stand-in for the To Entry.
+     * Purpose: DropDown for the To recipient.
      *
      * Parameters: none.
      *
@@ -163,7 +168,7 @@ class GuiDigestPage {
     }
 
     /*
-     * Message body from the compose Entry.
+     * Message body from the compose TextView.
      *
      * Purpose: Send handler.
      *
@@ -172,7 +177,10 @@ class GuiDigestPage {
      * Returns: body text (may be empty).
      */
     String bodyValue() {
-        return(bodyEntry.text())
+        if (bodyView == null) {
+            return("")
+        }
+        return(bodyView.text())
     }
 
     /*

@@ -2,8 +2,8 @@
  * src/client/guiYardPage.cw — Ships panel design / yard chrome.
  *
  * Design develop + yard build / reclaim (DIALOGS §6). Kind / yard /
- * design / reclaim-fleet use GuiChoiceRow; reclaim hulls use a
- * Scale (Spin stand-in). Float fields stay Entries. Progress
+ * design / reclaim-fleet use GuiChoiceRow (DropDown); reclaim hulls
+ * use a SpinButton. Float fields stay Entries. Progress
  * footer uses Gtk.ProgressBar. Hosted in Ships menubar panel dialog.
  *
  * Created: 2026-11-07
@@ -50,7 +50,7 @@ class GuiYardPage {
     GuiChoiceRow planetChoice
     GuiChoiceRow designChoice
     GuiChoiceRow reclaimFleetChoice
-    Gtk.Scale reclaimHullsScale
+    Gtk.SpinButton reclaimHullsSpin
     Gtk.Label reclaimHullsLabel
     Gtk.Button developBtn
     Gtk.Button buildBtn
@@ -87,7 +87,7 @@ class GuiYardPage {
         planetChoice = GuiChoiceRow()
         designChoice = GuiChoiceRow()
         reclaimFleetChoice = GuiChoiceRow()
-        reclaimHullsScale = null
+        reclaimHullsSpin = null
         reclaimHullsLabel = null
         developBtn = null
         buildBtn = null
@@ -193,18 +193,18 @@ class GuiYardPage {
         reclaimHullsLabel.setTooltip(
             "How many hulls to reclaim from the sitting fleet.")
         page.append(reclaimHullsLabel)
-        reclaimHullsScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
+        reclaimHullsSpin = Gtk.SpinButton()
         GuiScaleRange initHulls = GuiScaleRange()
         initHulls.normalize(1.0, 1.0, 1.0, 1.0)
-        reclaimHullsScale.configure(
+        reclaimHullsSpin.configure(
             initHulls.value, initHulls.lower, initHulls.upper,
             initHulls.step)
-        reclaimHullsScale.setTooltip(
-            "Reclaim hull count — Scale stand-in for SpinButton.")
+        reclaimHullsSpin.setTooltip(
+            "Reclaim hull count — SpinButton.")
         if (reclaimHullsChangedAction != null) {
-            reclaimHullsScale.onValueChanged(reclaimHullsChangedAction)
+            reclaimHullsSpin.onValueChanged(reclaimHullsChangedAction)
         }
-        page.append(reclaimHullsScale)
+        page.append(reclaimHullsSpin)
         reclaimBtn = Gtk.Button("Reclaim hulls")
         reclaimBtn.setTooltip(
             "PUT /reclaim-hulls at a productive shipyard.")
@@ -256,7 +256,7 @@ class GuiYardPage {
         syncYardPlanetChoices()
         syncDesignChoices()
         syncReclaimFleetChoices()
-        syncReclaimHullsScale()
+        syncReclaimHullsSpin()
     }
 
     /*
@@ -338,16 +338,16 @@ class GuiYardPage {
     }
 
     /*
-     * Reconfigure reclaim hulls Scale from the selected fleet.
+     * Reconfigure reclaim hulls SpinButton from the selected fleet.
      *
-     * Purpose: Spin stand-in clamped to hullCount.
+     * Purpose: SpinButton clamped to hullCount.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
-    void syncReclaimHullsScale() {
-        if (reclaimHullsScale == null) {
+    void syncReclaimHullsSpin() {
+        if (reclaimHullsSpin == null) {
             return()
         }
         FleetRow row = core.view.findFleet(reclaimFleetValue())
@@ -355,7 +355,7 @@ class GuiYardPage {
         if (row.id >= 0 and row.hullCount > 0) {
             maxHulls = row.hullCount
         }
-        fp64 cur = reclaimHullsScale.value()
+        fp64 cur = reclaimHullsSpin.value()
         GuiScaleRange hullRange = GuiScaleRange()
         hullRange.normalize(cur, 1.0, fp64(maxHulls), 1.0)
         /*
@@ -369,7 +369,7 @@ class GuiYardPage {
             hullRange.value = 1.0
         }
         suppressHulls = true
-        reclaimHullsScale.configure(
+        reclaimHullsSpin.configure(
             hullRange.value, hullRange.lower, hullRange.upper,
             hullRange.step)
         suppressHulls = false
@@ -386,13 +386,13 @@ class GuiYardPage {
      * Returns: nothing.
      */
     void onReclaimFleetChanged() {
-        syncReclaimHullsScale()
+        syncReclaimHullsSpin()
     }
 
     /*
-     * Reclaim hulls Scale moved — refresh caption.
+     * Reclaim hulls SpinButton moved — refresh caption.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
      *   value — new thumb value.
@@ -407,7 +407,7 @@ class GuiYardPage {
     }
 
     /*
-     * Refresh reclaim hulls caption from the Scale.
+     * Refresh reclaim hulls caption from the SpinButton.
      *
      * Purpose: live label next to the slider.
      *
@@ -545,19 +545,19 @@ class GuiYardPage {
     }
 
     /*
-     * Read reclaim hulls from the Scale.
+     * Read reclaim hulls from the SpinButton.
      *
      * Purpose: PUT /reclaim-hulls hull count.
      *
      * Parameters: none.
      *
-     * Returns: hull count (>= 1 when Scale exists).
+     * Returns: hull count (>= 1 when SpinButton exists).
      */
     int64 reclaimHullsValue() {
-        if (reclaimHullsScale == null) {
+        if (reclaimHullsSpin == null) {
             return(1)
         }
-        int64 hulls = int64(reclaimHullsScale.value() + 0.5)
+        int64 hulls = int64(reclaimHullsSpin.value() + 0.5)
         if (hulls < 1) {
             hulls = 1
         }

@@ -58,7 +58,7 @@ remain separate TransientWindows.
 | Map right-click context menu | Right-click / selected planet | **Exists** — status + explored + zoom-to-known + dispatch/budget (owned) |
 | Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets panel choice rows/buttons; map pick fills dest; ContextMenu “Dispatch fleet here” → `PUT /order` |
 | Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships panel list stand-ins) |
-| Compose private message | Player chooses send-to known competitor | **Exists** (Digest panel choice row + body Entry; native DropDown still deferred) |
+| Compose private message | Player chooses send-to known competitor | **Exists** (Digest panel DropDown + multiline TextView) |
 | Known-competitors picker | Contact adds names; compose-to-pick | **Exists** (list + To choice row) |
 | Pause control | Exactly one human | Server gate **Exists**; client CheckButton **Exists (TUNING B)** (sensitive only when offered) |
 | Connection / drop / AFK notices | Human-visible presence feedback | **Intended playable** where human-visible; details **open** |
@@ -149,11 +149,11 @@ sitting multi-hull stack so remaining hulls can go elsewhere.
 
 | Field | Control (intended) | Today | Status |
 | --- | --- | --- | --- |
-| Role (empire-wide) | Entry or dropdown; not dual roles per partner | `GuiChoiceRow` (prev/next; native DropDown still missing) | **Exists**; native DropDown polish **Intended** |
-| Expansion % | Slider | `Scale` | **Exists** |
-| Escort % | Slider | `Scale` | **Exists** |
-| Agreement size `S` | Slider / spin | `Scale` | **Exists** — **player–player** `S` |
-| Tech bias % | Slider | `Scale` | **Exists** |
+| Role (empire-wide) | Entry or dropdown; not dual roles per partner | `GuiChoiceRow` → `Gtk.DropDown` | **Exists** |
+| Expansion % | Slider / spin | `SpinButton` (0–100) | **Exists** |
+| Escort % | Slider / spin | `SpinButton` (0–100) | **Exists** |
+| Agreement size `S` | Slider / spin | `SpinButton` (0–100) | **Exists** — **player–player** `S` |
+| Tech bias % | Slider / spin | `SpinButton` (0–100) | **Exists** |
 | Apply | Button → PUT `/policy` anytime | Present | **Exists** |
 
 **Flow:** edit anytime; no peer wait; mid-dispatch other policy OK
@@ -212,9 +212,9 @@ ticks) — not instant.
 | **Yard / build queue** | Produce hulls (resources) at productive shipyard; show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships panel → `PUT /build` / `PUT /reclaim-hulls` |
 | **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets panel-dialog `Gtk.ProgressBar` footer (develop/build from ticksLeft / setup total; Fleets also has **travel** bar from eta/outboundEta; pulse if indeterminate) + detail Label from chrome trailer |
 
-Enum/id picks use `GuiChoiceRow` (Combo stand-in); integer
-ranges use `Scale` (Spin stand-in) because Cwhip GTK still lacks
-`DropDown` / `SpinButton`. Float design fields stay Entries.
+Enum/id picks use `GuiChoiceRow` (thin `Gtk.DropDown` wrapper);
+integer ranges use `Gtk.SpinButton`. Float design fields stay
+Entries; digest compose body uses `Gtk.TextView`.
 ProgressBars live in the Fleets / Ships `GuiPanelDialog` footers
 (top-level menubar). Timed develop/build use existing
 `State.queueDesignDevelop` / `queueYardBuild` / `queueReclaim`.
@@ -340,9 +340,6 @@ v1. File/scenario edit remains the v1 path.
 - Richer design editor (weapons/shields fields) beyond Entries
 - Human-visible AFK / drop notices (peer notify still open)
 - Full multi-partner agreements UI beyond single `agreementS` stub
-- Native Cwhip `DropDown` / `SpinButton` once bound (choice-row /
-  Scale stand-ins cover role / order / kind / ids / hulls today)
-
 ### Deferred
 
 - Server setup GUI dialog hierarchy (§10)

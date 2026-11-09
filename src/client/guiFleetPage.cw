@@ -2,8 +2,8 @@
  * src/client/guiFleetPage.cw — fleets panel + dispatch/recall chrome.
  *
  * List stand-in for map pick-to-dispatch (TUNING-PLAYABLE B2).
- * Order / fleet / dest use GuiChoiceRow (Combo stand-in); hulls
- * use a Scale (Spin stand-in). Travel ProgressBar tracks the
+ * Order / fleet / dest use GuiChoiceRow (DropDown); hulls use a
+ * SpinButton. Travel ProgressBar tracks the
  * selected (or lead in-flight) fleet. Develop/build bars reuse
  * GuiProgressChrome. Hosted in Fleets menubar panel dialog.
  *
@@ -35,7 +35,7 @@ include "planetRow.cw"
  * GuiFleetPage owns the Fleets panel dialog widgets.
  *
  * Dispatch chrome feeds PUT /order; Recall uses PUT /recall.
- * Hulls Scale peels a subset from a multi-hull sitting stack
+ * Hulls SpinButton peels a subset from a multi-hull sitting stack
  * (0 = whole fleet). Travel bar uses eta / outboundEta.
  */
 class GuiFleetPage {
@@ -45,7 +45,7 @@ class GuiFleetPage {
     GuiChoiceRow fleetChoice
     GuiChoiceRow orderChoice
     GuiChoiceRow destChoice
-    Gtk.Scale hullsScale
+    Gtk.SpinButton hullsSpin
     Gtk.Label hullsLabel
     Gtk.ProgressBar travelBar
     Gtk.Button dispatchBtn
@@ -75,7 +75,7 @@ class GuiFleetPage {
         fleetChoice = GuiChoiceRow()
         orderChoice = GuiChoiceRow()
         destChoice = GuiChoiceRow()
-        hullsScale = null
+        hullsSpin = null
         hullsLabel = null
         travelBar = null
         dispatchBtn = null
@@ -137,18 +137,18 @@ class GuiFleetPage {
         hullsLabel.setTooltip(
             "0 sends the whole sitting stack; >0 peels that many.")
         page.append(hullsLabel)
-        hullsScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
+        hullsSpin = Gtk.SpinButton()
         GuiScaleRange initHulls = GuiScaleRange()
         initHulls.normalize(0.0, 0.0, 1.0, 1.0)
-        hullsScale.configure(
+        hullsSpin.configure(
             initHulls.value, initHulls.lower, initHulls.upper,
             initHulls.step)
-        hullsScale.setTooltip(
+        hullsSpin.setTooltip(
             "Hulls to peel from the sitting stack (0 = all).")
         if (hullsChangedAction != null) {
-            hullsScale.onValueChanged(hullsChangedAction)
+            hullsSpin.onValueChanged(hullsChangedAction)
         }
-        page.append(hullsScale)
+        page.append(hullsSpin)
         lockHint = Gtk.Label(
             "In-flight lock: rewrite disabled; use Recall.")
         lockHint.setTooltip(
@@ -210,7 +210,7 @@ class GuiFleetPage {
         }
         syncFleetChoices()
         syncDestChoices()
-        syncHullsScale()
+        syncHullsSpin()
         refreshTravelBar()
         if (progressChrome != null) {
             progressChrome.refresh()
@@ -298,16 +298,16 @@ class GuiFleetPage {
     }
 
     /*
-     * Reconfigure hulls Scale upper from the selected fleet.
+     * Reconfigure hulls SpinButton upper from the selected fleet.
      *
-     * Purpose: Spin stand-in clamped to the stack size.
+     * Purpose: SpinButton clamped to the stack size.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
-    void syncHullsScale() {
-        if (hullsScale == null) {
+    void syncHullsSpin() {
+        if (hullsSpin == null) {
             return()
         }
         FleetRow row = core.view.findFleet(fleetIdValue())
@@ -315,11 +315,11 @@ class GuiFleetPage {
         if (row.id >= 0 and row.hullCount > 0) {
             maxHulls = row.hullCount
         }
-        fp64 cur = hullsScale.value()
+        fp64 cur = hullsSpin.value()
         GuiScaleRange hullRange = GuiScaleRange()
         hullRange.normalize(cur, 0.0, fp64(maxHulls), 1.0)
         suppressHulls = true
-        hullsScale.configure(
+        hullsSpin.configure(
             hullRange.value, hullRange.lower, hullRange.upper,
             hullRange.step)
         suppressHulls = false
@@ -395,15 +395,15 @@ class GuiFleetPage {
      * Returns: nothing.
      */
     void onFleetChoiceChanged() {
-        syncHullsScale()
+        syncHullsSpin()
         syncLockChrome()
         refreshTravelBar()
     }
 
     /*
-     * Hulls Scale moved — refresh caption.
+     * Hulls SpinButton moved — refresh caption.
      *
-     * Purpose: Gtk.Scale.onValueChanged.
+     * Purpose: Gtk.SpinButton.onValueChanged.
      *
      * Parameters:
      *   value — new thumb value.
@@ -418,7 +418,7 @@ class GuiFleetPage {
     }
 
     /*
-     * Refresh the hulls caption from the Scale.
+     * Refresh the hulls caption from the SpinButton.
      *
      * Purpose: live label next to the slider.
      *
@@ -509,7 +509,7 @@ class GuiFleetPage {
     }
 
     /*
-     * Read hulls-to-send from the Scale.
+     * Read hulls-to-send from the SpinButton.
      *
      * Purpose: peel a subset from a multi-hull sitting stack
      * before PUT /order (0 = dispatch the whole fleet).
@@ -519,10 +519,10 @@ class GuiFleetPage {
      * Returns: nearest int hull count.
      */
     int64 hullsValue() {
-        if (hullsScale == null) {
+        if (hullsSpin == null) {
             return(0)
         }
-        int64 hulls = int64(hullsScale.value() + 0.5)
+        int64 hulls = int64(hullsSpin.value() + 0.5)
         if (hulls < 0) {
             return(0)
         }
@@ -546,8 +546,8 @@ class GuiFleetPage {
             list ids = []
             ids.append(text)
             int64 index = 0
-            while (index < destChoice.choices.length) {
-                String item = destChoice.choices[index]
+            while (index < destChoice.pendingChoices.length) {
+                String item = destChoice.pendingChoices[index]
                 if (not item.equals(text)) {
                     ids.append(item)
                 }

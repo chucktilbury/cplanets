@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-09  Initial lobby-hold / no-ghost regression unit.
+ *   2026-11-09  Reject order/build in lobby; publishPausedFlag.
  */
 
 include "lib/state.cw"
@@ -53,6 +54,22 @@ start {
         ok = false
     }
     if (ok and lobby.seatedCount() != 3) {
+        ok = false
+    }
+    # Play verbs must wait for go — connect alone is not serve-start.
+    if (ok and not lobby.publishPausedFlag()) {
+        ok = false
+    }
+    if (ok and lobby.issueOwnedOrder(0, 1, "explore", 1, 0)) {
+        ok = false
+    }
+    if (ok and lobby.lastOrderError.find("lobby") < 0) {
+        ok = false
+    }
+    if (ok and lobby.queueOwnedBuild(0, 0, 0)) {
+        ok = false
+    }
+    if (ok and lobby.game.builds.length != 0) {
         ok = false
     }
 

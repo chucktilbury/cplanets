@@ -14,6 +14,8 @@
  *   2026-11-08  Player detail: connected / suspended presence.
  *   2026-11-08  Summary shows phase=lobby|running.
  *   2026-11-08  Summary shows seated count vs soft max when set.
+ *   2026-11-09  Summary paused= reflects lobby clock hold
+ *               (publishPausedFlag), not only the raw pause flag.
  */
 
 include "config.cw"
@@ -66,7 +68,7 @@ class StatusViews {
             phase = "lobby"
         }
         String paused = "false"
-        if (driver.paused) {
+        if (driver.publishPausedFlag()) {
             paused = "true"
         }
         String ended = "false"

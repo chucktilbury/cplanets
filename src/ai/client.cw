@@ -22,6 +22,8 @@
  *               only clear after an explicit reject ack.
  *   2026-11-09  PUT /order + PUT /build from AiOrderPlan so AI
  *               fleets explore / take / yard-build after go.
+ *   2026-11-09  Skip order/build while published paused (lobby
+ *               hold until operator go, or explicit pause).
  */
 
 import networking as Networking
@@ -443,8 +445,10 @@ class AiClient {
      * fleets leave home so quality gets explored. Uses the last
      * decoded GET snapshot in explore and the last / freshly
      * generated policy shape for expansion bias. Skips while the
-     * status menu pauses decisions. Failures are logged; a rejected
-     * order does not abort the serve-loop.
+     * status menu pauses decisions, and while the published
+     * snapshot is paused (lobby hold until operator go, or
+     * explicit pause). Failures are logged; a rejected order does
+     * not abort the serve-loop.
      *
      * Parameters:
      *   cycleIndex — serve-loop index, or −1 to omit cycle logs.
@@ -457,6 +461,11 @@ class AiClient {
             return(true)
         }
         if (not explore.hasSnapshot) {
+            return(true)
+        }
+        # Server publishes lobby hold as paused until operator go;
+        # do not queue explore/build against a held clock.
+        if (explore.snapshot.paused) {
             return(true)
         }
         AiPolicyShape shape = explore.lastPolicy

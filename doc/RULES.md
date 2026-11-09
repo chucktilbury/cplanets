@@ -99,12 +99,14 @@ rejoin feature (see Session below).
 then **running**. In lobby the server accepts TCP, allocates seats,
 issues reconnect tokens, and the operator status menu works, but
 **wall ticks do not advance** (injectable `/admin/advance` is also
-blocked). The operator starts the game with console **`g`+Enter**
-(banner `GO_KEY=g`), status-menu **Go**, or harness
-`PUT /admin/go` — all share one `go()` path. Later “all humans
-ready” may call that same path; **v1 = operator go only** (auto-ready
-is a stub). After go, phase is **running** and cadence proceeds as
-below.
+blocked), **play verbs** (order / build / design / recall / reclaim /
+budget) are rejected, and published chrome reports the hold as
+**paused** so clients do not treat connect as serve-start. The
+operator starts the game with console **`g`+Enter** (banner
+`GO_KEY=g`), status-menu **Go**, or harness `PUT /admin/go` — all
+share one `go()` path. Later “all humans ready” may call that same
+path; **v1 = operator go only** (auto-ready is a stub). After go,
+phase is **running** and cadence proceeds as below.
 
 **Seat allocation (v1).** The **server allocates seats** on connect.
 Clients must **not** choose `playerId` as seating authority — there

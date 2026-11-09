@@ -155,9 +155,13 @@ max summary, players (wealth, owned planets/fleets/ships), planet and
 fleet detail, designs / yard jobs, and a dump of loaded server +
 scenario knobs. In lobby the menu also offers **Go**. Config
 create/save is out of scope. **Ticks pause while the menu is open**
-and the prior pause flag is restored on `q` (clients can wait). The
-serve loop polls stdin non-blocking between accepts, so TCP accept is
-not blocked forever waiting for menu input.
+and the prior pause flag is restored on `q` (clients can wait). From
+lobby, menu **`g` leaves lobby, closes the menu, and restores pause**
+so wall ticks may advance — it must not stay in a non-lobby menu with
+clients still held. The serve loop polls stdin non-blocking between
+accepts and **drains stray / blank console lines** each cycle so a
+junk keystroke (or bare Enter) then `m` still opens the menu; TCP
+accept is not blocked forever waiting for menu input.
 
 **Bind address:** default `127.0.0.1` (loopback), matching the
 prior hard-coded TCP listen. Set `host = 0.0.0.0` (or CLI

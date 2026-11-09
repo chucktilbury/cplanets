@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Status menu Go / stdin flush:** from lobby, status-menu **`g`**
+  leaves lobby **and closes the menu** so the prior pause flag is
+  restored and clients are not left held in a non-lobby menu.
+  Top-level **`q`** still resumes without go. The serve stdin gate
+  drains stray / blank console lines each cycle (blank Enter is not
+  EOF) so a junk keystroke then `m` still opens the menu. Docs:
+  [CPLANETS.md](CPLANETS.md). Tests: `functional_status_menu`.
+
 - **Lobby AI connect abort:** lobby no longer runs end-status
   (all-humans-quit / eliminate-all) before operator go, so a
   connecting AI cannot tear down the server on handshake_miss.

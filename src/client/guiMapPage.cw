@@ -5,12 +5,13 @@
  * zoom-to-known + dispatch/budget). Draws visible planets with
  * status colors and in-flight dotted ETA paths when outboundEta
  * is published. Primary pick fills Fleets dest via GuiMain.
- * List notebook stays alongside via GuiMain Paned (PLAN §4.I).
+ * Main-window panel; list chrome is View-menu dialogs (PLAN §4.I).
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
+ *   2026-11-09  Main-window map panel (notebook side panel gone).
  *   2026-11-07  Initial map panel wiring.
  *   2026-11-07  Pick-to-dispatch + ContextMenu budget/dispatch.
  */
@@ -115,10 +116,12 @@ class GuiMapPage {
      *
      * Parameters: none.
      *
-     * Returns: page widget for Paned / Notebook.
+     * Returns: page widget for the main-window map panel.
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 4)
+        page.setHExpand(true)
+        page.setVExpand(true)
         pickLabel = Gtk.Label(
             "Map: click sets fleet dest; drag pan; wheel zoom")
         pickLabel.setHExpand(true)

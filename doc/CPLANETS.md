@@ -37,12 +37,13 @@ exits **0**. Unknown flags fail loud (exit 2).
 auto-load a default config from the user's home directory. Until that
 lands, always pass an explicit `--config PATH`.
 
-**Map canvas (Phase I) ships** as a DrawingArea panel beside the list
-notebook: hot spots, status colors, dotted in-flight ETA paths when
-published, mouse pick/pan/zoom, Scrollbars, and a right-click
-ContextMenu (planet status + zoom-to-known). Remaining GTK polish
-(dash/text paint, Scale on policy knobs, config-driven setup UI) is
-listed in [GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
+**Map canvas (Phase I) ships** as the main DrawingArea panel; former
+list notebook tabs open from the **View** menu as non-modal dialogs.
+Hot spots, status colors, dotted in-flight ETA paths when published,
+mouse pick/pan/zoom, Scrollbars, and a right-click ContextMenu
+(planet status + zoom-to-known). Remaining GTK polish (dash/text
+paint, config-driven setup UI) is listed in
+[GTK-FEATURE-GAPS.md](GTK-FEATURE-GAPS.md).
 
 ---
 
@@ -221,7 +222,7 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | `--player N` | `player_id` | Offline seat id only (`--once` / `port 0`); TCP seats are server-assigned on handshake |
 | `--once` | `once` | In-process closed galaxy; print list summary (no TCP, no GTK) |
 | `--pull` | `pull` | TCP GET state + digest summary (needs `port > 0`) |
-| `--gui` | `gui` | GTK notebook debugger |
+| `--gui` | `gui` | GTK map + View-menu panel dialogs |
 | `--test` | `test` | GTK path that auto-quits after a short schedule |
 
 With `--gui` / `--test` and `port > 0`, the client pulls from the
@@ -233,31 +234,32 @@ server without extra flags. A failed TCP connect / pull prints
 with the same host:port detail (status line updated; `--test` skips
 the dialog so auto-quit stays quiet).
 
-**Tuning-loop chrome (workstream B + ship create, no map):** Pause
+**Tuning-loop chrome (workstream B + ship create + map):** Pause
 CheckButton (sensitive only with exactly one human; `PUT /pause`).
-Fleets tab Entries + Dispatch / Recall (`PUT /order`, `PUT /recall`)
-for explore / take / trade / move / ambush / recall — in-flight
-fleets show `LOCKED` and Dispatch is disabled until Recall.
+Open former Notebook surfaces from the **View** menu (non-modal
+dialogs). **View→Fleets** Entries + Dispatch / Recall (`PUT /order`,
+`PUT /recall`) for explore / take / trade / move / ambush / recall —
+in-flight fleets show `LOCKED` and Dispatch is disabled until Recall.
 **Fleet id** defaults to the lowest sitting owned stack (never `0`;
 yard builds merge into / spawn that sit fleet — Refresh if the
 list looks stale). **Hulls to send** (`0` = whole sitting stack)
 peels a subset when yard builds have merged same-design hulls into
 one sit fleet, so you can send 2 of 4 to planet 1 and the rest
 elsewhere. Rejected dispatch shows a clear reason (missing fleet,
-not sitting, …). **Ships
-tab** (design / yard): inspect the published design catalog and
-owned yards; **Start develop** (`PUT /design`) queues timed design
-development (wealth; `design_develop_ticks`); **Queue build**
-(`PUT /build`) queues a hull at a productive owned shipyard
-(resources; `yard_build_ticks`); **Reclaim hulls**
-(`PUT /reclaim-hulls`) starts yard reclaim for a sitting fleet.
-Progress label shows active develop / build / reclaim jobs. Policy
-tab Entries + Apply unchanged. Planets tab allocation **Scale** →
-`PUT /budget` stores `allocationPct`; each production tick credits
-empire wealth/resources from that productive rock ×
-`allocationPct/100` (no yard logistics). Explored-planet dialog
-auto-presents when quality becomes known or productive/populated
-flips; Planets tab still has “Show first explored”.
+not sitting, …). **View→Ships** (design / yard): inspect the
+published design catalog and owned yards; **Start develop**
+(`PUT /design`) queues timed design development (wealth;
+`design_develop_ticks`); **Queue build** (`PUT /build`) queues a
+hull at a productive owned shipyard (resources; `yard_build_ticks`);
+**Reclaim hulls** (`PUT /reclaim-hulls`) starts yard reclaim for a
+sitting fleet. Develop/build **ProgressBars** live in the Fleets
+and Ships dialogs. **View→Policy** Scales + Apply. **View→Planets**
+allocation **Scale** → `PUT /budget` stores `allocationPct`; each
+production tick credits empire wealth/resources from that productive
+rock × `allocationPct/100` (no yard logistics). Explored-planet
+dialog auto-presents when quality becomes known or
+productive/populated flips; Planets dialog still has “Show first
+explored”.
 
 ### `cplanets-ai`
 
@@ -372,10 +374,10 @@ open its status menu anytime with stdin `m` (decisions pause until
 `q`). For automated harnesses, add `--injectable` on the server so
 tests can advance ticks without waiting on wall time.
 
-**Ship create / design / yard (Ships tab):**
+**Ship create / design / yard (View→Ships):**
 
-1. Open **Ships**. After handshake, confirm home yard (planet 0 for
-   seat 0) and ready designs (seeded scout/colony are ready
+1. Open **View→Ships**. After handshake, confirm home yard (planet 0
+   for seat 0) and ready designs (seeded scout/colony are ready
    immediately). Homes are created when the client connects, not
    when the server starts.
 2. **Start develop** — set name / speed / hop / size / cargo / kind
@@ -387,7 +389,7 @@ tests can advance ticks without waiting on wall time.
 3. **Queue build** — enter a productive owned yard planet id and a
    **ready** design id. Cost ≈ `size * 10` resources. When
    `yard_build_ticks` complete, a sitting hull appears at the yard
-   (then use Fleets → Dispatch).
+   (then use View→Fleets → Dispatch).
 4. **Reclaim hulls** — sitting fleet at a yard; reclaim returns a
    setup percent of production resources after the same yard
    duration (development wealth is never refunded).

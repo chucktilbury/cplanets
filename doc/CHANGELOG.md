@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Human View menu + non-modal panel dialogs:** former Notebook tabs
+  (Planets / Fleets / Ships / Digest / Policy) open from **View** as
+  hide-on-close `GuiPanelDialog` TransientWindows. Map canvas is the
+  main panel. Develop/build **ProgressBars** stay in Fleets / Ships
+  dialogs. Map ContextMenu dispatch/budget raises Fleets / Planets.
+  Docs: [DIALOGS.md](DIALOGS.md), [CPLANETS.md](CPLANETS.md).
 - **Unified server config:** process/network and former §14 scenario
   knobs live in one `--config` file (`config/server-*.cfg`). Legacy
   `setup = PATH` is rejected with a migration hint; CLI `--setup` is

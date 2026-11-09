@@ -3,7 +3,8 @@
  *
  * Visibility-limited planet list plus per-owned-planet allocation
  * Scale (DIALOGS §4.2). PUT /budget stores allocationPct; the
- * production tick scales empire-pool credit by pct/100.
+ * production tick scales empire-pool credit by pct/100. Hosted in
+ * the View→Planets non-modal panel dialog.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -12,13 +13,14 @@
  *   2026-11-07  Initial planets + budget chrome page.
  *   2026-11-07  Default Scale 100 matches full production.
  *   2026-11-07  Map ContextMenu: setPlanetId for budget Entry.
+ *   2026-11-09  Hosted in View→Planets panel dialog.
  */
 
 include "appCore.cw"
 include "planetRow.cw"
 
 /*
- * GuiPlanetPage owns the Planets notebook page widgets.
+ * GuiPlanetPage owns the Planets panel dialog widgets.
  *
  * Budget Entry picks a planet id; Scale sets allocationPct;
  * Apply → PUT /budget when live.
@@ -57,16 +59,18 @@ class GuiPlanetPage {
     }
 
     /*
-     * Build the Planets notebook page widget tree.
+     * Build the Planets panel dialog widget tree.
      *
      * Purpose: scrolled list + explored button + budget Scale.
      *
      * Parameters: none.
      *
-     * Returns: page widget for Notebook.appendPage.
+     * Returns: page widget for GuiPanelDialog.setContent.
      */
     Gtk.Widget buildPage() {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
+        page.setHExpand(true)
+        page.setVExpand(true)
         planetList = Gtk.Label("(no planets)")
         planetList.setHExpand(true)
         planetList.setVExpand(true)
@@ -172,7 +176,7 @@ class GuiPlanetPage {
      * Write the budget planet Entry from a map pick.
      *
      * Purpose: GuiMapPage ContextMenu "Budget this planet" fills
-     * the Planets-tab allocation chrome without a second budget
+     * the Planets panel allocation chrome without a second budget
      * surface.
      *
      * Parameters:

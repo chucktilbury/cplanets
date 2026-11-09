@@ -1,16 +1,17 @@
 /*
  * src/client/guiProgressChrome.cw — develop / build ProgressBars.
  *
- * Shared footer chrome for Ships (and Fleets) notebook pages.
- * Horizontal bars + detail label sit in a vertical Box so the same
- * block can move into a non-modal dialog header/footer later —
- * nothing here depends on Notebook tab chrome (CPL-72 / DIALOGS §6).
+ * Shared footer chrome for Ships and Fleets panel dialogs.
+ * Horizontal bars + detail label sit in a vertical Box inside the
+ * non-modal View→Fleets / View→Ships TransientWindows (CPL-72 /
+ * DIALOGS §6). Nothing here depends on Notebook tab chrome.
  *
  * Created: 2026-11-08
  * Author: Auto
  *
  * Changelog:
  *   2026-11-08  Initial GuiProgressChrome (fraction / pulse).
+ *   2026-11-09  Hosted in Fleets / Ships panel dialogs.
  */
 
 include "appCore.cw"

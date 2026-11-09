@@ -127,18 +127,23 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
 
 **Lobby / go (while serving):** the server starts in **lobby**
-(`PHASE=lobby`). TCP accept, seat allocate (grow-on-connect),
-reconnect tokens, and the status menu work, but **wall ticks do not
-advance** until the operator starts the game. End-of-game checks
-(all-humans-quit / eliminate-all) also wait until go — connecting
-an AI in lobby must not end the server. Type **`g` then Enter**
-on the server console (banner prints `GO_KEY=g`) — or choose **Go**
-in the status menu — to leave lobby (`PHASE=running`). Go starts with
-**whatever seats are already allocated**; it does not wait for
-`--players` / soft max. Harnesses may `PUT /admin/go` (same path).
-Later “all humans ready” can share that path; v1 is operator go only.
-Injectable `/admin/advance` is also blocked until go. AI clients
-allocate with handshake kind=`1` (marked non-human).
+(`PHASE=lobby`) whether or not a `--setup` / scenario is loaded.
+TCP accept, seat allocate (grow-on-connect), reconnect tokens, and
+the status menu work, but **wall ticks do not advance** (and the
+game clock stays at tick 0) until the operator starts the game —
+the first client connect does **not** leave lobby. End-of-game
+checks (all-humans-quit / eliminate-all) also wait until go —
+connecting an AI in lobby must not end the server. Later clients may
+still connect and get seats while in lobby. Lobby miss-drop clears
+the reconnect token so a restarted client reuses the seat (no ghost
+seats); after go, drop keeps the token for reclaim. Type **`g` then
+Enter** on the server console (banner prints `GO_KEY=g`) — or choose
+**Go** in the status menu — to leave lobby (`PHASE=running`). Go
+starts with **whatever seats are already allocated**; it does not
+wait for `--players` / soft max. Harnesses may `PUT /admin/go`
+(same path). Later “all humans ready” can share that path; v1 is
+operator go only. Injectable `/admin/advance` is also blocked until
+go. AI clients allocate with handshake kind=`1` (marked non-human).
 
 **Seats / `players`:** live serve starts with **zero** seats and
 **grows** a seat on empty-body handshake when needed. `players` /

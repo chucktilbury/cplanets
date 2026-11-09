@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Lobby hold + no ghost seats:** lobby stays until operator `g`
+  with or without a scenario; first/later client connects allocate
+  seats but do not start the game clock. Lobby miss-drop / explicit
+  drop clears reconnect tokens so abandoned seats are reused (no
+  ghost grow when an AI/human restarts without the in-memory token);
+  after go, drop still keeps tokens for reclaim. Human/AI clients
+  keep the token on empty/network handshake failure and only clear
+  it after an explicit reject ack. Unit: `unit_lobbyHoldGhosts`
+  (also updates `unit_homeOnConnect`).
+
 - **Lobby AI connect abort:** lobby no longer runs end-status
   (all-humans-quit / eliminate-all) before operator go, so a
   connecting AI cannot tear down the server on handshake_miss.

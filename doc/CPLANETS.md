@@ -236,24 +236,24 @@ the dialog so auto-quit stays quiet).
 
 **Tuning-loop chrome (workstream B + ship create + map):** Pause
 CheckButton (sensitive only with exactly one human; `PUT /pause`).
-Open former Notebook surfaces from **top-level menubar** menus
-(non-modal dialogs). **Fleets→Open** Entries + Dispatch / Recall (`PUT /order`,
-`PUT /recall`) for explore / take / trade / move / ambush / recall —
-in-flight fleets show `LOCKED` and Dispatch is disabled until Recall.
-**Fleet id** defaults to the lowest sitting owned stack (never `0`;
-yard builds merge into / spawn that sit fleet — Refresh if the
-list looks stale). **Hulls to send** (`0` = whole sitting stack)
-peels a subset when yard builds have merged same-design hulls into
-one sit fleet, so you can send 2 of 4 to planet 1 and the rest
-elsewhere. Rejected dispatch shows a clear reason (missing fleet,
-not sitting, …). **Ships→Open** (design / yard): inspect the
-published design catalog and owned yards; **Start develop**
-(`PUT /design`) queues timed design development (wealth;
+Open former Notebook surfaces from **top-level menubar** root
+clicks (non-modal dialogs; no nested Open). **Fleets** Entries +
+Dispatch / Recall (`PUT /order`, `PUT /recall`) for explore / take /
+trade / move / ambush / recall — in-flight fleets show `LOCKED` and
+Dispatch is disabled until Recall. **Fleet id** defaults to the
+lowest sitting owned stack (never `0`; yard builds merge into /
+spawn that sit fleet — Refresh if the list looks stale). **Hulls to
+send** (`0` = whole sitting stack) peels a subset when yard builds
+have merged same-design hulls into one sit fleet, so you can send 2
+of 4 to planet 1 and the rest elsewhere. Rejected dispatch shows a
+clear reason (missing fleet, not sitting, …). **Ships** (design /
+yard): inspect the published design catalog and owned yards; **Start
+develop** (`PUT /design`) queues timed design development (wealth;
 `design_develop_ticks`); **Queue build** (`PUT /build`) queues a
 hull at a productive owned shipyard (resources; `yard_build_ticks`);
 **Reclaim hulls** (`PUT /reclaim-hulls`) starts yard reclaim for a
 sitting fleet. Develop/build **ProgressBars** live in the Fleets
-and Ships dialogs. **Policy→Open** Scales + Apply. **Planets→Open**
+and Ships dialogs. **Policy** Scales + Apply. **Planets**
 allocation **Scale** → `PUT /budget` stores `allocationPct`; each
 production tick credits empire wealth/resources from that productive
 rock × `allocationPct/100` (no yard logistics). Explored-planet
@@ -374,12 +374,12 @@ open its status menu anytime with stdin `m` (decisions pause until
 `q`). For automated harnesses, add `--injectable` on the server so
 tests can advance ticks without waiting on wall time.
 
-**Ship create / design / yard (Ships→Open):**
+**Ship create / design / yard (Ships root click):**
 
-1. Open **Ships→Open**. After handshake, confirm home yard (planet 0
-   for seat 0) and ready designs (seeded scout/colony are ready
-   immediately). Homes are created when the client connects, not
-   when the server starts.
+1. Open **Ships** (menubar root click). After handshake, confirm home
+   yard (planet 0 for seat 0) and ready designs (seeded scout/colony
+   are ready immediately). Homes are created when the client
+   connects, not when the server starts.
 2. **Start develop** — set name / speed / hop / size / cargo / kind
    (`scout` / `colony` / `defense` / `war`). Cost ≈ `size * 50 *
    design_speed_cost_coeff * design_range_cost_coeff` wealth. The
@@ -389,7 +389,7 @@ tests can advance ticks without waiting on wall time.
 3. **Queue build** — enter a productive owned yard planet id and a
    **ready** design id. Cost ≈ `size * 10` resources. When
    `yard_build_ticks` complete, a sitting hull appears at the yard
-   (then use Fleets→Open → Dispatch).
+   (then use Fleets → Dispatch).
 4. **Reclaim hulls** — sitting fleet at a yard; reclaim returns a
    setup percent of production resources after the same yard
    duration (development wealth is never refunded).

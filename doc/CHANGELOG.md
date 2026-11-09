@@ -2,13 +2,17 @@
 
 ## Unreleased
 
-- **Top-level panel menubar openers:** former Notebook tabs
-  (Planets / Fleets / Ships / Digest / Policy) are **top-level**
-  menubar menus (each with **Open**); no longer nested under View.
-  Hide-on-close `GuiPanelDialog` TransientWindows unchanged. Map
-  canvas remains the main panel. Map ContextMenu dispatch/budget
-  still raises Fleets / Planets. Docs: [DIALOGS.md](DIALOGS.md),
+- **Panel menubar root clicks:** Planets / Fleets / Ships / Digest /
+  Policy open their non-modal dialogs on the root label click (flat
+  Buttons beside File). No nested **Open** submenu — GtkPopoverMenuBar
+  cannot host leaf actions as top-level GMenu entries. File stays a
+  real MenuBar submenu. Map ContextMenu dispatch/budget still raises
+  Fleets / Planets. Docs: [DIALOGS.md](DIALOGS.md),
   [CPLANETS.md](CPLANETS.md).
+- **Top-level panel menubar openers:** former Notebook tabs
+  (Planets / Fleets / Ships / Digest / Policy) moved off View onto
+  top-level menubar chrome. Hide-on-close `GuiPanelDialog`
+  TransientWindows. Map canvas remains the main panel.
 - **Inventory model locked in RULES:** empire inventory = seat stocks
   + designs (empire pool only); planet inventory = location-scoped
   presence (sitting fleets, defenses, yard jobs, flags, allocation)

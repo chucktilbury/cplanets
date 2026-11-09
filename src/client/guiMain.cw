@@ -29,6 +29,8 @@
  *   2026-11-09  View dialogs usable: choice rows / Scales / tooltips
  *               / travel ProgressBar wiring.
  *   2026-11-09  Panel openers → top-level menubar menus (not View).
+ *   2026-11-09  Panel roots click-activate (flat Buttons; no Open
+ *               submenu — GtkPopoverMenuBar cannot host leaf roots).
  */
 
 include "appCore.cw"
@@ -201,6 +203,32 @@ class GuiMain {
     }
 
     /*
+     * Append a flat menubar-style panel opener Button.
+     *
+     * Purpose: raise a non-modal panel dialog on root-label click.
+     * GtkPopoverMenuBar cannot host leaf actions as top-level items
+     * (GTK requires submenus there), so panel names sit beside File
+     * as flat Buttons instead of Open submenus.
+     *
+     * Parameters:
+     *   strip — horizontal menu chrome Box (File MenuBar + openers).
+     *   label — button text (Planets / Fleets / Ships / Digest /
+     *     Policy).
+     *   action — show* callback from GuiPanelHost (may be null).
+     *
+     * Returns: nothing.
+     */
+    void appendPanelOpener(Gtk.Box strip, String label, void<> action) {
+        Gtk.Button btn = Gtk.Button(label)
+        btn.addCssClass("flat")
+        btn.setFocusOnClick(false)
+        if (action != null) {
+            btn.onClicked(action)
+        }
+        strip.append(btn)
+    }
+
+    /*
      * Application activate: build or present the main window.
      *
      * Purpose: Gtk.Application.onActivate entry.
@@ -219,23 +247,23 @@ class GuiMain {
         panels.setParent(window)
         Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 0)
         window.setChild(root)
+        /* File stays a real MenuBar submenu. Panel openers are flat
+         * Buttons beside it: GtkPopoverMenuBar only accepts submenus
+         * as top-level GMenu entries, so a nested Open item was the
+         * prior workaround. Click-to-activate roots need Buttons (or
+         * a future Cwhip MenuBar.addAction). */
+        Gtk.Box menuStrip = Gtk.Box(Gtk.Box.HORIZONTAL, 0)
         Gtk.MenuBar menu = Gtk.MenuBar()
         int64 fileMenu = menu.addMenu("File")
         menu.addItem(fileMenu, "Refresh", refreshAction)
         menu.addItem(fileMenu, "Quit", closeAction)
-        /* GtkPopoverMenuBar top-level entries are submenus; each
-         * panel name is its own root menu with a single Open item. */
-        int64 planetsMenu = menu.addMenu("Planets")
-        menu.addItem(planetsMenu, "Open", panels.showPlanetsAction)
-        int64 fleetsMenu = menu.addMenu("Fleets")
-        menu.addItem(fleetsMenu, "Open", panels.showFleetsAction)
-        int64 shipsMenu = menu.addMenu("Ships")
-        menu.addItem(shipsMenu, "Open", panels.showShipsAction)
-        int64 digestMenu = menu.addMenu("Digest")
-        menu.addItem(digestMenu, "Open", panels.showDigestAction)
-        int64 policyMenu = menu.addMenu("Policy")
-        menu.addItem(policyMenu, "Open", panels.showPolicyAction)
-        root.append(menu)
+        menuStrip.append(menu)
+        appendPanelOpener(menuStrip, "Planets", panels.showPlanetsAction)
+        appendPanelOpener(menuStrip, "Fleets", panels.showFleetsAction)
+        appendPanelOpener(menuStrip, "Ships", panels.showShipsAction)
+        appendPanelOpener(menuStrip, "Digest", panels.showDigestAction)
+        appendPanelOpener(menuStrip, "Policy", panels.showPolicyAction)
+        root.append(menuStrip)
         Gtk.Box top = Gtk.Box(Gtk.Box.HORIZONTAL, 8)
         status = Gtk.Label("Ready")
         status.setHExpand(true)

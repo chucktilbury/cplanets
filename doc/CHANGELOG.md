@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Human seat + operator go:** lobby miss-dropped human seats
+  (token cleared) no longer make `g` / `PUT /admin/go` exit via
+  `all_humans_quit` while AI or live humans remain. `go()` retires
+  abandoned lobby seats first. Human GUI schedules a presence
+  keep-alive handshake (~2s) so an idle window does not drop its
+  seat before go; `--pull` fails loudly when handshake cannot
+  allocate a seat. Test: `unit_humanSeatGo`.
 - **Panel menubar root clicks:** Planets / Fleets / Ships / Digest /
   Policy open their non-modal dialogs on the root label click (flat
   Buttons beside File). No nested **Open** submenu — GtkPopoverMenuBar

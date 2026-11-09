@@ -30,7 +30,11 @@ See also: [CPLANETS.md](CPLANETS.md), [DIALOGS.md](DIALOGS.md),
 | `player_id` | int | `-1` | (omit) | `-1` or `≥ 0` | Legacy / offline seat pin. Live TCP: leave `-1`; server assigns. Offline `--once` / port `0` may call `ensureOfflineSeat` → `0`. CLI `--player`. |
 
 `reconnectToken` is **not** a file key (opaque `TOKEN_BYTES` from
-handshake ack, process-local, for reclaim).
+handshake ack, process-local, for reclaim). Live `--gui` schedules a
+presence keep-alive handshake about every 2s (under the server
+`handshake_miss_ms` window) so an idle window keeps its seat through
+lobby and after operator go. `--pull` fails if handshake cannot
+allocate / reclaim a seat.
 
 ---
 

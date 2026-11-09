@@ -18,6 +18,7 @@
  *   2026-11-07  putOrderRemote hulls peel + lastError on reject.
  *   2026-11-07  Surface server /order reject reason in lastError.
  *   2026-11-08  putSuspendedRemote for human AFK CheckButton.
+ *   2026-11-09  keepAliveRemote: presence-only handshake for GUI.
  */
 
 include "config.cw"
@@ -122,7 +123,11 @@ class AppCore {
         }
         session.close()
         # Each verb redials inside exchange (one-shot TCP).
-        session.handshake()
+        if (not session.handshake()) {
+            lastError = format(
+                "no seat from {} (handshake)", endpointLabel())
+            return(false)
+        }
         ClientStateView next = session.pullState()
         if (next.tick < 0) {
             lastError = format(
@@ -133,6 +138,32 @@ class AppCore {
         view = next
         draft = view.policy
         return(true)
+    }
+
+    /*
+     * Dial and PUT /handshake only (no state pull).
+     *
+     * Purpose: GUI presence keep-alive so handshake_miss does not
+     * drop the human seat while the window is open but idle.
+     * Operator go must see a live human (or none), not a lobby
+     * miss-dropped seat that ends the server on all_humans_quit.
+     *
+     * Parameters: none (uses config host/port/token).
+     *
+     * Returns: true when handshake adopted a seat id.
+     */
+    bool keepAliveRemote() {
+        if (config.port < 1) {
+            return(false)
+        }
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        session.close()
+        bool ok = session.handshake()
+        session.close()
+        return(ok)
     }
 
     /*

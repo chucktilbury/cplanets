@@ -75,7 +75,8 @@ reclaim. Ack shape: `accepted + tick + ended + playerId +
 end-status until go. `players` / `--players` = soft max
 (`0` = unlimited). Unit: `unit_serverClock`,
 `unit_serverPresence`, `unit_serverPolicy`, `unit_lobbyReconnect`,
-`unit_lobbyAiConnect`, `unit_lobbyHoldGhosts`, `unit_dynamicSeats`.
+`unit_lobbyAiConnect`, `unit_lobbyHoldGhosts`, `unit_humanSeatGo`,
+`unit_dynamicSeats`.
 Function: `fn_server`.
 Python functional: `tests/functional/test_server_smoke.py`,
 `test_list_chrome.py`, `test_lobby_hold.py`.

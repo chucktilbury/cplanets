@@ -9,6 +9,7 @@
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-07  Assert once / pull / gui / test mode keys.
  *   2026-11-08  Default playerId -1 (server assigns on handshake).
+ *   2026-11-09  Assert refresh_ms default / parse / clamp.
  */
 
 include "client/configParse.cw"
@@ -17,6 +18,14 @@ start {
     bool ok = true
     HumanConfig baseline = HumanConfig()
     if (baseline.playerId != -1) {
+        ok = false
+    }
+    if (ok and baseline.refreshMs != 1000) {
+        ok = false
+    }
+    baseline.refreshMs = -5
+    baseline.clampAll()
+    if (ok and baseline.refreshMs != 0) {
         ok = false
     }
     baseline.ensureOfflineSeat()
@@ -31,6 +40,7 @@ start {
     text.append("pull = true\n")
     text.append("gui = false\n")
     text.append("test = 1\n")
+    text.append("refresh_ms = 250\n")
     HumanConfigParse parser = HumanConfigParse()
     HumanConfig cfg = parser.parseText(text)
     if (cfg.playerId != 2) {
@@ -52,6 +62,9 @@ start {
         ok = false
     }
     if (ok and not cfg.test) {
+        ok = false
+    }
+    if (ok and cfg.refreshMs != 250) {
         ok = false
     }
     if (ok) {

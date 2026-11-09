@@ -298,7 +298,7 @@ rather than a huge hand-built widget tree.
 
 | Item | Verdict |
 | --- | --- |
-| Events / timers | **Have** `schedule` / `post` / `cancel` — enough for digest poll and `--test` auto-quit; reschedule for periodic refresh |
+| Events / timers | **Have** `schedule` / `post` / `cancel` — presence keep-alive, `refresh_ms` state/digest poll, and `--test` auto-quit |
 | Custom draw | **Missing** — see §3.1 (core) |
 | CSS / theming load | Optional polish — class toggles exist |
 | Clipboard | Available; not required for play |

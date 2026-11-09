@@ -12,6 +12,7 @@
  *   2026-11-07  CLI mirror mode flags: once, pull, gui, test.
  *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
  *   2026-11-08  reconnectToken from handshake ack for reclaim.
+ *   2026-11-09  refresh_ms: GUI GET /state+/digest poll period.
  */
 
 /*
@@ -23,6 +24,8 @@
  * still overrides silently when the flag is present.
  * reconnectToken is opaque TOKEN_BYTES from the server handshake
  * ack; process-local only (not a config-file key).
+ * refreshMs drives live GUI pull of GET /state + GET /digest
+ * (distinct from presence keep-alive handshake).
  */
 class HumanConfig {
     int64 playerId
@@ -33,6 +36,10 @@ class HumanConfig {
     bool pull
     bool gui
     bool test
+    # Live GUI pull period (ms) for GET /state + GET /digest.
+    # 0 = off (File→Refresh only). Default 1000 ≈ near-tick feel.
+    # CLI --refresh-ms overlays after load. Not presence keep-alive.
+    int64 refreshMs
 
     /*
      * Construct localhost defaults with an unassigned seat.
@@ -44,7 +51,7 @@ class HumanConfig {
      * Parameters: none.
      *
      * Returns: HumanConfig host 127.0.0.1, port 0, seat -1,
-     * empty reconnect token.
+     * empty reconnect token, refreshMs 1000.
      */
     HumanConfig() {
         playerId = -1
@@ -55,14 +62,16 @@ class HumanConfig {
         pull = false
         gui = false
         test = false
+        refreshMs = 1000
     }
 
     /*
-     * Clamp seat and port into legal bands.
+     * Clamp seat, port, and refresh period into legal bands.
      *
      * Purpose: harden after text load. Seat -1 means unassigned
      * (server allocates on TCP handshake). Offline paths that need
-     * a concrete seat call ensureOfflineSeat().
+     * a concrete seat call ensureOfflineSeat(). refreshMs < 0
+     * becomes 0 (off).
      *
      * Parameters: none (mutates this config).
      *
@@ -74,6 +83,9 @@ class HumanConfig {
         }
         if (port < 0) {
             port = 0
+        }
+        if (refreshMs < 0) {
+            refreshMs = 0
         }
     }
 

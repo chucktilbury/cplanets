@@ -229,6 +229,7 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | `--pull` | `pull` | TCP GET state + digest summary (needs `port > 0`) |
 | `--gui` | `gui` | GTK map + top-level menubar panel dialogs |
 | `--test` | `test` | GTK path that auto-quits after a short schedule |
+| `--refresh-ms N` | `refresh_ms` | Live GUI poll period (ms) for `GET /state` + `GET /digest` (default **1000**; `0` = off). Distinct from presence keep-alive handshake (~2s) |
 
 With `--gui` / `--test` and `port > 0`, the client pulls from the
 server; otherwise (`port = 0`) it prefills an offline closed galaxy.
@@ -237,7 +238,9 @@ server without extra flags. A failed TCP connect / pull prints
 `cplanets: cannot connect to HOST:PORT` (or `no state from …`);
 `--pull` exits **1**. `--gui` / `--test` also show an `AlertDialog`
 with the same host:port detail (status line updated; `--test` skips
-the dialog so auto-quit stays quiet).
+the dialog so auto-quit stays quiet). Live `--gui` (TCP) also
+re-pulls state+digest on `refresh_ms` so ProgressBars and lists
+move without File→Refresh; timed-pull failures stay quiet.
 
 **Tuning-loop chrome (workstream B + ship create + map):** Pause
 CheckButton (sensitive only with exactly one human; `PUT /pause`).

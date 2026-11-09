@@ -18,6 +18,8 @@
  *               playerId for all subsequent traffic.
  *   2026-11-08  Store/send reconnect token; reclaim after drop.
  *   2026-11-08  Allocate with 1-byte kind=1 so server marks AI.
+ *   2026-11-09  Keep token on empty/network handshake failure;
+ *               only clear after an explicit reject ack.
  *   2026-11-09  PUT /order + PUT /build from AiOrderPlan so AI
  *               fleets explore / take / yard-build after go.
  */
@@ -179,7 +181,9 @@ class AiClient {
      * Prefer the stored reconnect token; else playerId keep-alive;
      * else allocate with kind=1 (AI) so the server marks the seat
      * non-human and all-humans-quit ignores it. On success, store
-     * playerId + token.
+     * playerId + token. Empty / truncated responses keep the token
+     * and skip allocate so a transient TCP miss cannot grow a
+     * ghost seat; only an explicit rejected ack clears the token.
      *
      * Parameters: none.
      *
@@ -187,6 +191,7 @@ class AiClient {
      */
     bool handshake() {
         bool ok = false
+        bool allowAllocate = true
         if (config.reconnectToken.length == 16) {
             WireBytes tok = WireBytes()
             tok.writeBytes(config.reconnectToken)
@@ -195,10 +200,15 @@ class AiClient {
             buffer resp = exchange(EnvelopeCodec().encode(env))
             ok = adoptHandshakeSeat(resp)
             if (not ok) {
-                config.reconnectToken = buffer[]
+                if (resp.length < 1) {
+                    # Network / empty — keep token; do not allocate.
+                    allowAllocate = false
+                } else {
+                    config.reconnectToken = buffer[]
+                }
             }
         }
-        if (not ok and config.playerId >= 0) {
+        if (not ok and allowAllocate and config.playerId >= 0) {
             WireBytes keep = WireBytes()
             keep.writeU32(config.playerId)
             Envelope keepEnv = Envelope().make(
@@ -207,10 +217,14 @@ class AiClient {
                 EnvelopeCodec().encode(keepEnv))
             ok = adoptHandshakeSeat(keepResp)
             if (not ok) {
-                config.playerId = -1
+                if (keepResp.length < 1) {
+                    allowAllocate = false
+                } else {
+                    config.playerId = -1
+                }
             }
         }
-        if (not ok) {
+        if (not ok and allowAllocate) {
             # 1-byte kind=1 → AI allocate (empty would be human).
             WireBytes kind = WireBytes()
             kind.writeU8(1)

@@ -35,6 +35,10 @@
  *               (0 = unlimited within practical bounds).
  *   2026-11-08  Lobby suppresses end-status (all-humans-quit /
  *               eliminate-all); AI allocate marks human=false.
+ *   2026-11-09  Lobby miss-drop clears reconnect tokens so
+ *               abandoned seats are free (no ghost clients);
+ *               after go, drop still keeps tokens for reclaim.
+ *               Handshake / seat connect never leave lobby.
  */
 
 include "clock.cw"
@@ -934,10 +938,14 @@ class GameDriver {
      * Apply a drop (lost contact) to a seat.
      *
      * Purpose: handshake miss / TCP close. Last policy continues
-     * for the live remainder; token reclaim stays available
-     * (RULES §2). Lobby suppresses end-status so a lone
-     * mis-marked human AI miss-drop cannot end the server before
-     * go.
+     * for the live remainder. While **running**, the reconnect
+     * token stays so the same client can reclaim (RULES §2).
+     * While still in **lobby**, the token is cleared so the seat
+     * is free for a new empty/kind allocate — abandoned lobby
+     * seats must not linger as ghost clients when an AI/human
+     * process restarts without the in-memory token. Lobby also
+     * suppresses end-status so a miss-drop cannot end the server
+     * before go.
      *
      * Parameters:
      *   playerId — empire id.
@@ -954,9 +962,32 @@ class GameDriver {
         Player seat = game.players[playerId]
         seat.markDrop()
         game.players[playerId] = seat
+        releaseLobbySeatToken(playerId)
         refreshEndStatusIfRunning()
         republishWithoutTick()
         return(true)
+    }
+
+    /*
+     * Clear a seat's reconnect token while still in lobby.
+     *
+     * Purpose: lobby seating is provisional until operator go.
+     * A miss-dropped / explicit-drop seat that keeps its token
+     * cannot be taken by empty allocate, so a restarted AI or
+     * human (process-local token lost) grows a new seat and leaves
+     * a ghost. Clearing the token in lobby makes findFreeSeat
+     * reuse the slot. After go(), tokens stay on drop for reclaim.
+     *
+     * Parameters:
+     *   playerId — empire id just marked dropped.
+     *
+     * Returns: nothing.
+     */
+    void releaseLobbySeatToken(int64 playerId) {
+        if (running) {
+            return()
+        }
+        presence.clearReconnectToken(playerId)
     }
 
     /*
@@ -1085,7 +1116,9 @@ class GameDriver {
      *
      * Purpose: presence maintenance between ticks (and in lobby
      * between accepts). End-status runs only while running so a
-     * lobby miss-drop cannot all-humans-quit the server.
+     * lobby miss-drop cannot all-humans-quit the server. Lobby
+     * also clears reconnect tokens on miss so abandoned seats
+     * are free for the next allocate (no ghost clients).
      *
      * Parameters: none.
      *
@@ -1102,10 +1135,14 @@ class GameDriver {
                 seat.markDrop()
                 game.players[id] = seat
             }
+            releaseLobbySeatToken(id)
             index = index + 1
         }
         if (droppedIds.length > 0) {
             refreshEndStatusIfRunning()
+            if (not running) {
+                republishWithoutTick()
+            }
         }
     }
 

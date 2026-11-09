@@ -22,6 +22,9 @@
  *   2026-11-08  Handshake empty-body allocate; adopt returned
  *               playerId for all subsequent traffic.
  *   2026-11-08  Store/send reconnect token; reclaim after drop.
+ *   2026-11-09  Keep token on empty/network handshake failure;
+ *               only clear after an explicit reject ack (no ghost
+ *               allocate from a transient miss).
  */
 
 import networking as Networking
@@ -144,6 +147,9 @@ class HumanSession {
      * keep-alive). Else when playerId is assigned, send that id
      * as keep-alive. Else empty body for a new allocate. On
      * success, store returned playerId and TOKEN_BYTES token.
+     * Empty / truncated responses keep the token and do **not**
+     * fall through to allocate (avoids ghost seats on transient
+     * TCP misses). Only an explicit rejected ack clears the token.
      *
      * Parameters: none.
      *
@@ -159,7 +165,11 @@ class HumanSession {
             if (adoptHandshakeSeat(resp)) {
                 return(true)
             }
-            # Stale token — clear and fall through to allocate.
+            if (resp.length < 1) {
+                # Network / empty — keep token; do not allocate.
+                return(false)
+            }
+            # Explicit reject — token no longer valid.
             config.reconnectToken = buffer[]
         }
         if (config.playerId >= 0) {
@@ -171,6 +181,9 @@ class HumanSession {
                 EnvelopeCodec().encode(keepEnv))
             if (adoptHandshakeSeat(keepResp)) {
                 return(true)
+            }
+            if (keepResp.length < 1) {
+                return(false)
             }
             # Not connected / stale config id — allocate fresh.
             config.playerId = -1

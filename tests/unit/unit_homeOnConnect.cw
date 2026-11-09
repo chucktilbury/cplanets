@@ -12,6 +12,7 @@
  *   2026-11-08  Server allocate: first free seat; drop frees seat.
  *   2026-11-08  Drop keeps token; reclaim by token (no steal).
  *   2026-11-08  Soft max 2 for full-reject; grow covered elsewhere.
+ *   2026-11-09  Reclaim/no-steal after go; lobby drop frees seat.
  *   2026-11-09  Sandbox seats also receive a starter scout fleet.
  */
 
@@ -142,7 +143,30 @@ start {
     if (drv.handshakeKeepAlive(0) != 0) {
         ok = false
     }
-    # Drop leaves the home in place; token still held (no steal).
+    # Lobby drop frees the seat (clears token) but keeps the home.
+    if (not drv.dropPlayer(0)) {
+        ok = false
+    }
+    Planet keptLobby = drv.game.galaxy.planets[0]
+    Player droppedLobby = drv.game.players[0]
+    if (keptLobby.ownerId != 0 or not droppedLobby.homeGranted) {
+        ok = false
+    }
+    if (not droppedLobby.dropped) {
+        ok = false
+    }
+    if (drv.presence.hasReconnectToken(0)) {
+        ok = false
+    }
+    # Empty allocate reuses the freed lobby seat (no ghost grow).
+    int64 reuse = drv.handshakeAllocate()
+    if (reuse != 0) {
+        ok = false
+    }
+    # After go, drop keeps the token; empty allocate cannot steal.
+    if (not drv.go()) {
+        ok = false
+    }
     buffer token0 = drv.presence.reconnectToken(0)
     if (token0.length != PresenceBook.TOKEN_BYTES) {
         ok = false
@@ -161,11 +185,9 @@ start {
     if (drv.handshakeKeepAlive(0) >= 0) {
         ok = false
     }
-    # Empty allocate cannot steal the token-held dropped seat.
     if (drv.handshakeAllocate() >= 0) {
         ok = false
     }
-    # Reclaim with the opaque token restores the same seat.
     int64 reseat = drv.handshakeReclaim(token0)
     if (reseat != 0) {
         ok = false

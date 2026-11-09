@@ -131,23 +131,29 @@ acts as an **expected-ceiling hint** in the status banner; it does
 - **exactly 16 bytes** — **reclaim** (or keep-alive) the seat that
   owns that opaque token.
 
-**Lobby end-status.** In lobby the server may age presence
-(handshake_miss drop / reclaim tokens) but **must not** run
-eliminate-all or all-humans-quit until after operator `go`. A
-connecting AI (or a temporary miss-drop while seating) must not
-end the process before the session is running.
+**Lobby end-status / ghosts.** In lobby the server may age presence
+(handshake_miss drop) but **must not** run eliminate-all or
+all-humans-quit until after operator `go`. A connecting AI (or a
+temporary miss-drop while seating) must not end the process before
+the session is running. Lobby miss-drop clears the reconnect token
+so the seat is free for re-allocate (no ghost seats from abandoned
+clients); after go, drop keeps the token for reclaim.
 
 Handshake **response** shape: `u8 accepted`, `u32 tick`, `u8 ended`,
 `u32 playerId`, **16-byte token**. Human and AI clients store the
 token and use `playerId` for all later traffic. Multi-AI sessions do
 **not** need distinct config `player_id` values.
 
-**Reconnect / drop (v1).** Drop frees **presence** (connected=false)
-but the seat remains **reclaimable with its token** until **quit**
-or **game end** (simple rule — no wall-clock reclaim window). Empty
-handshake **cannot** take a token-held seat. Keep-alive with the
-assigned id refreshes presence only while still connected. This is
-**live-process** reclaim, not durable save/rejoin (see Session).
+**Reconnect / drop (v1).** Drop frees **presence** (connected=false).
+While **running**, the seat remains **reclaimable with its token**
+until **quit** or **game end** (simple rule — no wall-clock reclaim
+window); empty handshake **cannot** take a token-held seat.
+While still in **lobby**, miss-drop / explicit drop **clears** the
+reconnect token so the seat is free for a new empty/kind allocate —
+abandoned lobby seats must not linger as ghost clients when a
+client process restarts without the in-memory token. Keep-alive with
+the assigned id refreshes presence only while still connected. This
+is **live-process** reclaim, not durable save/rejoin (see Session).
 
 **Session / game instance (v1).** Each game is **stand-alone**. There
 is **no durable status save** and **no rejoin** after process end.

@@ -63,7 +63,8 @@ store, publish codec, driver, handler, listen) and turns
 `cplanets-server` into a TCP sole writer (`--serve`). Extra verbs
 on the server: PUT `/handshake`, `/quit`, `/pause`,
 `/order`, `/recall`, `/admin/advance`, `/admin/go`. Lobby until
-operator/`admin` go; wall and injectable ticks blocked in lobby.
+operator/`admin` go (scenario optional); wall and injectable ticks
+blocked in lobby; lobby drop clears reconnect tokens (no ghosts).
 `PUT /handshake` body: empty = human allocate (reuse free or
 **grow** under soft max); 1-byte kind `0`/`1` = human/AI allocate;
 4-byte `playerId` = keep-alive if connected; 16-byte token =
@@ -72,7 +73,8 @@ reclaim. Ack shape: `accepted + tick + ended + playerId +
 end-status until go. `players` / `--players` = soft max
 (`0` = unlimited). Unit: `unit_serverClock`,
 `unit_serverPresence`, `unit_serverPolicy`, `unit_lobbyReconnect`,
-`unit_lobbyAiConnect`, `unit_dynamicSeats`. Function: `fn_server`.
+`unit_lobbyAiConnect`, `unit_lobbyHoldGhosts`, `unit_dynamicSeats`.
+Function: `fn_server`.
 Python functional: `tests/functional/test_server_smoke.py`,
 `test_list_chrome.py`.
 

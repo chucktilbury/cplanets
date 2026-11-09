@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Lobby hold + no ghost seats:** lobby stays until operator `g`
+  with or without a scenario; first/later client connects allocate
+  seats but do not start the game clock. Lobby miss-drop / explicit
+  drop clears reconnect tokens so abandoned seats are reused (no
+  ghost grow when an AI/human restarts without the in-memory token);
+  after go, drop still keeps tokens for reclaim. Human/AI clients
+  keep the token on empty/network handshake failure and only clear
+  it after an explicit reject ack. Unit: `unit_lobbyHoldGhosts`
+  (also updates `unit_homeOnConnect`).
 - **AI fleets explore + human examine (Section C):** every seated
   empire now receives the RULES §2 starter scout fleet (not only
   seat 0). The AI serve-loop issues `PUT /order` (explore / take)

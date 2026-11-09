@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-09  Initial fleet examine dialog (Section C).
+ *   2026-11-09  Close button tooltip (View dialogs usable).
  */
 
 include "fleetRow.cw"
@@ -78,6 +79,7 @@ class GuiFleetDialog {
         scroll.setVExpand(true)
         layout.append(scroll)
         Gtk.Button close = Gtk.Button("Close")
+        close.setTooltip("Hide this fleet examine dialog.")
         if (closeAction != null) {
             close.onClicked(closeAction)
         }

@@ -12,6 +12,7 @@
  *   2026-11-07  Hide-instead-of-destroy lifecycle (cdbg pattern):
  *               Close / WM close-request only hide; avoid present
  *               after destroy and inert Close after Start develop.
+ *   2026-11-09  Close button tooltip (View dialogs usable).
  */
 
 include "planetRow.cw"
@@ -82,6 +83,7 @@ class GuiPlanetDialog {
         scroll.setVExpand(true)
         layout.append(scroll)
         Gtk.Button close = Gtk.Button("Close")
+        close.setTooltip("Hide this explored-planet dialog.")
         if (closeAction != null) {
             close.onClicked(closeAction)
         }

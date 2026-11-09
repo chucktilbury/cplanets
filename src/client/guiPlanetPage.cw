@@ -14,21 +14,23 @@
  *   2026-11-07  Default Scale 100 matches full production.
  *   2026-11-07  Map ContextMenu: setPlanetId for budget Entry.
  *   2026-11-09  Hosted in View→Planets panel dialog.
+ *   2026-11-09  Planet id choice row + tooltips (View usable).
  */
 
 include "appCore.cw"
+include "guiChoiceRow.cw"
 include "planetRow.cw"
 
 /*
  * GuiPlanetPage owns the Planets panel dialog widgets.
  *
- * Budget Entry picks a planet id; Scale sets allocationPct;
+ * Planet id uses GuiChoiceRow; Scale sets allocationPct;
  * Apply → PUT /budget when live.
  */
 class GuiPlanetPage {
     AppCore core
     Gtk.Label planetList
-    Gtk.Entry planetIdEntry
+    GuiChoiceRow planetChoice
     Gtk.Scale budgetScale
     Gtk.Label budgetLabel
     void<> showExploredAction
@@ -49,7 +51,7 @@ class GuiPlanetPage {
     GuiPlanetPage(AppCore appCore) {
         core = appCore
         planetList = null
-        planetIdEntry = null
+        planetChoice = GuiChoiceRow()
         budgetScale = null
         budgetLabel = null
         showExploredAction = null
@@ -74,30 +76,39 @@ class GuiPlanetPage {
         planetList = Gtk.Label("(no planets)")
         planetList.setHExpand(true)
         planetList.setVExpand(true)
+        planetList.setTooltip(
+            "Visible planets for this seat (server publish flags).")
         Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
         scroll.setChild(planetList)
         scroll.setHExpand(true)
         scroll.setVExpand(true)
         page.append(scroll)
         Gtk.Button exploreBtn = Gtk.Button("Show first explored")
+        exploreBtn.setTooltip(
+            "Open the explored-planet dialog for the first known rock.")
         if (showExploredAction != null) {
             exploreBtn.onClicked(showExploredAction)
         }
         page.append(exploreBtn)
         page.append(Gtk.Label(
             "Planet budget (owned; allocation %)"))
-        planetIdEntry = Gtk.Entry("0")
         page.append(Gtk.Label("Planet id"))
-        page.append(planetIdEntry)
+        page.append(planetChoice.buildWidget(
+            "Cycle visible planets (owned rocks for Apply budget)."))
         budgetLabel = Gtk.Label("Allocation % (100)")
+        budgetLabel.setTooltip(
+            "Production fraction for this rock (default 100).")
         page.append(budgetLabel)
         budgetScale = Gtk.Scale(Gtk.Scale.HORIZONTAL)
         budgetScale.configure(100.0, 0.0, 100.0, 1.0)
+        budgetScale.setTooltip(
+            "Allocation % — slider stand-in for a spin (0–100).")
         if (budgetChangedAction != null) {
             budgetScale.onValueChanged(budgetChangedAction)
         }
         page.append(budgetScale)
         Gtk.Button apply = Gtk.Button("Apply budget")
+        apply.setTooltip("PUT /budget for the selected owned planet.")
         if (budgetAction != null) {
             apply.onClicked(budgetAction)
         }
@@ -131,23 +142,46 @@ class GuiPlanetPage {
         if (planetList != null) {
             planetList.setText(planets)
         }
+        syncPlanetChoices()
         syncBudgetFromSelection()
     }
 
     /*
-     * Load allocationPct for the planet id Entry into the Scale.
+     * Rebuild planet id choices from visible rocks.
      *
-     * Purpose: echo published budget after refresh / id edit.
+     * Purpose: Combo stand-in for the budget Entry.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncPlanetChoices() {
+        list ids = []
+        int64 index = 0
+        while (index < core.view.planets.length) {
+            PlanetRow row = core.view.planets[index]
+            if (row.visible and row.id >= 0) {
+                ids.append(format("{}", row.id))
+            }
+            index = index + 1
+        }
+        planetChoice.setChoices(ids)
+    }
+
+    /*
+     * Load allocationPct for the selected planet into the Scale.
+     *
+     * Purpose: echo published budget after refresh / id change.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void syncBudgetFromSelection() {
-        if (budgetScale == null or planetIdEntry == null) {
+        if (budgetScale == null) {
             return()
         }
-        int64 planetId = planetIdEntry.text().toInt64()
+        int64 planetId = planetIdValue()
         PlanetRow row = core.view.findPlanet(planetId)
         int64 pct = 50
         if (row.id >= 0) {
@@ -160,35 +194,59 @@ class GuiPlanetPage {
     }
 
     /*
-     * Planet id from the budget Entry.
+     * Planet choice stepped — reload allocation Scale.
+     *
+     * Purpose: GuiChoiceRow.changedAction.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onPlanetChoiceChanged() {
+        syncBudgetFromSelection()
+    }
+
+    /*
+     * Planet id from the budget choice row.
      *
      * Purpose: Apply budget handler.
      *
      * Parameters: none.
      *
-     * Returns: parsed planet id (may be invalid).
+     * Returns: selected planet id (may be 0 when empty).
      */
     int64 planetIdValue() {
-        return(planetIdEntry.text().toInt64())
+        return(planetChoice.intValue())
     }
 
     /*
-     * Write the budget planet Entry from a map pick.
+     * Write the budget planet choice from a map pick.
      *
      * Purpose: GuiMapPage ContextMenu "Budget this planet" fills
      * the Planets panel allocation chrome without a second budget
      * surface.
      *
      * Parameters:
-     *   planetId — rock id to load into the Entry / Scale.
+     *   planetId — rock id to load into the choice / Scale.
      *
      * Returns: nothing.
      */
     void setPlanetId(int64 planetId) {
-        if (planetIdEntry == null) {
-            return()
+        String text = format("{}", planetId)
+        if (not planetChoice.setValue(text)) {
+            list ids = []
+            ids.append(text)
+            int64 index = 0
+            while (index < planetChoice.choices.length) {
+                String item = planetChoice.choices[index]
+                if (not item.equals(text)) {
+                    ids.append(item)
+                }
+                index = index + 1
+            }
+            planetChoice.setChoices(ids)
+            planetChoice.setValue(text)
         }
-        planetIdEntry.setText(format("{}", planetId))
         syncBudgetFromSelection()
     }
 

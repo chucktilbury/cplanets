@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-08  Initial GuiProgressChrome (fraction / pulse).
  *   2026-11-09  Hosted in Fleets / Ships panel dialogs.
+ *   2026-11-09  Tooltips on develop/build bars (View usable).
  */
 
 include "appCore.cw"
@@ -67,6 +68,8 @@ class GuiProgressChrome {
         developBar.setHExpand(true)
         developBar.setText("develop idle")
         developBar.setFraction(0.0)
+        developBar.setTooltip(
+            "Lead design-develop job: done ticks / setup total.")
         footer.append(developBar)
         footer.append(Gtk.Label("Yard build progress"))
         buildBar = Gtk.ProgressBar(Gtk.ProgressBar.HORIZONTAL)
@@ -74,9 +77,13 @@ class GuiProgressChrome {
         buildBar.setHExpand(true)
         buildBar.setText("build idle")
         buildBar.setFraction(0.0)
+        buildBar.setTooltip(
+            "Lead yard-build job: done ticks / setup total.")
         footer.append(buildBar)
         detailLabel = Gtk.Label("(progress)")
         detailLabel.setHExpand(true)
+        detailLabel.setTooltip(
+            "Setup durations, reclaim rows, and multi-job detail.")
         footer.append(Gtk.Label("Active jobs (detail)"))
         footer.append(detailLabel)
         return(footer)

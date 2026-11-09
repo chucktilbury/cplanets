@@ -260,24 +260,54 @@ class GuiMain {
         planetPage.showExploredAction = showExploredAction
         planetPage.budgetAction = budgetAction
         planetPage.budgetChangedAction = planetPage.onBudgetChanged
+        planetPage.planetChoice.bind(
+            planetPage.planetChoice.onPrev,
+            planetPage.planetChoice.onNext)
         planetPage.planetChoice.changedAction =
             planetPage.onPlanetChoiceChanged
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         fleetPage.examineAction = examineFleetAction
         fleetPage.hullsChangedAction = fleetPage.onHullsChanged
+        fleetPage.fleetChoice.bind(
+            fleetPage.fleetChoice.onPrev,
+            fleetPage.fleetChoice.onNext)
         fleetPage.fleetChoice.changedAction =
             fleetPage.onFleetChoiceChanged
+        fleetPage.orderChoice.bind(
+            fleetPage.orderChoice.onPrev,
+            fleetPage.orderChoice.onNext)
+        fleetPage.destChoice.bind(
+            fleetPage.destChoice.onPrev,
+            fleetPage.destChoice.onNext)
         yardPage.developAction = developAction
         yardPage.buildAction = buildAction
         yardPage.reclaimAction = reclaimAction
         yardPage.examineAction = examineShipAction
         yardPage.reclaimHullsChangedAction =
             yardPage.onReclaimHullsChanged
+        yardPage.kindChoice.bind(
+            yardPage.kindChoice.onPrev,
+            yardPage.kindChoice.onNext)
+        yardPage.planetChoice.bind(
+            yardPage.planetChoice.onPrev,
+            yardPage.planetChoice.onNext)
+        yardPage.designChoice.bind(
+            yardPage.designChoice.onPrev,
+            yardPage.designChoice.onNext)
+        yardPage.reclaimFleetChoice.bind(
+            yardPage.reclaimFleetChoice.onPrev,
+            yardPage.reclaimFleetChoice.onNext)
         yardPage.reclaimFleetChoice.changedAction =
             yardPage.onReclaimFleetChanged
         digestPage.sendAction = sendAction
+        digestPage.toChoice.bind(
+            digestPage.toChoice.onPrev,
+            digestPage.toChoice.onNext)
         policyPage.applyAction = applyAction
+        policyPage.roleChoice.bind(
+            policyPage.roleChoice.onPrev,
+            policyPage.roleChoice.onNext)
         policyPage.expansionChangedAction = policyPage.onExpansionChanged
         policyPage.escortChangedAction = policyPage.onEscortChanged
         policyPage.agreementChangedAction = policyPage.onAgreementChanged

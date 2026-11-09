@@ -27,6 +27,8 @@ class GuiChoiceRow {
     Gtk.Button nextBtn
     Gtk.Box row
     void<> changedAction
+    void<> prevAction
+    void<> nextAction
     String emptyText
 
     /*
@@ -46,14 +48,34 @@ class GuiChoiceRow {
         nextBtn = null
         row = null
         changedAction = null
+        prevAction = null
+        nextAction = null
         emptyText = "(none)"
+    }
+
+    /*
+     * Bind prev/next handlers with explicit receivers.
+     *
+     * Purpose: Cwhip method refs need a receiver (bare names in
+     * constructors fail). Call from GuiMain before buildWidget:
+     * `row.bind(row.onPrev, row.onNext)`.
+     *
+     * Parameters:
+     *   prev — usually this.onPrev.
+     *   next — usually this.onNext.
+     *
+     * Returns: nothing.
+     */
+    void bind(void<> prev, void<> next) {
+        prevAction = prev
+        nextAction = next
     }
 
     /*
      * Build the prev / value / next widget row.
      *
      * Purpose: drop into a panel dialog Box in place of an Entry
-     * for enum-like or id-list fields.
+     * for enum-like or id-list fields. Call bind() first.
      *
      * Parameters:
      *   tooltip — hover text for the whole row (and buttons).
@@ -75,8 +97,12 @@ class GuiChoiceRow {
             nextBtn.setTooltip(tooltip)
             valueLabel.setTooltip(tooltip)
         }
-        prevBtn.onClicked(onPrev)
-        nextBtn.onClicked(onNext)
+        if (prevAction != null) {
+            prevBtn.onClicked(prevAction)
+        }
+        if (nextAction != null) {
+            nextBtn.onClicked(nextAction)
+        }
         row.append(prevBtn)
         row.append(valueLabel)
         row.append(nextBtn)

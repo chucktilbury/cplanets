@@ -7,8 +7,10 @@ intent. **If they disagree, this document wins.**
 CPlanets is loosely inspired by Spaceward Ho! (Delta Tao). It is not a
 clone of that game, of Konquest, or of VGA Planets.
 
-Numeric knobs live in a **scenario setup file** (§14), not in code.
-This document states *what* happens; the file states *how much*.
+Numeric knobs live in the **unified server config file** (§14), not
+in code (process/network keys share that file; see operator
+`SERVER-CONFIG.md`). This document states *what* happens; the file
+states *how much*.
 
 Keep the machine **simple to play**. Do not add logistics the player
 has to memorize. Do not warn about legal-but-stupid orders (self-trade,
@@ -38,7 +40,7 @@ Three **executables**, one shared library:
 | **Server** | Only writer: SQLite, apply policies, call `tick`, persist, publish. TCP listener. |
 | **Human client** | GTK debugger: show state, edit policy, read digest. |
 | **AI client** | Stand-alone process, **same protocol**. Own config (later its own dialogs), not the human settings file. |
-| Setup file | Scenario coefficients, locked once a game is in progress. |
+| Server config | Process/network + scenario coefficients (§14), locked once a game is in progress. |
 
 Clients **never** tick and **never** open the universe DB.
 
@@ -621,7 +623,8 @@ UI is a view of flags the driver already set.
 ## 14. Scenario setup and admin
 
 **Combat, production, and other tunable parameters live outside
-code** — in this setup file (coefficients / mappings), not hard-coded
+code** — in the unified **server config** file (coefficients /
+mappings; same document as process/network keys), not hard-coded
 magnitudes. Expect **many** named knobs; anticipate lots of
 post-complete tuning. Includes: trade/attack bumps, dispatch weight,
 pirate attrition, **identify attacker-side** and **identify

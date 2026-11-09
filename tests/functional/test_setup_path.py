@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Load scenario by --setup path; assert knobs; reject unknown keys.
+"""Load §14 knobs from unified --config; assert; reject unknown keys.
 
-TUNING-PLAYABLE A4: edit knob → restart → advance N → stock delta.
+TUNING-PLAYABLE A4 (updated): edit knob in server config → restart →
+advance N → stock delta. Legacy --setup / setup= PATH is gone.
 """
 
 from __future__ import annotations
@@ -90,15 +91,14 @@ def state_payload(body: bytes) -> bytes:
 
 def spawn_server(
     server: Path,
-    setup: Path,
-    server_config: Path,
+    config: Path,
     seed: int = 42,
 ) -> tuple[subprocess.Popen, int]:
     env = os.environ.copy()
     cmd = [
         str(server),
         "--config",
-        str(server_config),
+        str(config),
         "--serve",
         "--port",
         "0",
@@ -106,8 +106,6 @@ def spawn_server(
         "2",
         "--seed",
         str(seed),
-        "--setup",
-        str(setup),
         "--injectable",
         "--cycles",
         "400",
@@ -125,7 +123,7 @@ def spawn_server(
     )
     assert proc.stdout is not None
     port = None
-    setup_seen = False
+    config_seen = False
     deadline = time.time() + 5.0
     while time.time() < deadline:
         line = proc.stdout.readline()
@@ -134,23 +132,22 @@ def spawn_server(
         line = line.strip()
         if line.startswith("PORT="):
             port = int(line.split("=", 1)[1])
-        if line.startswith("SETUP=") and str(setup) in line:
-            setup_seen = True
-        if port is not None and setup_seen:
+        if line.startswith("CONFIG=") and str(config) in line:
+            config_seen = True
+        if port is not None and config_seen:
             break
-    if port is None or port <= 0 or not setup_seen:
+    if port is None or port <= 0 or not config_seen:
         err = proc.stderr.read() if proc.stderr else ""
-        out = ""
         proc.kill()
         print(
-            f"no PORT/SETUP from server; stderr={err!r} leftover={out!r}",
+            f"no PORT/CONFIG from server; stderr={err!r}",
             file=sys.stderr,
         )
         raise RuntimeError("server start failed")
     return proc, port
 
 
-def write_setup(
+def write_unified_config(
     path: Path,
     *,
     world_count: int,
@@ -160,6 +157,15 @@ def write_setup(
     path.write_text(
         "\n".join(
             [
+                "host = 127.0.0.1",
+                "port = 0",
+                "players = 2",
+                "serve = true",
+                "injectable = true",
+                "cycles = 400",
+                "verbosity = 0",
+                "handshake_miss_ms = 5000",
+                "accept_poll_ms = 50",
                 "scenario_mode = closed",
                 "tick_period_seconds = 5",
                 "tick_auto_config_from_ai_lag = false",
@@ -185,18 +191,18 @@ def write_setup(
     )
 
 
-def test_knob_path(server: Path, server_config: Path) -> int:
+def test_knob_path(server: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
-        setup = Path(tmp) / "tuning.setup"
+        cfg = Path(tmp) / "tuning.cfg"
         world_count = 10
         start_wealth = 2500.0
-        write_setup(
-            setup,
+        write_unified_config(
+            cfg,
             world_count=world_count,
             start_wealth=start_wealth,
             cover_factor=2.0,
         )
-        proc, port = spawn_server(server, setup, server_config, seed=99)
+        proc, port = spawn_server(server, cfg, seed=99)
         try:
             # Homes spawn on connect — seat 0 before production ticks.
             resp = exchange("127.0.0.1", port, handshake())
@@ -219,9 +225,6 @@ def test_knob_path(server: Path, server_config: Path) -> int:
                 return 1
             blob = state_payload(body)
             tick, wealth0, planets = parse_state_blob(blob)
-            # Cadence may already have fired once before the first
-            # GET (first fire is due immediately). Knobs must still
-            # show: world_count and start_wealth floor.
             if planets != world_count:
                 print(f"world_count not applied: planets={planets}")
                 return 1
@@ -270,23 +273,29 @@ def test_knob_path(server: Path, server_config: Path) -> int:
     return 0
 
 
-def test_unknown_key(server: Path, server_config: Path) -> int:
+def test_unknown_key(server: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
-        setup = Path(tmp) / "bad.setup"
-        setup.write_text(
-            "scenario_mode = closed\nnot_a_real_knob = 1\n",
+        cfg = Path(tmp) / "bad.cfg"
+        cfg.write_text(
+            "\n".join(
+                [
+                    "serve = true",
+                    "port = 0",
+                    "scenario_mode = closed",
+                    "not_a_real_knob = 1",
+                    "",
+                ]
+            ),
             encoding="utf-8",
         )
         env = os.environ.copy()
         cmd = [
             str(server),
             "--config",
-            str(server_config),
+            str(cfg),
             "--serve",
             "--port",
             "0",
-            "--setup",
-            str(setup),
             "--injectable",
             "--cycles",
             "10",
@@ -311,46 +320,84 @@ def test_unknown_key(server: Path, server_config: Path) -> int:
             print(f"expected non-zero exit; out={out!r} err={err!r}")
             return 1
         combined = (out or "") + (err or "")
-        if "unknown setup key" not in combined:
+        if "unknown server config key" not in combined:
             print(f"missing unknown-key message: {combined!r}")
             return 1
     return 0
 
 
-def test_repo_fixture(
-    server: Path, server_config: Path, fixture: Path
-) -> int:
-    if not fixture.is_file():
-        print(f"missing fixture: {fixture}", file=sys.stderr)
-        return 2
-    proc, port = spawn_server(server, fixture, server_config, seed=7)
-    try:
-        # Seat 0 must exist before wealth is readable from publish.
-        resp = exchange("127.0.0.1", port, handshake())
-        _, verb, path, body = decode_envelope(resp)
-        if path != "/handshake" or body[0] != 1:
-            print(f"fixture handshake failed path={path} body={body!r}")
-            return 1
-        resp = exchange("127.0.0.1", port, get_state(0, 0))
-        _, verb, path, body = decode_envelope(resp)
-        if verb != 1 or path != "/state":
-            print(f"fixture state bad path={path}")
-            return 1
-        blob = state_payload(body)
-        _tick, wealth0, planets = parse_state_blob(blob)
-        if planets != 24:
-            print(f"closed-default world_count expected 24 got {planets}")
-            return 1
-        # start_wealth 1000.0; may already include one production tick.
-        if wealth0 < 1000000:
-            print(f"closed-default start_wealth milli={wealth0}")
-            return 1
-    finally:
-        proc.terminate()
+def test_legacy_setup_key(server: Path) -> int:
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Path(tmp) / "legacy.cfg"
+        cfg.write_text(
+            "serve = true\nsetup = scenarios/closed-default.setup\n",
+            encoding="utf-8",
+        )
+        env = os.environ.copy()
+        cmd = [str(server), "--config", str(cfg)]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
         try:
-            proc.wait(timeout=2)
+            out, err = proc.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
+            print("legacy setup= server did not exit", file=sys.stderr)
+            return 1
+        if proc.returncode == 0:
+            print(f"expected non-zero for setup=; out={out!r}")
+            return 1
+        combined = (out or "") + (err or "")
+        if "setup path removed" not in combined:
+            print(f"missing setup migration message: {combined!r}")
+            return 1
+    return 0
+
+
+def test_repo_fixture(server: Path, fixture_cfg: Path) -> int:
+    if not fixture_cfg.is_file():
+        print(f"missing fixture config: {fixture_cfg}", file=sys.stderr)
+        return 2
+    # Overlay serve flags via CLI; file holds closed-default §14 knobs.
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = Path(tmp) / "play.cfg"
+        text = fixture_cfg.read_text(encoding="utf-8")
+        # Force ephemeral port / injectable for the harness.
+        cfg.write_text(
+            text
+            + "\nport = 0\ninjectable = true\ncycles = 400\n",
+            encoding="utf-8",
+        )
+        proc, port = spawn_server(server, cfg, seed=7)
+        try:
+            resp = exchange("127.0.0.1", port, handshake())
+            _, verb, path, body = decode_envelope(resp)
+            if path != "/handshake" or body[0] != 1:
+                print(f"fixture handshake failed path={path} body={body!r}")
+                return 1
+            resp = exchange("127.0.0.1", port, get_state(0, 0))
+            _, verb, path, body = decode_envelope(resp)
+            if verb != 1 or path != "/state":
+                print(f"fixture state bad path={path}")
+                return 1
+            blob = state_payload(body)
+            _tick, wealth0, planets = parse_state_blob(blob)
+            if planets != 24:
+                print(f"closed-default world_count expected 24 got {planets}")
+                return 1
+            if wealth0 < 1000000:
+                print(f"closed-default start_wealth milli={wealth0}")
+                return 1
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
     return 0
 
 
@@ -360,16 +407,18 @@ def main() -> int:
     parser.add_argument(
         "--server-config",
         required=True,
-        help="server --config path (mandatory on the binary)",
+        help="repo sample unified server config (closed defaults)",
     )
     parser.add_argument(
         "--fixture",
         default="",
-        help="optional path to scenarios/closed-default.setup",
+        help="optional alias for --server-config (compat)",
     )
     args = parser.parse_args()
     server_path = Path(args.server)
     server_config = Path(args.server_config)
+    if args.fixture:
+        server_config = Path(args.fixture)
     if not server_path.is_file():
         print(f"missing server: {server_path}", file=sys.stderr)
         return 2
@@ -377,18 +426,18 @@ def main() -> int:
         print(f"missing server config: {server_config}", file=sys.stderr)
         return 2
 
-    rc = test_knob_path(server_path, server_config)
+    rc = test_knob_path(server_path)
     if rc != 0:
         return rc
-    rc = test_unknown_key(server_path, server_config)
+    rc = test_unknown_key(server_path)
     if rc != 0:
         return rc
-    if args.fixture:
-        rc = test_repo_fixture(
-            server_path, server_config, Path(args.fixture)
-        )
-        if rc != 0:
-            return rc
+    rc = test_legacy_setup_key(server_path)
+    if rc != 0:
+        return rc
+    rc = test_repo_fixture(server_path, server_config)
+    if rc != 0:
+        return rc
 
     print("true")
     return 0

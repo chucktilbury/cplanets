@@ -22,6 +22,7 @@
  *   2026-11-06  Document one-shot TCP client contract.
  *   2026-11-08  Poll ServeMenuGate between accept / maybeTick cycles.
  *   2026-11-09  Menu gate drains stray stdin; lobby Go closes menu.
+ *   2026-11-09  recvBufferBytes from server config (was 65536).
  */
 
 import networking as Networking
@@ -46,6 +47,7 @@ class ServerListen {
     int64 acceptTimeoutMs
     int64 maxCycles
     int64 cycles
+    int64 recvBufferBytes
     ServeMenuGate menuGate
 
     /*
@@ -59,6 +61,8 @@ class ServerListen {
      *   timeoutMs — accept/recv timeout (cadence poll granularity).
      *   cycleLimit — stop after this many accept attempts
      *                (0 = unlimited; tests pass a small N).
+     *   recvBytes — max bytes per accepted client recv
+     *               (server config recv_buffer_bytes).
      *
      * Returns: ServerListen with fd -1 and a disabled menu gate.
      */
@@ -66,7 +70,8 @@ class ServerListen {
         ServerHandler gameHandler,
         GameDriver gameDriver,
         int64 timeoutMs,
-        int64 cycleLimit) {
+        int64 cycleLimit,
+        int64 recvBytes) {
         net = Networking.Runtime()
         fd = -1
         port = 0
@@ -75,6 +80,10 @@ class ServerListen {
         acceptTimeoutMs = timeoutMs
         maxCycles = cycleLimit
         cycles = 0
+        recvBufferBytes = recvBytes
+        if (recvBufferBytes < 1024) {
+            recvBufferBytes = 1024
+        }
         menuGate = ServeMenuGate()
     }
 
@@ -146,7 +155,7 @@ class ServerListen {
                 continue
             }
             net.socketSetTimeout(client, acceptTimeoutMs)
-            buffer request = net.socketRecv(client, 65536)
+            buffer request = net.socketRecv(client, recvBufferBytes)
             if (request == null or request.length < 1) {
                 net.socketClose(client)
                 continue

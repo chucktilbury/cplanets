@@ -30,6 +30,7 @@
  *               empire list on handshake allocate (live serve).
  *   2026-11-09  Every seated empire gets a starter scout fleet
  *               (RULES §2), not only seat 0.
+ *   2026-11-09  seatHardCap from server config (was literal 256).
  */
 
 include "agreement.cw"
@@ -74,6 +75,9 @@ class State {
     bool ended
     String endReason
     int64 winnerId
+    # Absolute seat bound (server config seat_hard_cap). Soft max
+    # on GameDriver still rejects earlier when players > 0.
+    int64 seatHardCap
 
     /*
      * Construct an empty state shell.
@@ -110,6 +114,7 @@ class State {
         ended = false
         endReason = ""
         winnerId = -1
+        seatHardCap = 256
     }
 
     /*
@@ -248,7 +253,7 @@ class State {
      * the practical absolute seat bound is already reached.
      */
     int64 appendSeat() {
-        if (players.length >= 256) {
+        if (players.length >= seatHardCap) {
             return(-1)
         }
         int64 id = players.length

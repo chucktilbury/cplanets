@@ -27,11 +27,6 @@ def main() -> int:
         required=True,
         help="server --config path (mandatory on the binary)",
     )
-    parser.add_argument(
-        "--setup",
-        default="",
-        help="optional scenario --setup path",
-    )
     args = parser.parse_args()
     server = Path(args.server)
     client = Path(args.client)
@@ -56,8 +51,6 @@ def main() -> int:
         "--seed",
         "77",
     ]
-    if args.setup:
-        cmd.extend(["--setup", args.setup])
     if Path("/usr/bin/stdbuf").is_file():
         cmd = ["/usr/bin/stdbuf", "-oL", "-eL", *cmd]
 

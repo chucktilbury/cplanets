@@ -1,10 +1,12 @@
 /*
  * src/cplanets-server.cw — server executable (Phase F / TUNING A).
  *
- * --config PATH is mandatory (process/network defaults; not the
- * scenario). Missing or empty path prints help and exits 2.
- * --serve [--host ADDR] [--port N] [--players N] [--seed N]
- * [--setup PATH] [--verbosity N] [--injectable] [--cycles N]:
+ * --config PATH is mandatory (unified process + §14 scenario
+ * knobs). Missing or empty path prints help and exits 2. Unopenable
+ * or unreadable config is a hard error (exit 1) — no silent
+ * Scenario() fallback. --serve [--host ADDR] [--port N]
+ * [--players N] [--seed N] [--verbosity N] [--injectable]
+ * [--cycles N] [--handshake-miss-ms N] [--accept-poll-ms N]:
  * bind TCP and run accept + cadence. While serving, stdin line `m`
  * opens the read-only in-process status console on the same State
  * (ticks pause while the menu is open). Verbosity is 0–10 (clamped;
@@ -34,13 +36,14 @@
  *   2026-11-08  Lobby until operator go (stdin g); reconnect tokens.
  *   2026-11-08  players soft max (0=unlimited); seats grow on connect.
  *   2026-11-09  Banner: menu Go closes menu; stray stdin keys flushed.
+ *   2026-11-09  Fold scenario into --config; drop --setup / setup=.
+ *   2026-11-09  Hard error on unopenable config; new process knobs.
  */
 
 import cli as Cli
 import system as Sys
 
 include "lib/machine.cw"
-include "lib/setupParse.cw"
 include "lib/state.cw"
 include "server/config.cw"
 include "server/configParse.cw"
@@ -110,7 +113,7 @@ class ServerMain {
         config.longName = "config"
         config.name = "config"
         config.description = (
-            "required: server runtime config (not the scenario)")
+            "required: unified server+scenario config")
         config.valueType = Cli.ValueType().STRING
         commandLine.addOption(config)
         Cli.Option serve = Cli.Option()
@@ -155,15 +158,6 @@ class ServerMain {
         seed.hasDefault = true
         seed.defaultValue = "7"
         commandLine.addOption(seed)
-        Cli.Option setup = Cli.Option()
-        setup.longName = "setup"
-        setup.name = "setup"
-        setup.description = (
-            "scenario file (§14 knobs); overlays config setup key")
-        setup.valueType = Cli.ValueType().STRING
-        setup.hasDefault = true
-        setup.defaultValue = ""
-        commandLine.addOption(setup)
         Cli.Option injectable = Cli.Option()
         injectable.longName = "injectable"
         injectable.name = "injectable"
@@ -187,6 +181,24 @@ class ServerMain {
         verbosity.hasDefault = true
         verbosity.defaultValue = "0"
         commandLine.addOption(verbosity)
+        Cli.Option handshakeMiss = Cli.Option()
+        handshakeMiss.longName = "handshake-miss-ms"
+        handshakeMiss.name = "handshake-miss-ms"
+        handshakeMiss.description = (
+            "presence drop window without handshake (ms)")
+        handshakeMiss.valueType = Cli.ValueType().NUMBER
+        handshakeMiss.hasDefault = true
+        handshakeMiss.defaultValue = "5000"
+        commandLine.addOption(handshakeMiss)
+        Cli.Option acceptPoll = Cli.Option()
+        acceptPoll.longName = "accept-poll-ms"
+        acceptPoll.name = "accept-poll-ms"
+        acceptPoll.description = (
+            "accept/recv poll timeout / cadence grain (ms)")
+        acceptPoll.valueType = Cli.ValueType().NUMBER
+        acceptPoll.hasDefault = true
+        acceptPoll.defaultValue = "50"
+        commandLine.addOption(acceptPoll)
         return(commandLine)
     }
 
@@ -279,9 +291,10 @@ class ServerMain {
      * Load ServerConfig from required --config; overlay every CLI
      * flag but path.
      *
-     * Purpose: process/network defaults live in the server config
-     * file (like AI/human). --config PATH is the only flag with no
-     * in-file key. --setup overlays the setup key when provided.
+     * Purpose: process/network and §14 scenario defaults live in
+     * one server config file. --config PATH is the only flag with
+     * no in-file key. Missing/unopenable path is a hard error
+     * (exit 1) with a message — no silent closed-default start.
      * Unknown config keys fail loud and exit(1). Caller already
      * required a non-empty --config path.
      *
@@ -293,9 +306,18 @@ class ServerMain {
     ServerConfig loadConfig(Cli.CommandLine commandLine) {
         ServerConfig cfg = ServerConfig()
         String path = commandLine.value("config")
-        Sys.File input = Sys.File(path, "r")
-        String text = input.readAll()
-        input.close()
+        String text = ""
+        try {
+            Sys.File input = Sys.File(path, "r")
+            text = input.readAll()
+            input.close()
+        } except() as error {
+            print(format(
+                "cplanets-server: cannot open config '{}': {}\n",
+                path,
+                error))
+            Sys.Process().exit(1)
+        }
         ServerConfigParse parser = ServerConfigParse()
         cfg = parser.parseText(text)
         if (not parser.ok) {
@@ -304,9 +326,7 @@ class ServerMain {
             print("\n")
             Sys.Process().exit(1)
         }
-        if (commandLine.wasProvided("setup")) {
-            cfg.setup = commandLine.value("setup")
-        }
+        cfg.configPath = path
         if (commandLine.wasProvided("host")) {
             String host = commandLine.value("host")
             if (host.length > 0) {
@@ -319,6 +339,10 @@ class ServerMain {
         cfg.cycles = resolveInt(commandLine, "cycles", cfg.cycles)
         cfg.verbosity = resolveInt(
             commandLine, "verbosity", cfg.verbosity)
+        cfg.handshakeMissMs = resolveInt(
+            commandLine, "handshake-miss-ms", cfg.handshakeMissMs)
+        cfg.acceptPollMs = resolveInt(
+            commandLine, "accept-poll-ms", cfg.acceptPollMs)
         cfg.serve = resolveFlag(commandLine, "serve", cfg.serve)
         cfg.injectable = resolveFlag(
             commandLine, "injectable", cfg.injectable)
@@ -327,46 +351,26 @@ class ServerMain {
     }
 
     /*
-     * Load scenario text and start a State for serve.
+     * Start a State from the unified ServerConfig scenario.
      *
      * Purpose: one authoritative world bootstrap for --serve.
      * Always starts with **zero** empire seats; handshake allocate
      * grows seats as clients connect. cfg.players is the soft max
      * applied on the GameDriver after construct, not a pre-size.
+     * Scenario knobs come from the config file (Scenario() defaults
+     * plus overlays) — there is no separate setup path.
      *
      * Parameters:
-     *   cfg — clamped ServerConfig (setup / seed / players soft
+     *   cfg — clamped ServerConfig (scenario / seed / players soft
      *         max / verbosity already overlaid).
      *
-     * Returns: started State, or null when setup parse failed
-     * (error already printed).
+     * Returns: started State.
      */
     State startGame(ServerConfig cfg) {
-        String setupPath = cfg.setup
-        Scenario loaded = Scenario()
-        bool haveSetup = false
-        if (setupPath.length > 0) {
-            SetupParse parser = SetupParse()
-            Sys.File input = Sys.File(setupPath, "r")
-            String text = input.readAll()
-            input.close()
-            loaded = parser.parseText(text)
-            if (not parser.ok) {
-                print("cplanets-server: setup error: ")
-                print(parser.lastError)
-                print("\n")
-                return(null)
-            }
-            haveSetup = true
-        }
-
         State game = State()
+        game.seatHardCap = cfg.seatHardCap
         # 0 seats: grow on connect. Soft max is driver.softMaxPlayers.
-        if (haveSetup) {
-            game.startFromScenario(loaded, uint64(cfg.seed), 0)
-        } else {
-            game.startClosed(uint64(cfg.seed), 0)
-        }
+        game.startFromScenario(cfg.scenario, uint64(cfg.seed), 0)
         # Verbosity is a process key: apply after scenario load so a
         # leftover scenario.verbosity from older fixtures cannot win.
         game.scenario.verbosity = cfg.verbosity
@@ -377,30 +381,26 @@ class ServerMain {
     /*
      * Run the TCP server loop on an existing GameDriver.
      *
-     * Purpose: Phase F listen path. Prints HOST= / PORT= / SETUP= /
-     * SEED= / PLAYERS= / CYCLES= / VERBOSITY= / INJECTABLE= /
-     * MENU_KEY= for operators and Python tests. Enables the stdin
-     * `m` status menu gate on the listen loop.
+     * Purpose: Phase F listen path. Prints HOST= / PORT= / CONFIG= /
+     * SCENARIO_MODE= / SEED= / PLAYERS= / CYCLES= / VERBOSITY= /
+     * INJECTABLE= / MENU_KEY= for operators and Python tests.
+     * Enables the stdin `m` status menu gate on the listen loop.
      *
      * Parameters:
-     *   setupPath — path used for SETUP= (may be empty → builtin).
      *   driver — sole writer already wrapping the live State.
-     *   cfg — clamped ServerConfig (host/port/cycles/accept poll).
+     *   cfg — clamped ServerConfig (host/port/cycles/accept poll /
+     *         recv buffer).
      *
      * Returns: process exit code (0 ok, 1 bind failure).
      */
-    int64 runServeDriver(
-        String setupPath,
-        GameDriver driver,
-        ServerConfig cfg) {
-        String setupLabel = "builtin"
-        if (setupPath.length > 0) {
-            setupLabel = setupPath
-        }
-
+    int64 runServeDriver(GameDriver driver, ServerConfig cfg) {
         ServerHandler handler = ServerHandler(driver)
         ServerListen listener = ServerListen(
-            handler, driver, cfg.acceptPollMs, cfg.cycles)
+            handler,
+            driver,
+            cfg.acceptPollMs,
+            cfg.cycles,
+            cfg.recvBufferBytes)
         StatusViews views = StatusViews(driver, cfg)
         listener.menuGate.enable(views, driver)
         if (not listener.listenOn(cfg.host, cfg.port)) {
@@ -411,7 +411,9 @@ class ServerMain {
         print("cplanets-server\n")
         print(format("HOST={}\n", cfg.host))
         print(format("PORT={}\n", listener.getPort()))
-        print(format("SETUP={}\n", setupLabel))
+        print(format("CONFIG={}\n", cfg.configPath))
+        print(format(
+            "SCENARIO_MODE={}\n", driver.game.scenario.scenarioMode))
         print(format("SEED={}\n", cfg.seed))
         print(format("PLAYERS={}\n", cfg.players))
         print(format("CYCLES={}\n", cfg.cycles))
@@ -453,10 +455,11 @@ class ServerMain {
      * Dispatch smoke or serve from resolved config.
      *
      * Purpose: every CLI flag except --config may come from the
-     * server config file; flags present on argv override silently.
-     * Scenario/setup holds §14 galaxy knobs only. With serve=false,
-     * print smoke identity. With serve=true, bind TCP; operator may
-     * open the read-only status menu anytime via stdin `m`.
+     * unified server config file; flags present on argv override
+     * silently. §14 galaxy knobs live in the same file. With
+     * serve=false, print smoke identity. With serve=true, bind TCP;
+     * operator may open the read-only status menu anytime via
+     * stdin `m`.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -472,10 +475,6 @@ class ServerMain {
         }
 
         State game = startGame(cfg)
-        if (game == null) {
-            return(1)
-        }
-
         GameDriver driver = GameDriver(
             game,
             cfg.injectable,
@@ -484,8 +483,9 @@ class ServerMain {
             uint64(cfg.handshakeMissMs))
         # players config / --players: soft max (0 = unlimited).
         driver.softMaxPlayers = cfg.players
+        driver.verbose.maxLines = cfg.verboseCaptureLines
 
-        return(runServeDriver(cfg.setup, driver, cfg))
+        return(runServeDriver(driver, cfg))
     }
 }
 

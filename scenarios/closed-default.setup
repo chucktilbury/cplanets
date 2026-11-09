@@ -1,11 +1,11 @@
-# CPlanets closed-scenario default fixture (RULES §14 / PLAN §4.B).
+# CPlanets closed-scenario §14 fragment (RULES §14 / PLAN §4.B).
 # Application text: key = value. Magnitudes are placeholders.
 # scenario_mode default = closed (eliminate all others).
 #
-# TUNING SURFACE (workstream A) — edit here, restart the server.
-# Groups align with RULES §14 / DIALOGS setup outline. Unknown keys
-# fail loud at load. Mid-game retune is not supported: stop the
-# process, edit, start again with the same --setup / --seed.
+# REFERENCE ONLY for operator play: fold these keys into
+# config/server-default.cfg (or another --config file). The server
+# no longer loads setup= PATH / --setup. SetupParse / unit tests may
+# still read this fragment. See doc/SERVER-CONFIG.md.
 
 # --- clock ---
 scenario_mode = closed

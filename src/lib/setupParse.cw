@@ -5,8 +5,10 @@
  * a simple line-oriented key = value form (not JSON/TOML/HTTP).
  * Unknown keys fail loud (ok=false + lastError) so tuning typos
  * cannot silently no-op. Known keys overlay closed defaults.
- * Process / network runtime (host, port, serve, seed, …) lives in
- * the server config file — not here (RULES §2 / server config).
+ * Process / network runtime (host, port, serve, seed, …) lives on
+ * ServerConfigParse — not here. Operator play loads §14 keys through
+ * the unified server config; SetupParse remains the shared §14
+ * overlay helper (State.startFromText, ServerConfigParse, units).
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -19,6 +21,7 @@
  *   2026-11-07  Process CLI mirror keys (port/players/seed/…).
  *   2026-11-07  Drop process keys — server config owns them.
  *   2026-11-07  Production/build/galaxy/design template keys.
+ *   2026-11-09  Shared §14 helper for unified ServerConfigParse.
  */
 
 include "scenario.cw"

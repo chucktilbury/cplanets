@@ -97,11 +97,12 @@ Paths below assume you are at the project root after a successful
 `--config PATH` is **required**. Every other command-line parameter
 may also be set as a default in that file. Load the file first; any
 flag **present on argv** overrides the corresponding file value
-**silently** (no warning). For the server, `--setup` is a normal
-overridable key (scenario path inside the server config); `--config`
-is the only path without an in-file default. `cplanets-tick` has a
-placeholder config (`config/tick-default.cfg`) and no advance-N
-value flags yet.
+**silently** (no warning). The server uses one unified `--config`
+(process/network **and** §14 scenario knobs). Legacy `setup=` /
+`--setup` are removed — see [SERVER-CONFIG.md](SERVER-CONFIG.md).
+`--config` is the only path without an in-file default.
+`cplanets-tick` has a placeholder config (`config/tick-default.cfg`)
+and no advance-N value flags yet.
 
 **Planned:** home-directory default config when `--config` is
 omitted — not implemented; keep passing `--config` explicitly.
@@ -115,19 +116,20 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 | Flag | Default | Config key | Meaning |
 | --- | --- | --- | --- |
 | `-h`, `--help` | — | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(required)* | *(path only)* | Server runtime config (not the scenario) |
+| `--config PATH` | *(required)* | *(path only)* | Unified server + §14 config ([SERVER-CONFIG.md](SERVER-CONFIG.md)) |
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
 | `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
 | `--port N` | `7700` (sample) | `port` | Listen port; `0` still picks an ephemeral free port (CI / harnesses) |
 | `--players N` | `0` | `players` | Soft max allocated seats (`0` = unlimited; grow on connect). Also expected-ceiling hint in status; does not delay go. |
 | `--seed N` | `7` | `seed` | PRNG seed for the start galaxy layout |
-| `--setup PATH` | (empty → builtin) | `setup` | Scenario file (§14 knobs only) |
 | `--verbosity N` | `0` | `verbosity` | Stdout log level 0–10 (clamped) |
+| `--handshake-miss-ms N` | `5000` | `handshake_miss_ms` | Presence drop window (ms) |
+| `--accept-poll-ms N` | `50` | `accept_poll_ms` | Accept/recv poll grain (ms) |
 | `--injectable` | off | `injectable` | Test clock (admin advance); CI / harnesses |
 | `--cycles N` | `0` (run until stop) | `cycles` | Cap accept/serve loop iterations |
 
 **Lobby / go (while serving):** the server starts in **lobby**
-(`PHASE=lobby`) whether or not a `--setup` / scenario is loaded.
+(`PHASE=lobby`) after loading the unified config.
 TCP accept, seat allocate (grow-on-connect), reconnect tokens, and
 the status menu work, but **wall ticks do not advance** (and the
 game clock stays at tick 0) until the operator starts the game —
@@ -191,19 +193,18 @@ will firm up over time:
 | `7–9` | Reserved (richer combat / partial dumps) |
 | `10` | Full dumps / statistics (gate only; no extra spam yet) |
 
-Process/network keys live in `config/server-*.cfg`. Scenario files
-under `scenarios/` hold §14 galaxy knobs only. CLI flags present on
-argv overlay the server-config values silently; `--setup` overlays
-the config `setup` key.
+Process/network **and** §14 galaxy knobs live in one
+`config/server-*.cfg` ([SERVER-CONFIG.md](SERVER-CONFIG.md)).
+`scenarios/*.setup` are reference fragments only (not loaded by
+path). CLI flags present on argv overlay process keys silently.
+Missing/unopenable `--config` is a hard error (no silent builtin).
 
-On start it prints `HOST=<addr>`, `PORT=<n>`, `SETUP=<path|builtin>`,
-`SEED=<n>`, `PLAYERS=<n>`, `CYCLES=<n>`, `VERBOSITY=<n>`, and
-`INJECTABLE=0|1`. Use that port for clients. Pass a scenario via
-config `setup=…` or CLI `--setup` so combat / economy / travel /
-identify magnitudes come from the file. Unknown keys fail loud and
-the process exits before listen. **Knob edits take effect on process
-restart** — there is no mid-game retune in v1 (RULES §14
-lock-in-progress).
+On start it prints `HOST=<addr>`, `PORT=<n>`, `CONFIG=<path>`,
+`SCENARIO_MODE=<mode>`, `SEED=<n>`, `PLAYERS=<n>`, `CYCLES=<n>`,
+`VERBOSITY=<n>`, and `INJECTABLE=0|1`. Use that port for clients.
+Unknown keys fail loud and the process exits before listen.
+**Knob edits take effect on process restart** — there is no
+mid-game retune in v1 (RULES §14 lock-in-progress).
 
 ### `cplanets` (human)
 
@@ -336,10 +337,8 @@ ticks until `PUT /admin/advance` (CI only).
 ./scripts/setup
 build
 
-# 1) Server — note HOST=/PORT=; process knobs from server config,
-#    galaxy knobs from --setup (or config setup=…)
-bin/cplanets-server --config config/server-default.cfg --serve \
-  --setup scenarios/closed-default.setup
+# 1) Server — note HOST=/PORT=/CONFIG=; process + §14 knobs in one file
+bin/cplanets-server --config config/server-default.cfg --serve
 
 # 2) Human list debugger — sample dials 127.0.0.1:7700
 #    Server assigns the first free seat on handshake (usually 0).
@@ -400,7 +399,7 @@ attaches separately):
 
 ```sh
 ./scripts/tuning-session \
-  --setup scenarios/tuning-small.setup \
+  --config config/server-tuning-small.cfg \
   --seed 77 \
   --ai-config config/ai-mid.cfg \
   --port 7700
@@ -419,19 +418,22 @@ bin/cplanets --config config/human-default.cfg \
 ```
 
 **Seed reproducibility:** keep `--seed` fixed (banner prints
-`SEED=<n>`). The same seed + same `--setup` file yields a comparable
-start galaxy after knob edits. Change seed only when you want a new
-layout. AI aggression bands (`ai-soft` / `ai-mid` / `ai-hard`) are
-independent of the galaxy seed.
+`SEED=<n>`). The same seed + same unified `--config` yields a
+comparable start galaxy after knob edits. Change seed only when you
+want a new layout. AI aggression bands (`ai-soft` / `ai-mid` /
+`ai-hard`) are independent of the galaxy seed.
 
-**Fixture packs** (same schema, different magnitudes — placeholders):
+**Unified server packs** (process + §14 — placeholders):
 
 | Path | Role |
 | --- | --- |
-| `scenarios/tuning-small.setup` | Fast loops (12 worlds); default for the harness |
-| `scenarios/tuning-combat.setup` | Combat-leaning A/B |
-| `scenarios/tuning-trade.setup` | Trade-leaning A/B |
-| `scenarios/closed-default.setup` | Full closed baseline (24 worlds) |
+| `config/server-tuning-small.cfg` | Fast loops (12 worlds); default for the harness |
+| `config/server-tuning-combat.cfg` | Combat-leaning A/B |
+| `config/server-tuning-trade.cfg` | Trade-leaning A/B |
+| `config/server-default.cfg` | Full closed baseline (24 worlds) + process defaults |
+
+`scenarios/*.setup` remain reference fragments only (see
+[SERVER-CONFIG.md](SERVER-CONFIG.md) migration).
 
 **AI presets** (server assigns seats; no `player_id` in samples):
 
@@ -447,17 +449,17 @@ spawns injectable server + AI `--serve-loop` + human `--pull`,
 advances ticks, and asserts digest growth. Manual injectable:
 
 ```sh
-./scripts/tuning-session --setup scenarios/tuning-small.setup \
+./scripts/tuning-session --config config/server-tuning-small.cfg \
   --seed 77 --ai-config config/ai-mid.cfg --injectable --ai-cycles 4
 ```
 
 ### Tuning loop (restart contract)
 
-1. Edit knobs in a scenario under `scenarios/` and/or an AI preset
+1. Edit knobs in a unified `config/server-*.cfg` and/or an AI preset
    under `config/`.
 2. Stop `cplanets-server` / `cplanets-ai` (Ctrl-C on
    `scripts/tuning-session`).
-3. Restart with the **same** `--setup` / `--ai-config` / `--seed`.
+3. Restart with the **same** `--config` / `--ai-config` / `--seed`.
 4. Observe digest / lists / stock — no rebuild required for magnitude
    tweaks.
 
@@ -474,23 +476,24 @@ textfile; selective human GUI setters come later.
 
 | Path | What |
 | --- | --- |
-| `config/server-default.cfg` | Server process/network (`host`, `port`, `serve`, `setup`, …) |
-| `config/human-default.cfg` | Human dial defaults (`host`, `port`; TCP seat from handshake) |
-| `config/ai-default.cfg` | AI axes (aggression, lag, surprise, …) plus dial |
-| `config/ai-{soft,mid,hard}.cfg` | Aggression-band presets (seat 1) |
-| `scenarios/closed-default.setup` | Closed-scenario §14 tuning surface |
-| `scenarios/tuning-{small,combat,trade}.setup` | Harness / A/B fixture packs |
+| `config/server-default.cfg` | Unified server process + §14 ([SERVER-CONFIG.md](SERVER-CONFIG.md)) |
+| `config/server-tuning-*.cfg` | Tuning packs (small / combat / trade) |
+| `config/human-default.cfg` | Human dial defaults ([HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md)) |
+| `config/ai-default.cfg` | AI axes + dial ([AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md)) |
+| `config/ai-{soft,mid,hard}.cfg` | Aggression-band presets |
+| `scenarios/*.setup` | Reference §14 fragments only (not loaded by path) |
 
-Config and scenario files use simple `key = value` application text.
-Unknown keys fail loud on server/AI/human config and scenario setup
-load. Pass server/AI/human configs with `--config`; pass the
-scenario with server `--setup` (or the server-config `setup` key).
-Group comments in those files name the tuning surface.
+Config files use simple `key = value` application text. Unknown
+keys fail loud on server/AI load (human ignores unknowns today).
+Pass every binary a `--config`. Key catalogs:
+[SERVER-CONFIG.md](SERVER-CONFIG.md),
+[AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md),
+[HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md).
 
 Tests that exercise binaries live under `tests/unit/`, `tests/fn/`,
 and `tests/functional/` (Python spawns `cplanets-server` and talks
-the wire protocol; `functional_setup_path` covers `--setup`;
-`functional_session_harness` covers setup + seed + AI join).
+the wire protocol; `functional_setup_path` covers unified §14 keys;
+`functional_session_harness` covers config + seed + AI join).
 
 ---
 
@@ -500,6 +503,9 @@ This file is for **users and operators**.
 
 | Audience | Doc |
 | --- | --- |
+| Server config keys + ranges | [SERVER-CONFIG.md](SERVER-CONFIG.md) |
+| AI client config keys + ranges | [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md) |
+| Human client config keys + ranges | [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md) |
 | Game rules / machine spec | [RULES.md](RULES.md) |
 | Implementation order & phases | [PLAN.md](PLAN.md) |
 | Next: playable + knobs (then balance) | [TUNING-PLAYABLE.md](TUNING-PLAYABLE.md) |

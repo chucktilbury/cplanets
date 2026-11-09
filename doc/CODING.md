@@ -130,11 +130,15 @@ must be settable as a default in that file. Load the file first;
 any flag **present on argv** (`wasProvided`) overrides the file
 value **silently** (no warning). Mode FLAGs follow the same rule
 (file `true`/`false`; argv presence forces the switch on).
-`--config` itself has **no** in-file key. Server: process/network
-keys live in `config/server-*.cfg`; `--setup` is an ordinary
-overridable key (scenario path). Scenario files hold §14 galaxy
-knobs only. AI/human/tick keep their own `--config` surfaces
-(`config/tick-default.cfg` is a placeholder until advance-N).
+`--config` itself has **no** in-file key. Server: one unified
+`config/server-*.cfg` holds process/network **and** §14 scenario
+knobs ([SERVER-CONFIG.md](SERVER-CONFIG.md)). Legacy `setup=` /
+`--setup` are rejected/removed. Missing or unopenable `--config`
+is a hard error (no silent builtin). AI/human/tick keep their own
+`--config` surfaces (`config/tick-default.cfg` is a placeholder
+until advance-N). Key catalogs: [SERVER-CONFIG.md](SERVER-CONFIG.md),
+[AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md),
+[HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md).
 **Planned (not implemented):** auto-load a default config from the
 user's home directory when `--config` is omitted — keep requiring
 an explicit path until that lands.

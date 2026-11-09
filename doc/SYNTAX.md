@@ -8,10 +8,11 @@ callable and prints whether it equals `cplanets-lib`.
 Phase B adds scenario/state helpers beside that identity stub:
 `rng.cw`, `scenario.cw`, `setupParse.cw`, `planet.cw`, `player.cw`,
 `galaxy.cw`, and `state.cw`. Setup text is application `key = value`
-lines (not a stdlib format); see `scenarios/closed-default.setup`.
-Unknown setup / AI-config keys fail loud (`ok` / `lastError`).
-Server `--setup PATH` loads that fixture for live play (restart to
-retune). Unit programs `unit_rng`, `unit_scenarioFixture`,
+lines (not a stdlib format); see `config/server-default.cfg`
+(unified process + §14) and reference `scenarios/*.setup` fragments.
+Unknown server / AI-config keys fail loud (`ok` / `lastError`).
+Server `--config PATH` loads the unified file for live play (restart
+to retune; no `--setup`). Unit programs `unit_rng`, `unit_scenarioFixture`,
 `unit_setupLoad`, `unit_galaxyStart`, and `unit_empirePools` print a
 bool line like `unit_libIdentity`.
 

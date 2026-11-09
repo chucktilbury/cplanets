@@ -91,29 +91,29 @@ def start_server(
     return proc, port, phase
 
 
-def write_config(setup_line: str) -> Path:
+def write_config(extra_lines: list[str] | None = None) -> Path:
     path = Path(
         tempfile.mkstemp(prefix="lobby-hold-", suffix=".cfg")[1]
     )
-    path.write_text(
-        "\n".join(
-            [
-                setup_line,
-                "host = 127.0.0.1",
-                "port = 0",
-                "players = 0",
-                "seed = 7",
-                "serve = true",
-                "cycles = 0",
-                "injectable = true",
-                "verbosity = 0",
-                "handshake_miss_ms = 60000",
-                "accept_poll_ms = 50",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    lines = [
+        "host = 127.0.0.1",
+        "port = 0",
+        "players = 0",
+        "seed = 7",
+        "serve = true",
+        "cycles = 0",
+        "injectable = true",
+        "verbosity = 0",
+        "handshake_miss_ms = 60000",
+        "accept_poll_ms = 50",
+        "scenario_mode = closed",
+        "tick_period_seconds = 5",
+        "tick_auto_config_from_ai_lag = false",
+    ]
+    if extra_lines:
+        lines.extend(extra_lines)
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
 
@@ -140,9 +140,9 @@ def state_paused(port: int, seat: int) -> bool:
 
 
 def run_case(
-    server: Path, setup_line: str, label: str
+    server: Path, extra_lines: list[str] | None, label: str
 ) -> None:
-    cfg = write_config(setup_line)
+    cfg = write_config(extra_lines)
     proc: subprocess.Popen[str] | None = None
     try:
         proc, port, phase = start_server(
@@ -251,7 +251,7 @@ def main() -> int:
     parser.add_argument(
         "--fixture",
         default="",
-        help="absolute/relative setup path for the with-scenario case",
+        help="unused (compat); both cases use unified server config",
     )
     args = parser.parse_args()
     server = Path(args.server)
@@ -259,16 +259,24 @@ def main() -> int:
         print(f"missing server: {server}", file=sys.stderr)
         return 2
 
-    # Drive from repo root so relative scenarios/ resolves.
+    # Drive from repo root (operator-like cwd).
     os.chdir(server.parent.parent)
 
-    fixture = args.fixture
-    if not fixture:
-        fixture = "scenarios/closed-default.setup"
-
     try:
-        run_case(server, "setup =", "no-scenario")
-        run_case(server, f"setup = {fixture}", "with-scenario")
+        # Ctor §14 defaults only (no extra scenario overlays).
+        run_case(server, None, "defaults-scenario")
+        # Explicit overlays (former closed-default magnitudes).
+        run_case(
+            server,
+            [
+                "world_count = 24",
+                "useful_mix = 0.35",
+                "scout_range = 3.0",
+                "galaxy_radius = 20.0",
+                "start_wealth = 1000.0",
+            ],
+            "with-scenario-overlays",
+        )
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 1

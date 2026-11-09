@@ -101,7 +101,7 @@ def parse_digest_body(body: bytes) -> tuple[int, int, int]:
 
 
 def spawn_server(
-    server: Path, setup: Path, server_config: Path, seed: int
+    server: Path, server_config: Path, seed: int
 ) -> tuple[subprocess.Popen, int]:
     env = os.environ.copy()
     cmd = [
@@ -115,8 +115,6 @@ def spawn_server(
         "0",
         "--seed",
         str(seed),
-        "--setup",
-        str(setup),
         "--injectable",
         "--cycles",
         "600",
@@ -134,7 +132,7 @@ def spawn_server(
     )
     assert proc.stdout is not None
     port = None
-    setup_seen = False
+    config_seen = False
     seed_seen = False
     deadline = time.time() + 5.0
     while time.time() < deadline:
@@ -144,17 +142,17 @@ def spawn_server(
         line = line.strip()
         if line.startswith("PORT="):
             port = int(line.split("=", 1)[1])
-        if line.startswith("SETUP=") and str(setup) in line:
-            setup_seen = True
+        if line.startswith("CONFIG=") and str(server_config) in line:
+            config_seen = True
         if line.startswith("SEED=") and line.endswith(f"={seed}"):
             seed_seen = True
-        if port is not None and setup_seen and seed_seen:
+        if port is not None and config_seen and seed_seen:
             break
-    if port is None or port <= 0 or not setup_seen or not seed_seen:
+    if port is None or port <= 0 or not config_seen or not seed_seen:
         err = proc.stderr.read() if proc.stderr else ""
         proc.kill()
         print(
-            f"no PORT/SETUP/SEED from server; stderr={err!r}",
+            f"no PORT/CONFIG/SEED from server; stderr={err!r}",
             file=sys.stderr,
         )
         raise RuntimeError("server start failed")
@@ -255,19 +253,16 @@ def test_session(
     server: Path,
     ai: Path,
     client: Path,
-    setup: Path,
     server_config: Path,
     human_cfg: Path,
     *,
     expected_worlds: int,
 ) -> int:
-    if not setup.is_file():
-        print(f"missing setup: {setup}", file=sys.stderr)
+    if not server_config.is_file():
+        print(f"missing server config: {server_config}", file=sys.stderr)
         return 2
 
-    proc, port = spawn_server(
-        server, setup, server_config, HARNESS_SEED
-    )
+    proc, port = spawn_server(server, server_config, HARNESS_SEED)
     try:
         # Allocate seat 0 then suspend so injectable advance does
         # not handshake_miss-drop the human and end the game.
@@ -392,13 +387,9 @@ def test_session(
     return 0
 
 
-def test_seed_banner(
-    server: Path, setup: Path, server_config: Path
-) -> int:
+def test_seed_banner(server: Path, server_config: Path) -> int:
     """Same seed banner must echo for comparable re-runs."""
-    proc, _port = spawn_server(
-        server, setup, server_config, HARNESS_SEED
-    )
+    proc, _port = spawn_server(server, server_config, HARNESS_SEED)
     try:
         # spawn_server already required SEED=; second spawn proves
         # restart-with-same-seed path is stable.
@@ -409,9 +400,7 @@ def test_seed_banner(
             proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
             proc.kill()
-    proc2, _port2 = spawn_server(
-        server, setup, server_config, HARNESS_SEED
-    )
+    proc2, _port2 = spawn_server(server, server_config, HARNESS_SEED)
     try:
         return 0
     finally:
@@ -434,8 +423,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--fixture",
-        required=True,
-        help="scenarios/tuning-small.setup (or other closed fixture)",
+        default="",
+        help="unified server config with §14 knobs (defaults to --server-config)",
     )
     parser.add_argument(
         "--human-config",
@@ -453,7 +442,8 @@ def main() -> int:
     ai = Path(args.ai)
     client = Path(args.client)
     server_config = Path(args.server_config)
-    fixture = Path(args.fixture)
+    if args.fixture:
+        server_config = Path(args.fixture)
     human_cfg = Path(args.human_config) if args.human_config else (
         Path(__file__).resolve().parents[2]
         / "tests"
@@ -471,14 +461,13 @@ def main() -> int:
             print(f"missing {label}: {path}", file=sys.stderr)
             return 2
 
-    rc = test_seed_banner(server, fixture, server_config)
+    rc = test_seed_banner(server, server_config)
     if rc != 0:
         return rc
     rc = test_session(
         server,
         ai,
         client,
-        fixture,
         server_config,
         human_cfg,
         expected_worlds=args.worlds,

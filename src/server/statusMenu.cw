@@ -354,7 +354,7 @@ class StatusMenu {
         while (true) {
             print("Config (read-only):\n")
             print("1) Server process / network\n")
-            print("2) Scenario / setup knobs\n")
+            print("2) Scenario / §14 knobs\n")
             print("3) Both\n")
             print("b) Back\n")
             String choice = readChoice("config> ")

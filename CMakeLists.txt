@@ -354,7 +354,7 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
-        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/closed-default.setup"
+        "-DFIXTURE=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_setup_path.cmake")
     add_test(NAME functional_client_once COMMAND "${CMAKE_COMMAND}"
         "-DCLIENT=${cplanets_executable}"
@@ -365,8 +365,7 @@ if(BUILD_TESTING)
         "-DSERVER=${cplanets-server_executable}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
-        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
-        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-tuning-small.cfg"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_client_pull.cmake")
     add_test(NAME functional_client_connect_fail COMMAND "${CMAKE_COMMAND}"
         "-DCLIENT=${cplanets_executable}"
@@ -387,9 +386,9 @@ if(BUILD_TESTING)
         "-DAI=${cplanets-ai_executable}"
         "-DCLIENT=${cplanets_executable}"
         "-DPYTHON=${Python3_EXECUTABLE}"
-        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-tuning-small.cfg"
         "-DHUMAN_CONFIG=${PROJECT_SOURCE_DIR}/tests/config/human-headless.cfg"
-        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/tuning-small.setup"
+        "-DFIXTURE=${PROJECT_SOURCE_DIR}/config/server-tuning-small.cfg"
         "-DWORLDS=12"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_session_harness.cmake")
     add_test(NAME functional_cli_config_defaults COMMAND "${CMAKE_COMMAND}"
@@ -427,12 +426,11 @@ if(BUILD_TESTING)
     add_test(NAME functional_lobby_hold COMMAND "${CMAKE_COMMAND}"
         "-DSERVER=${cplanets-server_executable}"
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
-        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/closed-default.setup"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_lobby_hold.cmake")
-    # Config files use relative setup= paths (scenarios/...). CTest's
-    # default cwd is the build tree; run functionals from the source
-    # root so those paths resolve the same as an operator launch.
+    # Operator samples under config/ are relative to the source root.
+    # CTest's default cwd is the build tree; run functionals from the
+    # source root so paths match an operator launch.
     set(_cplanets_functional_tests
         functional_server_smoke
         functional_server_verbose

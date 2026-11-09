@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Unified server config:** process/network and former §14 scenario
+  knobs live in one `--config` file (`config/server-*.cfg`). Legacy
+  `setup = PATH` is rejected with a migration hint; CLI `--setup` is
+  removed. Missing/unopenable `--config` is a hard error (no silent
+  builtin). New process keys: `recv_buffer_bytes`, `seat_hard_cap`,
+  `verbose_capture_lines`; CLI overlays for `handshake_miss_ms` /
+  `accept_poll_ms`. Banner: `CONFIG=` + `SCENARIO_MODE=` (no
+  `SETUP=`). Tuning packs: `config/server-tuning-{small,combat,trade}.cfg`.
+  Docs: [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md),
+  [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md).
+  `scenarios/*.setup` remain reference fragments only.
 - **AI serve-loop period (`loop_period_ms`):** continuous
   `--serve-loop` replaces the hard-coded 100 ms sleep with a
   settable frame budget. Config key `loop_period_ms` (default

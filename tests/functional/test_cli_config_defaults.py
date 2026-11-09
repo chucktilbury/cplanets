@@ -63,24 +63,10 @@ def stop(proc: subprocess.Popen[str]) -> None:
 
 def test_server_file_defaults_and_override(server: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
-        setup = Path(tmp) / "galaxy.setup"
-        setup.write_text(
-            "\n".join(
-                [
-                    "scenario_mode = closed",
-                    "tick_period_seconds = 5",
-                    "tick_auto_config_from_ai_lag = false",
-                    "world_count = 8",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
         cfg = Path(tmp) / "server.cfg"
         cfg.write_text(
             "\n".join(
                 [
-                    f"setup = {setup}",
                     "host = 127.0.0.1",
                     "serve = true",
                     "port = 0",
@@ -89,6 +75,10 @@ def test_server_file_defaults_and_override(server: Path) -> int:
                     "cycles = 40",
                     "injectable = true",
                     "verbosity = 3",
+                    "scenario_mode = closed",
+                    "tick_period_seconds = 5",
+                    "tick_auto_config_from_ai_lag = false",
+                    "world_count = 8",
                     "",
                 ]
             ),
@@ -105,12 +95,15 @@ def test_server_file_defaults_and_override(server: Path) -> int:
                 "CYCLES=40",
                 "VERBOSITY=3",
                 "INJECTABLE=1",
+                "SCENARIO_MODE=closed",
             ):
                 if needle not in preamble:
                     print(f"missing {needle} in file-default preamble: {joined!r}")
                     return 1
-            if not any(item.startswith("SETUP=") and str(setup) in item for item in preamble):
-                print(f"missing SETUP from config: {joined!r}")
+            if not any(
+                item.startswith("CONFIG=") and str(cfg) in item for item in preamble
+            ):
+                print(f"missing CONFIG from banner: {joined!r}")
                 return 1
             port_line = next((item for item in preamble if item.startswith("PORT=")), "")
             try:
@@ -123,27 +116,12 @@ def test_server_file_defaults_and_override(server: Path) -> int:
         finally:
             stop(proc)
 
-        # CLI silently overrides seed / verbosity / players / setup.
-        other_setup = Path(tmp) / "other.setup"
-        other_setup.write_text(
-            "\n".join(
-                [
-                    "scenario_mode = closed",
-                    "tick_period_seconds = 5",
-                    "tick_auto_config_from_ai_lag = false",
-                    "world_count = 6",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
-        )
+        # CLI silently overrides seed / verbosity / players.
         proc, preamble = spawn_server(
             server,
             [
                 "--config",
                 str(cfg),
-                "--setup",
-                str(other_setup),
                 "--seed",
                 "11",
                 "--verbosity",
@@ -157,12 +135,6 @@ def test_server_file_defaults_and_override(server: Path) -> int:
                 if needle not in preamble:
                     print(f"CLI overlay missing {needle}: {preamble!r}")
                     return 1
-            if not any(
-                item.startswith("SETUP=") and str(other_setup) in item
-                for item in preamble
-            ):
-                print(f"--setup overlay failed: {preamble!r}")
-                return 1
         finally:
             stop(proc)
     return 0

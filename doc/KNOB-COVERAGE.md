@@ -125,6 +125,7 @@ written — include it when merged; not required for this docs PR.
 | --- | --- | --- |
 | Axes: aggression, role_stickiness, expansion, escort, agreement_appetite, tech_vs_hulls | AI cfg | textfile already · server-textfile-only (AI process) |
 | `reaction_lag_ticks` / `_seconds`, `surprise_rate` | AI cfg | textfile already · server-textfile-only |
+| `loop_period_ms` (serve-loop frame budget; default 100; distinct from reaction lag) | AI cfg + CLI `--loop-period-ms` overlay | textfile already · server-textfile-only (AI process) |
 | `seed`, `player_id`, host, port | AI cfg | textfile already · server-textfile-only |
 | `verbosity` (0–10 clamped; provisional: 0 errors / 3+ decisions / 10 full) | AI cfg + CLI `--verbosity` overlay | textfile already · server-textfile-only (AI process) |
 | `cycles` / `once` / `serve_loop` | AI cfg + CLI overlay (path `--config` excluded) | textfile already · server-textfile-only (AI process) |

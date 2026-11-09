@@ -15,6 +15,7 @@
  *   2026-11-07  Assert cycles / once / serve_loop keys.
  *   2026-11-08  cycles 0 default; negative clamps to 0.
  *   2026-11-08  Default playerId -1 (server assigns on handshake).
+ *   2026-11-09  Assert loop_period_ms default / parse / clamp.
  */
 
 include "ai/configParse.cw"
@@ -28,9 +29,16 @@ start {
     if (baseline.cycles != 0) {
         ok = false
     }
+    if (baseline.loopPeriodMs != 100) {
+        ok = false
+    }
     baseline.cycles = -3
+    baseline.loopPeriodMs = -25
     baseline.clampAll()
     if (baseline.cycles != 0) {
+        ok = false
+    }
+    if (baseline.loopPeriodMs != 0) {
         ok = false
     }
 
@@ -52,6 +60,7 @@ start {
     text.append("cycles = 5\n")
     text.append("once = true\n")
     text.append("serve_loop = true\n")
+    text.append("loop_period_ms = 250\n")
     AiConfigParse parser = AiConfigParse()
     AiConfig cfg = parser.parseText(text)
     if (not parser.ok) {
@@ -106,6 +115,9 @@ start {
         ok = false
     }
     if (not cfg.serveLoop) {
+        ok = false
+    }
+    if (cfg.loopPeriodMs != 250) {
         ok = false
     }
 

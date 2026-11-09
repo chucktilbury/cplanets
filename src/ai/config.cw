@@ -16,6 +16,7 @@
  *   2026-11-08  cycles 0 = serve until eliminated/ended/stop.
  *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
  *   2026-11-08  reconnectToken from handshake ack for reclaim.
+ *   2026-11-09  loop_period_ms: serve-loop frame budget (default 100).
  */
 
 /*
@@ -51,6 +52,11 @@ class AiConfig {
     int64 cycles
     bool once
     bool serveLoop
+    # Continuous serve-loop target period (milliseconds). Each
+    # cycle measures work then sleeps leftover so cadence is
+    # roughly deterministic. Distinct from reaction_lag_* gates.
+    # CLI --loop-period-ms overlays after load. Default 100.
+    int64 loopPeriodMs
 
     /*
      * Construct mid-band defaults for a seat.
@@ -61,7 +67,7 @@ class AiConfig {
      * Parameters: none.
      *
      * Returns: AiConfig with mid axes, lag 1 tick / 2.0s, seed 1,
-     * unassigned seat, empty reconnect token.
+     * unassigned seat, empty reconnect token, loop period 100 ms.
      */
     AiConfig() {
         aggression = 0.5
@@ -82,6 +88,7 @@ class AiConfig {
         cycles = 0
         once = false
         serveLoop = false
+        loopPeriodMs = 100
     }
 
     /*
@@ -126,6 +133,10 @@ class AiConfig {
         # 0 = unlimited serve-loop (until eliminated / ended / stop).
         if (cycles < 0) {
             cycles = 0
+        }
+        # 0 = no leftover sleep (busy continuous loop).
+        if (loopPeriodMs < 0) {
+            loopPeriodMs = 0
         }
     }
 

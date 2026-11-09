@@ -13,6 +13,7 @@
  *   2026-11-07  Design develop / yard build + catalog decode.
  *   2026-11-07  Budget + known-competitor compose asserts.
  *   2026-11-07  Budget allocationPct spend on production tick.
+ *   2026-11-09  Call go() before play verbs (lobby gate).
  */
 
 include "client/exploredTrack.cw"
@@ -61,6 +62,10 @@ start {
     game.ensureAllSeatHomes()
     GameDriver drv = GameDriver(
         game, true, "", false, 10000u)
+    # Play verbs wait for operator go (lobby hold).
+    if (ok and not drv.go()) {
+        ok = false
+    }
     if (ok and not drv.issueOwnedOrder(0, 1, "explore", 1, 0)) {
         ok = false
     }

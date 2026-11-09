@@ -409,6 +409,12 @@ if(BUILD_TESTING)
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_ai_serve_continuous.cmake")
+    add_test(NAME functional_lobby_hold COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
+        "-DFIXTURE=${PROJECT_SOURCE_DIR}/scenarios/closed-default.setup"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_lobby_hold.cmake")
     # Config files use relative setup= paths (scenarios/...). CTest's
     # default cwd is the build tree; run functionals from the source
     # root so those paths resolve the same as an operator launch.
@@ -426,7 +432,8 @@ if(BUILD_TESTING)
         functional_cli_config_defaults
         functional_status_menu
         functional_ai_status_menu
-        functional_ai_serve_continuous)
+        functional_ai_serve_continuous
+        functional_lobby_hold)
     set_tests_properties(${_cplanets_functional_tests} PROPERTIES
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Lobby hold on live serve loop:** connect still leaves
+  `PHASE=lobby` / `tick=0`, and play verbs (`/order`, `/build`,
+  `/design`, `/recall`, `/reclaim-hulls`, `/budget`) are rejected
+  until operator `g`. Published GET /state chrome reports
+  `paused=true` while in lobby so AI/human clients do not treat
+  connect as serve-start (AI skips explore/build while paused).
+  Regression: `functional_lobby_hold` (real TCP serve loop, with
+  and without scenario) plus tightened `unit_lobbyHoldGhosts`.
 - **Lobby hold + no ghost seats:** lobby stays until operator `g`
   with or without a scenario; first/later client connects allocate
   seats but do not start the game clock. Lobby miss-drop / explicit

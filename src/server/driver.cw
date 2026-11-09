@@ -39,6 +39,10 @@
  *               abandoned seats are free (no ghost clients);
  *               after go, drop still keeps tokens for reclaim.
  *               Handshake / seat connect never leave lobby.
+ *   2026-11-09  Lobby also rejects play verbs (order/build/
+ *               design/recall/reclaim/budget) and publishes the
+ *               held clock as paused so AI/human clients do not
+ *               treat connect as serve-start before operator go.
  */
 
 include "clock.cw"
@@ -137,7 +141,7 @@ class GameDriver {
         verbose = ServerVerboseLog()
         verbose.setLevel(game.scenario.verbosity)
         publishedState = publisher.encodeState(
-            game, policies, paused)
+            game, policies, publishPausedFlag())
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
     }
@@ -153,6 +157,61 @@ class GameDriver {
      */
     bool inLobby() {
         return(not running)
+    }
+
+    /*
+     * True when the game clock must not advance for clients.
+     *
+     * Purpose: lobby holds wall/injectable cadence until operator
+     * go, and the one-human pause flag also holds it. Publish and
+     * status chrome use this so a connected client sees the
+     * session as held (paused) rather than a live running clock
+     * at tick 0. Play verbs also consult running via requireGo.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when paused or still in lobby.
+     */
+    bool clockHeld() {
+        return(paused or not running)
+    }
+
+    /*
+     * Paused flag written into published state / digest chrome.
+     *
+     * Purpose: GET /state consumers (human GUI, AI) must see the
+     * lobby hold. Raw `paused` alone is false in lobby, which made
+     * connect look like an unpaused live game even while ticks
+     * were gated — AI then queued explore/build before go.
+     *
+     * Parameters: none.
+     *
+     * Returns: clockHeld() (lobby or explicit pause).
+     */
+    bool publishPausedFlag() {
+        return(clockHeld())
+    }
+
+    /*
+     * Reject play mutations while still in lobby.
+     *
+     * Purpose: seating/handshake/policy may run before go, but
+     * orders, yard builds, design develop, recall, reclaim, and
+     * budget changes are gameplay and must wait for operator go.
+     * Sets lastOrderError when refusing so PUT /order acks carry
+     * a clear reason.
+     *
+     * Parameters: none.
+     *
+     * Returns: true when running (caller may proceed); false when
+     * still in lobby (caller must abort the verb).
+     */
+    bool requireGo() {
+        if (running) {
+            return(true)
+        }
+        lastOrderError = "still in lobby (operator go required)"
+        return(false)
     }
 
     /*
@@ -248,6 +307,9 @@ class GameDriver {
     bool setOwnedBudget(
         int64 playerId, int64 planetId, int64 allocationPct) {
         if (game.ended) {
+            return(false)
+        }
+        if (not requireGo()) {
             return(false)
         }
         if (planetId < 0
@@ -433,6 +495,12 @@ class GameDriver {
                 lastOrderError)
             return(false)
         }
+        if (not requireGo()) {
+            verbose.logOrder(
+                playerId, fleetId, order, destPlanetId, hulls, false,
+                lastOrderError)
+            return(false)
+        }
         Fleet fleet = game.findFleet(fleetId)
         if (fleet.id < 0) {
             lastOrderError = format(
@@ -534,6 +602,9 @@ class GameDriver {
         if (game.ended) {
             return(false)
         }
+        if (not requireGo()) {
+            return(false)
+        }
         Fleet fleet = game.findFleet(fleetId)
         if (fleet.id < 0 or fleet.ownerId != playerId) {
             return(false)
@@ -560,6 +631,10 @@ class GameDriver {
      */
     int64 queueOwnedDesign(int64 playerId, Design draft) {
         if (game.ended) {
+            verbose.logDesignDevelop(playerId, -1, draft.name)
+            return(-1)
+        }
+        if (not requireGo()) {
             verbose.logDesignDevelop(playerId, -1, draft.name)
             return(-1)
         }
@@ -596,6 +671,11 @@ class GameDriver {
                 playerId, planetId, designId, false)
             return(false)
         }
+        if (not requireGo()) {
+            verbose.logYardBuild(
+                playerId, planetId, designId, false)
+            return(false)
+        }
         if (playerId < 0 or playerId >= game.players.length) {
             verbose.logYardBuild(
                 playerId, planetId, designId, false)
@@ -625,6 +705,11 @@ class GameDriver {
     bool queueOwnedReclaim(
         int64 playerId, int64 fleetId, int64 hulls) {
         if (game.ended) {
+            verbose.logReclaimHulls(
+                playerId, fleetId, hulls, false)
+            return(false)
+        }
+        if (not requireGo()) {
             verbose.logReclaimHulls(
                 playerId, fleetId, hulls, false)
             return(false)
@@ -1061,7 +1146,7 @@ class GameDriver {
         # Presence still ages in lobby; cadence fire and end-status
         # wait on go (scanPresenceDrops → refreshEndStatusIfRunning).
         scanPresenceDrops()
-        if (game.ended or paused or not running) {
+        if (game.ended or clockHeld()) {
             return(false)
         }
         if (not clock.due()) {
@@ -1099,7 +1184,7 @@ class GameDriver {
             if (game.ended) {
                 return(fired)
             }
-            if (paused) {
+            if (clockHeld()) {
                 return(fired)
             }
             clock.advanceMs(uint64(clock.periodMs))
@@ -1165,7 +1250,7 @@ class GameDriver {
         verbose.logCombatTick(
             game.tickCount, lastEvents, game.engagements)
         publishedState = publisher.encodeState(
-            game, policies, paused)
+            game, policies, publishPausedFlag())
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
         if (storeEnabled and store.openOk) {
@@ -1232,7 +1317,7 @@ class GameDriver {
      */
     void republishWithoutTick() {
         publishedState = publisher.encodeState(
-            game, policies, paused)
+            game, policies, publishPausedFlag())
         publishedDigest = publisher.encodeDigest(
             game.tickCount, lastEvents)
         if (storeEnabled and store.openOk) {

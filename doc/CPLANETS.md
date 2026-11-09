@@ -131,10 +131,12 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 TCP accept, seat allocate (grow-on-connect), reconnect tokens, and
 the status menu work, but **wall ticks do not advance** (and the
 game clock stays at tick 0) until the operator starts the game —
-the first client connect does **not** leave lobby. End-of-game
-checks (all-humans-quit / eliminate-all) also wait until go —
-connecting an AI in lobby must not end the server. Later clients may
-still connect and get seats while in lobby. Lobby miss-drop clears
+the first client connect does **not** leave lobby, does **not**
+accept explore/build/design play verbs, and publishes chrome
+`paused=true` so clients see the hold. End-of-game checks
+(all-humans-quit / eliminate-all) also wait until go — connecting
+an AI in lobby must not end the server. Later clients may still
+connect and get seats while in lobby. Lobby miss-drop clears
 the reconnect token so a restarted client reuses the seat (no ghost
 seats); after go, drop keeps the token for reclaim. Type **`g` then
 Enter** on the server console (banner prints `GO_KEY=g`) — or choose

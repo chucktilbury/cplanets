@@ -25,6 +25,8 @@
  *   2026-11-08  Lobby + reconnect tokens: handshake ack trails
  *               TOKEN_BYTES; reclaim by token; PUT /admin/go.
  *   2026-11-08  Handshake 1-byte kind: 0 human / 1 AI allocate.
+ *   2026-11-09  GET /state publishes lobby hold as paused via
+ *               GameDriver.publishPausedFlag().
  */
 
 include "driver.cw"
@@ -165,11 +167,13 @@ class ServerHandler {
             return(errorFrame("bad_get_state"))
         }
         PublishCodec codec = PublishCodec()
+        # Lobby hold publishes as paused so clients do not treat
+        # connect as an unpaused live clock before operator go.
         buffer blob = codec.encodeStateView(
             driver.game,
             driver.policies,
             req.playerId,
-            driver.paused)
+            driver.publishPausedFlag())
         GetStateResponse resp = GetStateResponse(
             driver.game.tickCount, blob)
         return(getState.encodeResponse(resp))

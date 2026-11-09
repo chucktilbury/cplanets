@@ -11,6 +11,7 @@
  *   2026-11-08  Initial status menu unit program.
  *   2026-11-08  Drop menu= config dump token.
  *   2026-11-08  Summary uses seated= / softMax= tokens.
+ *   2026-11-09  Lobby summary shows paused=true (clock hold).
  */
 
 include "server/config.cw"
@@ -35,6 +36,9 @@ start {
         ok = false
     }
     if (not summary.contains("tick=0")) {
+        ok = false
+    }
+    if (not summary.contains("paused=true")) {
         ok = false
     }
     if (not summary.contains("seated=2")) {

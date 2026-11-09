@@ -12,6 +12,7 @@
  * Changelog:
  *   2026-11-09  Initial panel host (menubar rearrange).
  *   2026-11-09  Openers are top-level menubar menus (not View).
+ *   2026-11-09  Openers are root click Buttons (no Open submenu).
  */
 
 include "guiDigestPage.cw"
@@ -126,7 +127,7 @@ class GuiPanelHost {
     /*
      * Raise the Planets panel dialog.
      *
-     * Purpose: Planets→Open and map budget ContextMenu bridge.
+     * Purpose: Planets root click and map budget ContextMenu bridge.
      *
      * Parameters: none (uses setParent window).
      *
@@ -142,7 +143,7 @@ class GuiPanelHost {
     /*
      * Raise the Fleets panel dialog.
      *
-     * Purpose: Fleets→Open and map dispatch ContextMenu bridge.
+     * Purpose: Fleets root click and map dispatch ContextMenu bridge.
      *
      * Parameters: none (uses setParent window).
      *
@@ -158,7 +159,7 @@ class GuiPanelHost {
     /*
      * Raise the Ships panel dialog.
      *
-     * Purpose: Ships→Open menu item.
+     * Purpose: Ships root click opener.
      *
      * Parameters: none (uses setParent window).
      *
@@ -174,7 +175,7 @@ class GuiPanelHost {
     /*
      * Raise the Digest panel dialog.
      *
-     * Purpose: Digest→Open menu item.
+     * Purpose: Digest root click opener.
      *
      * Parameters: none (uses setParent window).
      *
@@ -190,7 +191,7 @@ class GuiPanelHost {
     /*
      * Raise the Policy panel dialog.
      *
-     * Purpose: Policy→Open menu item.
+     * Purpose: Policy root click opener.
      *
      * Parameters: none (uses setParent window).
      *

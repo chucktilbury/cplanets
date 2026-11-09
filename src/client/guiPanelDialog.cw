@@ -2,7 +2,7 @@
  * src/client/guiPanelDialog.cw — non-modal panel TransientWindow.
  *
  * Hosts former Notebook tab content (Planets / Fleets / Ships /
- * Digest / Policy) behind top-level menubar Open items.
+ * Digest / Policy) behind top-level menubar root clicks.
  * Hide-on-close matches explored / examine dialogs so present()
  * never hits a destroyed GtkWindow. ProgressBar chrome stays
  * inside Fleets / Ships page widgets placed as this dialog's
@@ -14,6 +14,7 @@
  * Changelog:
  *   2026-11-09  Initial panel dialog host (menubar rearrange).
  *   2026-11-09  Openers are top-level menubar menus (not View).
+ *   2026-11-09  Openers are root click Buttons (no Open submenu).
  */
 
 /*
@@ -110,7 +111,7 @@ class GuiPanelDialog {
     /*
      * Present (or raise) the panel dialog.
      *
-     * Purpose: top-level menubar Open items and map ContextMenu
+     * Purpose: top-level menubar root clicks and map ContextMenu
      * bridges that formerly switched Notebook pages.
      *
      * Parameters:

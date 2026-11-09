@@ -12,7 +12,7 @@
  * Changelog:
  *   2026-11-07  Initial policy Scales page.
  *   2026-11-09  Hosted in View→Policy panel dialog.
- *   2026-11-09  Menubar opener is Policy→Open (not View).
+ *   2026-11-09  Menubar opener is root Policy click (no Open submenu).
  *   2026-11-09  Role choice row + tooltips (View dialogs usable).
  */
 

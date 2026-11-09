@@ -13,7 +13,7 @@
  * Changelog:
  *   2026-11-07  Initial digest + compose chrome page.
  *   2026-11-09  Hosted in View→Digest panel dialog.
- *   2026-11-09  Menubar opener is Digest→Open (not View).
+ *   2026-11-09  Menubar opener is root Digest click (no Open submenu).
  *   2026-11-09  Recipient choice row + tooltips (View usable).
  */
 

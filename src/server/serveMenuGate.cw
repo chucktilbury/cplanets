@@ -15,6 +15,8 @@
  *   2026-11-08  Operator go via stdin `g` (lobby → running).
  *   2026-11-09  Drain stray/empty stdin lines so a junk key then m
  *               still opens the menu; blank Enter is not EOF.
+ *   2026-11-09  Rely on StdinPoll.pending() seeing stdio-buffered
+ *               lines after the first readLine of a piped burst.
  */
 
 include "stdinPoll.cw"
@@ -76,12 +78,14 @@ class ServeMenuGate {
      * If stdin has lines, handle operator console commands.
      *
      * Purpose: non-blocking serve-thread watcher. Consumes every
-     * complete line currently pending so a stray keystroke (or a
-     * bare Enter) cannot sit ahead of a later `m`/`g` and permanently
-     * disable the gate. `m` opens the status menu; `g` leaves lobby
-     * (same go path as menu Go / PUT /admin/go). Unknown lines are
-     * discarded with a one-line hint. Only a null readLine (true EOF)
-     * sets stdinEof — empty/whitespace lines are ignored.
+     * complete line currently pending (kernel POLLIN or already in
+     * the stdio FILE buffer after a prior readLine) so a stray
+     * keystroke (or a bare Enter) cannot sit ahead of a later `m`/`g`
+     * and permanently disable the gate. `m` opens the status menu;
+     * `g` leaves lobby (same go path as menu Go / PUT /admin/go).
+     * Unknown lines are discarded with a one-line hint. Only a null
+     * readLine (true EOF) sets stdinEof — empty/whitespace lines are
+     * ignored.
      *
      * Parameters: none.
      *

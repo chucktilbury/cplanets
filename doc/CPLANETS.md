@@ -160,8 +160,10 @@ lobby, menu **`g` leaves lobby, closes the menu, and restores pause**
 so wall ticks may advance — it must not stay in a non-lobby menu with
 clients still held. The serve loop polls stdin non-blocking between
 accepts and **drains stray / blank console lines** each cycle so a
-junk keystroke (or bare Enter) then `m` still opens the menu; TCP
-accept is not blocked forever waiting for menu input.
+junk keystroke (or bare Enter) then `m` still opens the menu
+(`StdinPoll.pending` also sees bytes already buffered by stdio after
+a prior read). TCP accept is not blocked forever waiting for menu
+input.
 
 **Bind address:** default `127.0.0.1` (loopback), matching the
 prior hard-coded TCP listen. Set `host = 0.0.0.0` (or CLI

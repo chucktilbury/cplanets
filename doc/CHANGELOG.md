@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Lobby AI connect abort:** lobby no longer runs end-status
+  (all-humans-quit / eliminate-all) before operator go, so a
+  connecting AI cannot tear down the server on handshake_miss.
+  Wall/injectable ticks stay gated on go. AI allocate uses a
+  1-byte handshake kind=`1` so the seat is marked non-human;
+  AI serve-loop re-handshakes each cycle for presence keep-alive.
+  Unit: `unit_lobbyAiConnect`.
+
 - **Dynamic seats / soft max `players`:** live serve starts with
   **zero** seats and **grows** on empty-body handshake allocate.
   `players` / `--players` is an **optional soft max** (`0` =

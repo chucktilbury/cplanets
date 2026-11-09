@@ -252,6 +252,7 @@ if(BUILD_TESTING)
         unit_galaxyStart
         unit_homeOnConnect
         unit_lobbyReconnect
+        unit_lobbyAiConnect
         unit_dynamicSeats
         unit_empirePools
         unit_travel

@@ -17,6 +17,7 @@
  *   2026-11-08  Handshake empty-body allocate; adopt returned
  *               playerId for all subsequent traffic.
  *   2026-11-08  Store/send reconnect token; reclaim after drop.
+ *   2026-11-08  Allocate with 1-byte kind=1 so server marks AI.
  */
 
 import networking as Networking
@@ -169,7 +170,9 @@ class AiClient {
      *
      * Purpose: presence keep-alive (AFK ≠ drop) and reconnect.
      * Prefer the stored reconnect token; else playerId keep-alive;
-     * else empty allocate. On success, store playerId + token.
+     * else allocate with kind=1 (AI) so the server marks the seat
+     * non-human and all-humans-quit ignores it. On success, store
+     * playerId + token.
      *
      * Parameters: none.
      *
@@ -201,8 +204,11 @@ class AiClient {
             }
         }
         if (not ok) {
+            # 1-byte kind=1 → AI allocate (empty would be human).
+            WireBytes kind = WireBytes()
+            kind.writeU8(1)
             Envelope alloc = Envelope().make(
-                Envelope.VERB_PUT, "/handshake", buffer[])
+                Envelope.VERB_PUT, "/handshake", kind.bytes)
             buffer resp = exchange(EnvelopeCodec().encode(alloc))
             ok = adoptHandshakeSeat(resp)
         }

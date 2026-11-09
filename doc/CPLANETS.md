@@ -129,13 +129,16 @@ bin/cplanets-server --config config/server-default.cfg [flags…]
 **Lobby / go (while serving):** the server starts in **lobby**
 (`PHASE=lobby`). TCP accept, seat allocate (grow-on-connect),
 reconnect tokens, and the status menu work, but **wall ticks do not
-advance** until the operator starts the game. Type **`g` then Enter**
+advance** until the operator starts the game. End-of-game checks
+(all-humans-quit / eliminate-all) also wait until go — connecting
+an AI in lobby must not end the server. Type **`g` then Enter**
 on the server console (banner prints `GO_KEY=g`) — or choose **Go**
 in the status menu — to leave lobby (`PHASE=running`). Go starts with
 **whatever seats are already allocated**; it does not wait for
 `--players` / soft max. Harnesses may `PUT /admin/go` (same path).
 Later “all humans ready” can share that path; v1 is operator go only.
-Injectable `/admin/advance` is also blocked until go.
+Injectable `/admin/advance` is also blocked until go. AI clients
+allocate with handshake kind=`1` (marked non-human).
 
 **Seats / `players`:** live serve starts with **zero** seats and
 **grows** a seat on empty-body handshake when needed. `players` /

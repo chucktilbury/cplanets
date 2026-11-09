@@ -64,15 +64,17 @@ store, publish codec, driver, handler, listen) and turns
 on the server: PUT `/handshake`, `/quit`, `/pause`,
 `/order`, `/recall`, `/admin/advance`, `/admin/go`. Lobby until
 operator/`admin` go; wall and injectable ticks blocked in lobby.
-`PUT /handshake` body: empty = allocate (reuse free or **grow** a
-seat under soft max); 4-byte `playerId` = keep-alive if connected;
-16-byte token = reclaim. Ack shape:
-`accepted + tick + ended + playerId + 16-byte token`. Clients
-store/send the token. `players` / `--players` = soft max
+`PUT /handshake` body: empty = human allocate (reuse free or
+**grow** under soft max); 1-byte kind `0`/`1` = human/AI allocate;
+4-byte `playerId` = keep-alive if connected; 16-byte token =
+reclaim. Ack shape: `accepted + tick + ended + playerId +
+16-byte token`. Clients store/send the token. Lobby suppresses
+end-status until go. `players` / `--players` = soft max
 (`0` = unlimited). Unit: `unit_serverClock`,
 `unit_serverPresence`, `unit_serverPolicy`, `unit_lobbyReconnect`,
-`unit_dynamicSeats`. Function: `fn_server`. Python functional:
-`tests/functional/test_server_smoke.py`, `test_list_chrome.py`.
+`unit_lobbyAiConnect`, `unit_dynamicSeats`. Function: `fn_server`.
+Python functional: `tests/functional/test_server_smoke.py`,
+`test_list_chrome.py`.
 
 Phase H adds `src/ai/` (config, configParse, view, policyShape,
 brain, reaction, tickSuggest, client) and turns `cplanets-ai` into

@@ -8,6 +8,12 @@
   main panel. Develop/build **ProgressBars** stay in Fleets / Ships
   dialogs. Map ContextMenu dispatch/budget raises Fleets / Planets.
   Docs: [DIALOGS.md](DIALOGS.md), [CPLANETS.md](CPLANETS.md).
+- **Inventory model locked in RULES:** empire inventory = seat stocks
+  + designs (empire pool only); planet inventory = location-scoped
+  presence (sitting fleets, defenses, yard jobs, flags, allocation)
+  — not a second bank. No Inventory screen; sitting fleets +
+  split-dispatch are the ship assign/send loop. Docs:
+  [RULES.md](RULES.md) §2 / §5 / §16.
 - **Unified server config:** process/network and former §14 scenario
   knobs live in one `--config` file (`config/server-*.cfg`). Legacy
   `setup = PATH` is rejected with a migration hint; CLI `--setup` is

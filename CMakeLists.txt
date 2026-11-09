@@ -254,6 +254,7 @@ if(BUILD_TESTING)
         unit_lobbyReconnect
         unit_lobbyAiConnect
         unit_lobbyHoldGhosts
+        unit_humanSeatGo
         unit_dynamicSeats
         unit_empirePools
         unit_travel

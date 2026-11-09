@@ -33,6 +33,7 @@
  *   2026-11-09  Wire fleet / design Examine dialog actions.
  *   2026-11-09  View-menu panel dialogs (GuiPanelHost).
  *   2026-11-09  Panel openers → top-level menubar (not View).
+ *   2026-11-09  Wire GUI presence keep-alive action.
  */
 
 import cli as Cli
@@ -369,6 +370,7 @@ class HumanMain {
         gui.pauseAction = gui.onPauseToggled
         gui.afkAction = gui.onAfkToggled
         gui.testAction = gui.onTest
+        gui.keepAliveAction = gui.onPresenceKeepAlive
         gui.mapPickAction = gui.onMapPlanetPicked
         gui.mapDispatchAction = gui.onMapDispatchHere
         gui.mapBudgetAction = gui.onMapBudgetHere

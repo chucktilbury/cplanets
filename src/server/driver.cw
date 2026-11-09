@@ -43,6 +43,9 @@
  *               design/recall/reclaim/budget) and publishes the
  *               held clock as paused so AI/human clients do not
  *               treat connect as serve-start before operator go.
+ *   2026-11-09  go() retires lobby-abandoned seats (miss-dropped,
+ *               token cleared) so operator g does not trip
+ *               all_humans_quit while AI/live humans remain.
  */
 
 include "clock.cw"
@@ -222,7 +225,11 @@ class GameDriver {
      * Starts with **whatever seats are already allocated** — does
      * not wait for softMaxPlayers / expected seat count. Later
      * “all humans ready” can call this same path
-     * (tryAutoGoAllHumansReady is the stub hook).
+     * (tryAutoGoAllHumansReady is the stub hook). Before flipping
+     * running, retires lobby-abandoned seats so a human that
+     * miss-dropped while seating (token cleared) cannot make the
+     * first maybeTick trip all_humans_quit while AI or other live
+     * humans remain seated.
      *
      * Parameters: none.
      *
@@ -236,9 +243,65 @@ class GameDriver {
         if (running) {
             return(false)
         }
+        retireLobbyAbandonedSeats()
         running = true
         republishWithoutTick()
         return(true)
+    }
+
+    /*
+     * Drop provisional lobby seats that no longer have a client.
+     *
+     * Purpose: lobby miss-drop clears the reconnect token so a
+     * restarted client can re-allocate, but the Player row stays
+     * with human=true / dropped=true. Operator go then enables
+     * end-status; allHumansGone sees that abandoned human and
+     * ends the server even when AI seats (or other live humans)
+     * are still connected. Retire those seats **before** running
+     * becomes true: clear human so all-humans-quit ignores them,
+     * mark quit so they are settled, leave homeGranted so closed
+     * eliminate-all still sees more than one contender when an AI
+     * remains (avoids crowning a lone AI the instant go fires).
+     * Connected seats and token-held reclaimable seats are kept.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing; may mutate game.players / presence.
+     */
+    void retireLobbyAbandonedSeats() {
+        if (running or game.ended) {
+            return()
+        }
+        presence.ensureSeats(game.players.length)
+        int64 index = 0
+        while (index < game.players.length) {
+            if (presence.isConnected(index)) {
+                index = index + 1
+                continue
+            }
+            if (presence.hasReconnectToken(index)) {
+                # Still reclaimable — keep for post-go reclaim.
+                index = index + 1
+                continue
+            }
+            Player seat = game.players[index]
+            if (seat.quit) {
+                index = index + 1
+                continue
+            }
+            if (not seat.dropped and seat.present) {
+                # Allocated but never connected / odd state — leave.
+                index = index + 1
+                continue
+            }
+            # Lobby-abandoned: miss-drop cleared the token.
+            seat.human = false
+            seat.markQuit()
+            game.players[index] = seat
+            presence.markDrop(index)
+            presence.clearReconnectToken(index)
+            index = index + 1
+        }
     }
 
     /*

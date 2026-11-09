@@ -141,7 +141,12 @@ all-humans-quit until after operator `go`. A connecting AI (or a
 temporary miss-drop while seating) must not end the process before
 the session is running. Lobby miss-drop clears the reconnect token
 so the seat is free for re-allocate (no ghost seats from abandoned
-clients); after go, drop keeps the token for reclaim.
+clients); after go, drop keeps the token for reclaim. Operator
+`go` **retires** lobby-abandoned seats (dropped, no token, not
+connected): clears `human` and marks quit so a miss-dropped human
+that left before start cannot trip `all_humans_quit` on the first
+running maybeTick while AI or other live humans remain seated.
+Connected seats and token-held reclaimable seats are kept.
 
 Handshake **response** shape: `u8 accepted`, `u32 tick`, `u8 ended`,
 `u32 playerId`, **16-byte token**. Human and AI clients store the

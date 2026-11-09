@@ -31,6 +31,8 @@
  *   2026-11-09  Panel openers → top-level menubar menus (not View).
  *   2026-11-09  Panel roots click-activate (flat Buttons; no Open
  *               submenu — GtkPopoverMenuBar cannot host leaf roots).
+ *   2026-11-09  TCP presence keep-alive timer (handshake only) so
+ *               idle GUI does not miss-drop the human seat before go.
  */
 
 include "appCore.cw"
@@ -56,7 +58,10 @@ include "planetRow.cw"
  * Pause CheckButton is sensitive only when pauseOffered().
  * AFK CheckButton sends PUT /suspended (handshake_miss hold).
  * Top-level Planets / Fleets / Ships / Digest / Policy menus
- * raise non-modal panel dialogs for list chrome.
+ * raise non-modal panel dialogs for list chrome. TCP sessions
+ * schedule a presence keep-alive (handshake only) under the
+ * server handshake_miss window so an idle window does not drop
+ * the human seat before operator go.
  */
 class GuiMain {
     AppCore core
@@ -97,12 +102,22 @@ class GuiMain {
     void<bool> pauseAction
     void<bool> afkAction
     void<> testAction
+    void<> keepAliveAction
     void<int64> mapPickAction
     void<> mapDispatchAction
     void<> mapBudgetAction
     bool testMode
     # Non-empty when startup TCP pull failed (host:port detail).
     String startupError
+    # Token from Gtk.Application.schedule for presence keep-alive;
+    # 0 when idle / cancelled.
+    int64 keepAliveToken
+
+    enum {
+        # One-shot reschedule period for presence keep-alive (ms).
+        # Must stay below typical handshake_miss_ms (default 5000).
+        PRESENCE_KEEPALIVE_MS = 2000
+    }
 
     /*
      * Construct the GUI around an AppCore.
@@ -158,11 +173,13 @@ class GuiMain {
         pauseAction = null
         afkAction = null
         testAction = null
+        keepAliveAction = null
         mapPickAction = null
         mapDispatchAction = null
         mapBudgetAction = null
         testMode = false
         startupError = ""
+        keepAliveToken = 0
     }
 
     /*
@@ -349,7 +366,77 @@ class GuiMain {
         }
         if (testMode and testAction != null) {
             Gtk.Application().schedule(150, testAction)
+        } else {
+            startPresenceKeepAlive()
         }
+    }
+
+    /*
+     * Arm the first presence keep-alive one-shot when on TCP.
+     *
+     * Purpose: idle GUI must still PUT /handshake under the server
+     * miss window so the human seat stays connected through lobby
+     * and after go. No-op offline (port 0) or when the keep-alive
+     * action was never wired.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void startPresenceKeepAlive() {
+        if (core.config.port < 1 or keepAliveAction == null) {
+            return()
+        }
+        if (keepAliveToken != 0) {
+            return()
+        }
+        keepAliveToken = Gtk.Application().schedule(
+            PRESENCE_KEEPALIVE_MS, keepAliveAction)
+    }
+
+    /*
+     * Presence tick: handshake, then reschedule another one-shot.
+     *
+     * Purpose: schedule() is one-shot; chain calls so the seat stays
+     * alive for the life of the window. Failures stay quiet (status
+     * only when already empty) — Refresh still surfaces pull errors.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onPresenceKeepAlive() {
+        keepAliveToken = 0
+        if (testMode or core.config.port < 1) {
+            return()
+        }
+        if (window == null or window.disposed()) {
+            return()
+        }
+        core.keepAliveRemote()
+        if (keepAliveAction == null) {
+            return()
+        }
+        keepAliveToken = Gtk.Application().schedule(
+            PRESENCE_KEEPALIVE_MS, keepAliveAction)
+    }
+
+    /*
+     * Cancel a pending presence keep-alive schedule token.
+     *
+     * Purpose: File→Quit / teardown must not leave a callback
+     * touching a disposed window.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void stopPresenceKeepAlive() {
+        if (keepAliveToken == 0) {
+            return()
+        }
+        Gtk.Application().cancel(keepAliveToken)
+        keepAliveToken = 0
     }
 
     /*
@@ -1010,6 +1097,7 @@ class GuiMain {
      * Returns: nothing.
      */
     void onClose() {
+        stopPresenceKeepAlive()
         panels.closeAll()
         planetDialog.close()
         fleetDialog.close()

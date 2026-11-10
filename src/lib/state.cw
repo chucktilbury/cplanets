@@ -36,6 +36,7 @@
  *   2026-11-09  Free design names only after reclaim completion —
  *               not every zero-presence catalog type each tick.
  *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
+ *   2026-11-10  Mark home explored for seat fog (CPL-107).
  */
 
 
@@ -346,6 +347,8 @@ class State {
             return(false)
         }
         seat.homeGranted = true
+        # Home is explored for this seat (fog discovery; CPL-107).
+        seat.markExploredPlanet(homeId)
         players[playerId] = seat
         # RULES §2: every seated empire gets the productive yard
         # plus the minimal starter scout stack (not seat-0 only).

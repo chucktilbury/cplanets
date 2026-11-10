@@ -123,7 +123,8 @@ budget (owned). For the clicked or selected planet:
 **Exists (Phase I).** Same context menu submenu: list of **known**
 planets the seat can jump/zoom the view to (focus camera on that
 rock). “Known” = visibility/driver flags already set — not a second
-fog engine.
+fog engine. Foreign-owned rocks stay off the map/lists until in
+range or seat-discovered (RULES §13 / CPL-107).
 
 ### 3.3 Map click (non-menu)
 

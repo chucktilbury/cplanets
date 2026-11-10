@@ -14,6 +14,7 @@
  *   2026-11-05  Phase D2: clear only take pendingArrivalOrder.
  *   2026-11-05  Phase D4: participants, screened advance, attribute.
  *   2026-11-07  Wire attack_bump on defender wins (RULES §11.2).
+ *   2026-11-10  Mark taker exploredPlanetIds on occupy (CPL-107).
  */
 
 include "combat.cw"
@@ -180,7 +181,7 @@ class Take {
             rock,
             fleet.ownerId,
             parked)) {
-            applyOccupy(rock, fleet, design, events)
+            applyOccupy(rock, fleet, design, players, events)
             planets[fleet.locationPlanetId] = rock
             fleets[fleetIndex] = fleet
             return(nextEngagementId)
@@ -265,6 +266,7 @@ class Take {
      *   rock — destination planet (mutated).
      *   fleet — arriving take fleet.
      *   design — fleet design.
+     *   players — seats (taker exploredPlanetIds).
      *   events — log.
      *
      * Returns: nothing.
@@ -273,9 +275,15 @@ class Take {
         Planet rock,
         Fleet fleet,
         Design design,
+        list players,
         list events) {
         rock.ownerId = fleet.ownerId
         rock.qualityKnown = true
+        if (fleet.ownerId >= 0 and fleet.ownerId < players.length) {
+            Player taker = players[fleet.ownerId]
+            taker.markExploredPlanet(rock.id)
+            players[fleet.ownerId] = taker
+        }
         events.append(
             TickEvent(
                 "take",
@@ -362,12 +370,18 @@ class Take {
                     design = designs[fleet.designId]
                 }
                 rock.satelliteDefense = 0.0
-                applyOccupy(rock, fleet, design, events)
+                applyOccupy(rock, fleet, design, players, events)
                 fleets[fidx] = fleet
             } else {
                 rock.ownerId = fight.attackerOwnerId
                 rock.qualityKnown = true
                 rock.satelliteDefense = 0.0
+                if (fight.attackerOwnerId >= 0
+                    and fight.attackerOwnerId < players.length) {
+                    Player taker = players[fight.attackerOwnerId]
+                    taker.markExploredPlanet(rock.id)
+                    players[fight.attackerOwnerId] = taker
+                }
                 events.append(
                     TickEvent(
                         "take",

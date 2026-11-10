@@ -17,6 +17,7 @@
  *   2026-11-08  markReseated clears drop when a free seat is
  *               reassigned on a new connect.
  *   2026-11-10  displayName: seat display name (CPL-106).
+ *   2026-11-10  exploredPlanetIds: per-seat fog discovery (CPL-107).
  */
 
 include "scenario.cw"
@@ -53,6 +54,10 @@ class Player {
     bool homeGranted
     int64 partitionId
     list knownCompetitors
+    # Planet ids this seat has explored or taken (RULES §3 / §13).
+    # Owns-now is always visible; this list keeps foreign rocks
+    # discovered after they leave detection range (CPL-107).
+    list exploredPlanetIds
     # Multiplier on productive gains; GameDriver sets this from
     # afk_timeout_seconds / afk_shrink_factor (default 1.0 = no-op).
     fp64 afkProductionScale
@@ -86,6 +91,7 @@ class Player {
         homeGranted = false
         partitionId = playerId
         knownCompetitors = []
+        exploredPlanetIds = []
         afkProductionScale = 1.0
     }
 
@@ -192,6 +198,54 @@ class Player {
             return(false)
         }
         knownCompetitors.append(competitorId)
+        return(true)
+    }
+
+    /*
+     * True when this seat has explored or taken planetId.
+     *
+     * Purpose: seat-scoped fog — discovered rocks stay visible
+     * (and quality-known) even out of detection range (CPL-107).
+     *
+     * Parameters:
+     *   planetId — galaxy rock id.
+     *
+     * Returns: true when planetId is on exploredPlanetIds.
+     */
+    bool hasExploredPlanet(int64 planetId) {
+        if (planetId < 0) {
+            return(false)
+        }
+        int64 index = 0
+        while (index < exploredPlanetIds.length) {
+            int64 other = exploredPlanetIds[index]
+            if (other == planetId) {
+                return(true)
+            }
+            index = index + 1
+        }
+        return(false)
+    }
+
+    /*
+     * Record a rock as discovered for this seat.
+     *
+     * Purpose: home grant, explore arrival, and take/occupy mark
+     * per-player explored (RULES §3 explored-per-player).
+     *
+     * Parameters:
+     *   planetId — galaxy rock id (ignored when < 0).
+     *
+     * Returns: true when the id was newly appended.
+     */
+    bool markExploredPlanet(int64 planetId) {
+        if (planetId < 0) {
+            return(false)
+        }
+        if (hasExploredPlanet(planetId)) {
+            return(false)
+        }
+        exploredPlanetIds.append(planetId)
         return(true)
     }
 

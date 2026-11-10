@@ -12,6 +12,7 @@
  *   2026-11-07  allocationPct + knownCompetitors trailer.
  *   2026-11-07  Default allocationPct is 100 (full production).
  *   2026-11-10  Assert planet 0 publishes as "Home".
+ *   2026-11-10  Coord assert only when planet is fog-visible.
  */
 
 include "client/publishDecode.cw"
@@ -62,7 +63,8 @@ start {
         ok = false
     }
     PlanetRow remote = view.findPlanet(1)
-    if (ok and remote.id == 1) {
+    # Fog-hidden rows redact x/y; only assert coords when visible.
+    if (ok and remote.id == 1 and remote.visible) {
         fp64 ax = remote.x
         if (ax < 0.0) {
             ax = -ax

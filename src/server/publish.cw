@@ -18,6 +18,7 @@
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
+ *   2026-11-10  Fleet name + unassigned hull stock rows (CPL-101).
  */
 
 include "../lib/event.cw"
@@ -270,6 +271,7 @@ class PublishCodec {
             w.writeU32(ship.outboundEta)
             w.writeU32(ship.hullCount)
             w.writeString(ship.order)
+            w.writeString(ship.name)
             index = index + 1
         }
     }
@@ -407,7 +409,49 @@ class PublishCodec {
             w.writeU32(milliOf(design.cargoHold))
             index = index + 1
         }
+        writeHullStocks(w, game, viewerId)
         writeKnownCompetitors(w, game, viewerId)
+    }
+
+    /*
+     * Append unassigned hull stock rows for the viewing seat.
+     *
+     * Purpose: Ships/Fleets inventory chrome (CPL-101) — type +
+     * planet + available count. Other seats' stocks are omitted.
+     *
+     * Parameters:
+     *   w — WireBytes writer past the design catalog.
+     *   game — current State.
+     *   viewerId — seat, or -1 → seat 0.
+     *
+     * Returns: nothing; mutates w.
+     */
+    void writeHullStocks(
+        WireBytes w, State game, int64 viewerId) {
+        int64 seatId = viewerId
+        if (seatId < 0 or seatId >= game.players.length) {
+            seatId = 0
+        }
+        int64 count = 0
+        int64 index = 0
+        while (index < game.stocks.length) {
+            HullStock row = game.stocks[index]
+            if (row.ownerId == seatId and row.count > 0) {
+                count = count + 1
+            }
+            index = index + 1
+        }
+        w.writeU32(count)
+        index = 0
+        while (index < game.stocks.length) {
+            HullStock row = game.stocks[index]
+            if (row.ownerId == seatId and row.count > 0) {
+                w.writeU32(row.designId)
+                w.writeU32(row.planetId)
+                w.writeU32(row.count)
+            }
+            index = index + 1
+        }
     }
 
     /*

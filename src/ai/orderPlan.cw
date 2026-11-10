@@ -10,6 +10,8 @@
  *
  * Changelog:
  *   2026-11-09  Initial planner from ClientStateView + policy %.
+ *   2026-11-10  CPL-101: after build→stock, create "ai-N" fleet and
+ *               assign before dispatch; keep starter fleet first.
  */
 
 include "../client/designRow.cw"
@@ -17,14 +19,15 @@ include "../client/fleetRow.cw"
 include "../client/planetRow.cw"
 include "../client/progressJob.cw"
 include "../client/stateView.cw"
+include "../client/stockRow.cw"
 include "policyShape.cw"
 
 /*
  * AiOrderIntent is one concrete client action (or a no-op).
  *
  * Built from the same visibility-limited snapshot a human sees.
- * Never invents hidden rock ids. kind is "none", "order", or
- * "build".
+ * Never invents hidden rock ids. kind is "none", "order",
+ * "build", "fleet", or "assign".
  */
 class AiOrderIntent {
     String kind
@@ -34,6 +37,9 @@ class AiOrderIntent {
     int64 hulls
     int64 buildPlanetId
     int64 buildDesignId
+    String fleetName
+    String typeName
+    int64 qty
 
     /*
      * Construct an empty no-op intent.
@@ -53,16 +59,18 @@ class AiOrderIntent {
         hulls = 0
         buildPlanetId = -1
         buildDesignId = -1
+        fleetName = ""
+        typeName = ""
+        qty = 0
     }
 }
 
 /*
- * AiOrderPlan picks one explore / take / build step from a view.
+ * AiOrderPlan picks one explore / take / build / assign step.
  *
- * Preference: explore unknown rocks with a sitting scout stack;
- * else take an unowned known rock when expansion is hungry; else
- * queue a yard hull when no sitting owned fleet remains (or when
- * expansion is high and a ready design exists).
+ * Preference: explore/take with a sitting assigned stack (starter
+ * fleet first); else create/assign from unassigned stock at home
+ * yard; else queue a yard hull when expansion wants more ships.
  */
 class AiOrderPlan {
     /*
@@ -78,17 +86,20 @@ class AiOrderPlan {
     }
 
     /*
-     * Choose one concrete order or build from the seat snapshot.
+     * Choose one concrete order, assign, create, or build.
      *
      * Purpose: turn expansion / role percents into a legal human-
      * equivalent verb so AI clients move fleets after lobby go.
      * Uses only visible rows (same fog as PUT /order chrome).
+     * CPL-101: builds stage stock — create+assign before dispatch
+     * when only unassigned hulls remain.
      *
      * Parameters:
      *   snap — decoded GET /state for this seat.
      *   shape — latest policy shape (expansion / role bias).
      *
-     * Returns: AiOrderIntent (kind none / order / build).
+     * Returns: AiOrderIntent (kind none / order / build / fleet /
+     * assign).
      */
     AiOrderIntent plan(ClientStateView snap, AiPolicyShape shape) {
         AiOrderIntent intent = AiOrderIntent()
@@ -119,6 +130,10 @@ class AiOrderPlan {
                 }
             }
         }
+        AiOrderIntent fromStock = planFromStock(snap)
+        if (not fromStock.kind.equals("none")) {
+            return(fromStock)
+        }
         if ((fleet.id < 0 or shape.expansionPct >= 55)
             and not hasOwnedBuildJob(snap)) {
             DesignRow design = pickReadyScout(snap)
@@ -131,6 +146,147 @@ class AiOrderPlan {
             }
         }
         return(intent)
+    }
+
+    /*
+     * Create or assign from unassigned stock at the home yard.
+     *
+     * Purpose: CPL-101 playable path when the starter stack is
+     * gone/locked and builds have staged hulls. Prefer assigning
+     * into an empty owned fleet at that planet; else create
+     * "ai-N" there.
+     *
+     * Parameters:
+     *   snap — seat snapshot.
+     *
+     * Returns: AiOrderIntent kind fleet / assign / none.
+     */
+    AiOrderIntent planFromStock(ClientStateView snap) {
+        AiOrderIntent intent = AiOrderIntent()
+        StockRow stock = pickStockAtYard(snap)
+        if (stock.count < 1 or stock.designId < 0) {
+            return(intent)
+        }
+        DesignRow design = snap.findDesign(stock.designId)
+        if (design.id < 0 or design.name.length < 1) {
+            return(intent)
+        }
+        FleetRow empty = pickEmptyFleetAt(snap, stock.planetId)
+        if (empty.id >= 0) {
+            intent.kind = "assign"
+            intent.fleetId = empty.id
+            intent.typeName = design.name
+            intent.qty = 1
+            return(intent)
+        }
+        intent.kind = "fleet"
+        intent.fleetName = nextAiFleetName(snap)
+        intent.buildPlanetId = stock.planetId
+        return(intent)
+    }
+
+    /*
+     * Pick unassigned stock staged at an owned yard.
+     *
+     * Purpose: prefer home yard stock for create+assign.
+     *
+     * Parameters:
+     *   snap — seat snapshot.
+     *
+     * Returns: StockRow with count > 0, or empty sentinel.
+     */
+    StockRow pickStockAtYard(ClientStateView snap) {
+        int64 yard = snap.firstOwnedYardId()
+        int64 index = 0
+        StockRow best = StockRow()
+        while (index < snap.stocks.length) {
+            StockRow row = snap.stocks[index]
+            if (row.count > 0 and row.designId >= 0) {
+                if (yard >= 0 and row.planetId == yard) {
+                    return(row)
+                }
+                if (best.count < 1) {
+                    best = row
+                }
+            }
+            index = index + 1
+        }
+        return(best)
+    }
+
+    /*
+     * Find an empty owned sitting fleet at a planet.
+     *
+     * Purpose: reuse a just-created "ai-N" container for assign.
+     *
+     * Parameters:
+     *   snap — seat snapshot.
+     *   planetId — required location.
+     *
+     * Returns: FleetRow with hullCount 0, or empty sentinel.
+     */
+    FleetRow pickEmptyFleetAt(ClientStateView snap, int64 planetId) {
+        int64 index = 0
+        while (index < snap.fleets.length) {
+            FleetRow row = snap.fleets[index]
+            if (row.visible
+                and row.ownerId == snap.viewerId
+                and row.sitting
+                and not row.orderLocked()
+                and row.locationPlanetId == planetId
+                and row.hullCount <= 0
+                and row.id >= 1) {
+                return(row)
+            }
+            index = index + 1
+        }
+        return(FleetRow())
+    }
+
+    /*
+     * Allocate the next unused "ai-N" fleet name for this seat.
+     *
+     * Purpose: unique per-seat create names without colliding.
+     *
+     * Parameters:
+     *   snap — seat snapshot with owned fleet names.
+     *
+     * Returns: "ai-1", "ai-2", … first free label.
+     */
+    String nextAiFleetName(ClientStateView snap) {
+        int64 n = 1
+        while (n < 10000) {
+            String candidate = format("ai-{}", n)
+            if (not fleetNameTaken(snap, candidate)) {
+                return(candidate)
+            }
+            n = n + 1
+        }
+        return(format("ai-{}", snap.tick))
+    }
+
+    /*
+     * True when an owned fleet already uses this name.
+     *
+     * Purpose: nextAiFleetName uniqueness check.
+     *
+     * Parameters:
+     *   snap — seat snapshot.
+     *   fleetName — candidate label.
+     *
+     * Returns: true when a visible owned fleet has that name.
+     */
+    bool fleetNameTaken(ClientStateView snap, String fleetName) {
+        int64 index = 0
+        while (index < snap.fleets.length) {
+            FleetRow row = snap.fleets[index]
+            if (row.ownerId == snap.viewerId
+                and row.name.equals(fleetName)) {
+                return(true)
+            }
+            index = index + 1
+        }
+        return(false)
     }
 
     /*

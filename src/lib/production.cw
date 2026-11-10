@@ -13,6 +13,8 @@
  *   2026-11-05  Phase D4: advance reclaim jobs at yards.
  *   2026-11-07  Use scenario.productionTickRate + afkProductionScale.
  *   2026-11-07  Scale empire-pool credit by Planet.allocationPct.
+ *   2026-11-10  completeBuild credits unassigned HullStock (CPL-101)
+ *               instead of auto-spawning / merging a sitting fleet.
  */
 
 include "design.cw"
@@ -21,12 +23,15 @@ include "fleet.cw"
 include "planet.cw"
 include "player.cw"
 include "scenario.cw"
+include "shipInventory.cw"
 
 /*
  * Production runs RULES §7 step 1 for one tick.
  *
  * Mutates players (empire pools), designs (develop countdown),
- * build/reclaim jobs, and fleets (completed hulls). Appends events.
+ * build/reclaim jobs, and unassigned hull stocks (completed
+ * builds). Appends events. Fleets are no longer auto-spawned on
+ * yard complete (CPL-101).
  */
 class Production {
     /*
@@ -54,11 +59,11 @@ class Production {
      *   designs — design list (develop countdown).
      *   builds — mutable BuildJob list.
      *   reclaims — mutable ReclaimJob list.
-     *   fleets — mutable Fleet list (completed hulls).
+     *   stocks — mutable unassigned HullStock list.
      *   events — event log to append.
-     *   nextFleetId — in/out counter for new sit fleets.
+     *   nextFleetId — unused after CPL-101 (kept for tick signature).
      *
-     * Returns: updated nextFleetId after any new fleets.
+     * Returns: nextFleetId unchanged (builds no longer spawn fleets).
      */
     int64 run(
         Scenario scenario,
@@ -67,7 +72,7 @@ class Production {
         list designs,
         list builds,
         list reclaims,
-        list fleets,
+        list stocks,
         list events,
         int64 nextFleetId) {
         int64 index = 0
@@ -79,13 +84,7 @@ class Production {
             index = index + 1
         }
         advanceDesigns(designs, events)
-        nextFleetId = advanceBuilds(
-            scenario,
-            builds,
-            designs,
-            fleets,
-            events,
-            nextFleetId)
+        advanceBuilds(scenario, builds, designs, stocks, events)
         advanceReclaims(scenario, reclaims, players, events)
         return(nextFleetId)
     }
@@ -192,39 +191,33 @@ class Production {
     }
 
     /*
-     * Advance yard BuildJobs; complete hulls into sit fleets.
+     * Advance yard BuildJobs; complete hulls into unassigned stock.
      *
      * Purpose: non-instant yard production (RULES §5.3 / §7.1).
+     * CPL-101: completed hulls stage at the yard, not auto-fleet.
      *
      * Parameters:
      *   scenario — unused placeholder for future cost knobs.
      *   builds — mutable job list (completed jobs removed).
      *   designs — design list for validation.
-     *   fleets — mutable fleet list.
+     *   stocks — mutable unassigned HullStock list.
      *   events — event log.
-     *   nextFleetId — next id for a new sit fleet.
      *
-     * Returns: updated nextFleetId.
+     * Returns: nothing.
      */
-    int64 advanceBuilds(
+    void advanceBuilds(
         Scenario scenario,
         list builds,
         list designs,
-        list fleets,
-        list events,
-        int64 nextFleetId) {
+        list stocks,
+        list events) {
         list remaining = []
         int64 index = 0
         while (index < builds.length) {
             BuildJob job = builds[index]
             job.ticksLeft = job.ticksLeft - 1
             if (job.ticksLeft <= 0) {
-                nextFleetId = completeBuild(
-                    job,
-                    designs,
-                    fleets,
-                    events,
-                    nextFleetId)
+                completeBuild(job, designs, stocks, events)
             } else {
                 remaining.append(job)
             }
@@ -236,75 +229,48 @@ class Production {
             builds.append(remaining[index])
             index = index + 1
         }
-        return(nextFleetId)
     }
 
     /*
-     * Deliver one completed hull into a sitting fleet at the yard.
+     * Deliver one completed hull into unassigned stock at the yard.
      *
-     * Purpose: merge into an existing sit fleet of the same design
-     * when possible; otherwise spawn a new sit fleet.
+     * Purpose: builds do not auto-place into a fleet (CPL-101).
+     * Hulls stage at the yard planet until fleet assign.
      *
      * Parameters:
      *   job — completed BuildJob.
      *   designs — design list (must be ready).
-     *   fleets — mutable fleet list.
+     *   stocks — mutable unassigned HullStock list.
      *   events — event log.
-     *   nextFleetId — next id if spawning.
      *
-     * Returns: updated nextFleetId.
+     * Returns: nothing.
      */
-    int64 completeBuild(
+    void completeBuild(
         BuildJob job,
         list designs,
-        list fleets,
-        list events,
-        int64 nextFleetId) {
+        list stocks,
+        list events) {
         if (job.designId < 0 or job.designId >= designs.length) {
-            return(nextFleetId)
+            return()
         }
         Design design = designs[job.designId]
         if (not design.isReady()) {
-            return(nextFleetId)
+            return()
         }
-        int64 index = 0
-        while (index < fleets.length) {
-            Fleet fleet = fleets[index]
-            if (fleet.ownerId == job.ownerId
-                and fleet.locationPlanetId == job.planetId
-                and fleet.designId == job.designId
-                and fleet.sitting
-                and not fleet.pendingDeparture
-                and not fleet.departed) {
-                fleet.hullCount = fleet.hullCount + 1
-                fleets[index] = fleet
-                events.append(
-                    TickEvent(
-                        "yard",
-                        fleet.id,
-                        job.planetId,
-                        job.ownerId,
-                        1))
-                return(nextFleetId)
-            }
-            index = index + 1
-        }
-        Fleet born = Fleet(
-            nextFleetId,
+        ShipInventory book = ShipInventory()
+        book.credit(
+            stocks,
             job.ownerId,
-            job.planetId,
             job.designId,
+            job.planetId,
             1)
-        nextFleetId = nextFleetId + 1
-        fleets.append(born)
         events.append(
             TickEvent(
                 "yard",
-                born.id,
+                -1,
                 job.planetId,
                 job.ownerId,
                 1))
-        return(nextFleetId)
     }
 
     /*

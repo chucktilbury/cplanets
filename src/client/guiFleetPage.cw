@@ -22,6 +22,8 @@
  *   2026-11-09  Choice rows + hull Scale + travel ProgressBar +
  *               tooltips (View dialogs usable).
  *   2026-11-09  Safe Scale range via GuiScaleRange (empty fleets).
+ *   2026-11-10  CPL-101: unassigned stock block; create fleet +
+ *               assign chrome (PUT /fleet, PUT /assign).
  */
 
 include "appCore.cw"
@@ -34,14 +36,24 @@ include "planetRow.cw"
 /*
  * GuiFleetPage owns the Fleets panel dialog widgets.
  *
- * Dispatch chrome feeds PUT /order; Recall uses PUT /recall.
- * Hulls SpinButton peels a subset from a multi-hull sitting stack
- * (0 = whole fleet). Travel bar uses eta / outboundEta.
+ * Unassigned stock lines sit above named fleets. Create / assign
+ * feed PUT /fleet and PUT /assign; Dispatch / Recall keep the
+ * existing travel path. Hulls SpinButton peels a subset from a
+ * multi-hull sitting stack (0 = whole fleet).
  */
 class GuiFleetPage {
     AppCore core
     GuiProgressChrome progressChrome
+    Gtk.Label stockList
     Gtk.Label fleetList
+    Gtk.Entry createNameEntry
+    GuiChoiceRow createPlanetChoice
+    Gtk.Button createFleetBtn
+    GuiChoiceRow assignFleetChoice
+    Gtk.Entry assignTypeEntry
+    Gtk.SpinButton assignQtySpin
+    Gtk.Label assignQtyLabel
+    Gtk.Button assignBtn
     GuiChoiceRow fleetChoice
     GuiChoiceRow orderChoice
     GuiChoiceRow destChoice
@@ -52,11 +64,15 @@ class GuiFleetPage {
     Gtk.Button recallBtn
     Gtk.Button examineBtn
     Gtk.Label lockHint
+    void<> createFleetAction
+    void<> assignAction
     void<> dispatchAction
     void<> recallAction
     void<> examineAction
     void<fp64> hullsChangedAction
+    void<fp64> assignQtyChangedAction
     bool suppressHulls
+    bool suppressAssignQty
 
     /*
      * Construct a fleet page bound to an AppCore.
@@ -71,7 +87,16 @@ class GuiFleetPage {
     GuiFleetPage(AppCore appCore) {
         core = appCore
         progressChrome = GuiProgressChrome(appCore)
+        stockList = null
         fleetList = null
+        createNameEntry = null
+        createPlanetChoice = GuiChoiceRow()
+        createFleetBtn = null
+        assignFleetChoice = GuiChoiceRow()
+        assignTypeEntry = null
+        assignQtySpin = null
+        assignQtyLabel = null
+        assignBtn = null
         fleetChoice = GuiChoiceRow()
         orderChoice = GuiChoiceRow()
         destChoice = GuiChoiceRow()
@@ -82,18 +107,22 @@ class GuiFleetPage {
         recallBtn = null
         examineBtn = null
         lockHint = null
+        createFleetAction = null
+        assignAction = null
         dispatchAction = null
         recallAction = null
         examineAction = null
         hullsChangedAction = null
+        assignQtyChangedAction = null
         suppressHulls = false
+        suppressAssignQty = false
     }
 
     /*
      * Build the Fleets panel dialog widget tree.
      *
-     * Purpose: scrolled list + choice dispatch/recall + travel /
-     * develop/build progress bars (footer inside non-modal dialog).
+     * Purpose: unassigned stock + create/assign + dispatch/recall
+     * + travel / develop/build progress (non-modal dialog).
      *
      * Parameters: none.
      *
@@ -103,6 +132,13 @@ class GuiFleetPage {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
         page.setHExpand(true)
         page.setVExpand(true)
+        page.append(Gtk.Label("Unassigned stock (not a fleet)"))
+        stockList = Gtk.Label("(no unassigned hulls)")
+        stockList.setHExpand(true)
+        stockList.setTooltip(
+            "Hulls staged at yard planets until assign.")
+        page.append(stockList)
+        page.append(Gtk.Label("Named fleets"))
         fleetList = Gtk.Label("(no fleets)")
         fleetList.setHExpand(true)
         fleetList.setVExpand(true)
@@ -120,6 +156,54 @@ class GuiFleetPage {
             examineBtn.onClicked(examineAction)
         }
         page.append(examineBtn)
+        page.append(Gtk.Label("Create named fleet (empty)"))
+        createNameEntry = Gtk.Entry("fleet-1")
+        createNameEntry.setTooltip(
+            "Unique per-seat fleet name for PUT /fleet.")
+        page.append(Gtk.Label("Fleet name"))
+        page.append(createNameEntry)
+        page.append(Gtk.Label("Park at planet id"))
+        page.append(createPlanetChoice.buildWidget(
+            "Owned planet where the empty fleet sits (yard OK)."))
+        createFleetBtn = Gtk.Button("Create fleet")
+        createFleetBtn.setTooltip(
+            "PUT /fleet — empty sitting container at the planet.")
+        if (createFleetAction != null) {
+            createFleetBtn.onClicked(createFleetAction)
+        }
+        page.append(createFleetBtn)
+        page.append(Gtk.Label(
+            "Assign from unassigned stock (same planet)"))
+        page.append(Gtk.Label("Fleet id"))
+        page.append(assignFleetChoice.buildWidget(
+            "Sitting owned fleet to fill from stock at its location."))
+        assignTypeEntry = Gtk.Entry("scout")
+        assignTypeEntry.setTooltip(
+            "Ship type name to assign from unassigned stock.")
+        page.append(Gtk.Label("Type name"))
+        page.append(assignTypeEntry)
+        assignQtyLabel = Gtk.Label("Qty (1)")
+        assignQtyLabel.setTooltip(
+            "Hulls to move from unassigned stock into the fleet.")
+        page.append(assignQtyLabel)
+        assignQtySpin = Gtk.SpinButton()
+        GuiScaleRange initAssign = GuiScaleRange()
+        initAssign.normalize(1.0, 1.0, 1.0, 1.0)
+        assignQtySpin.configure(
+            initAssign.value, initAssign.lower, initAssign.upper,
+            initAssign.step)
+        assignQtySpin.setTooltip("Assign quantity (over-assign rejects).")
+        if (assignQtyChangedAction != null) {
+            assignQtySpin.onValueChanged(assignQtyChangedAction)
+        }
+        page.append(assignQtySpin)
+        assignBtn = Gtk.Button("Assign")
+        assignBtn.setTooltip(
+            "PUT /assign — type+qty from stock at the fleet planet.")
+        if (assignAction != null) {
+            assignBtn.onClicked(assignAction)
+        }
+        page.append(assignBtn)
         page.append(Gtk.Label(
             "Dispatch (explore/take/trade/move/ambush)"))
         page.append(Gtk.Label("Fleet id (sitting stack)"))
@@ -192,6 +276,9 @@ class GuiFleetPage {
      * Returns: nothing.
      */
     void refresh() {
+        if (stockList != null) {
+            stockList.setText(core.view.stocksListText())
+        }
         String fleets = ""
         int64 index = 0
         while (index < core.view.fleets.length) {
@@ -208,9 +295,12 @@ class GuiFleetPage {
         if (fleetList != null) {
             fleetList.setText(fleets)
         }
+        syncCreatePlanetChoices()
         syncFleetChoices()
+        syncAssignFleetChoices()
         syncDestChoices()
         syncHullsSpin()
+        syncAssignQtySpin()
         refreshTravelBar()
         if (progressChrome != null) {
             progressChrome.refresh()
@@ -235,6 +325,45 @@ class GuiFleetPage {
         out.append("move")
         out.append("ambush")
         return(out)
+    }
+
+    /*
+     * Rebuild create-fleet planet choices from owned rocks.
+     *
+     * Purpose: park empty named fleets at an owned planet (yard
+     * preferred via firstOwnedYardId default).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncCreatePlanetChoices() {
+        list ids = []
+        int64 index = 0
+        while (index < core.view.planets.length) {
+            PlanetRow row = core.view.planets[index]
+            if (row.visible
+                and row.ownerId == core.view.viewerId
+                and row.id >= 0) {
+                ids.append(format("{}", row.id))
+            }
+            index = index + 1
+        }
+        createPlanetChoice.setChoices(ids)
+        int64 homeYard = core.view.firstOwnedYardId()
+        if (homeYard >= 0) {
+            String cur = createPlanetChoice.value()
+            if (cur.length < 1) {
+                createPlanetChoice.setValue(format("{}", homeYard))
+            } else {
+                PlanetRow pick = core.view.findPlanet(cur.toInt64())
+                if (pick.id < 0
+                    or pick.ownerId != core.view.viewerId) {
+                    createPlanetChoice.setValue(
+                        format("{}", homeYard))
+                }
+            }
+        }
     }
 
     /*
@@ -273,6 +402,96 @@ class GuiFleetPage {
                 fleetChoice.setValue(format("{}", prefer))
             }
         }
+    }
+
+    /*
+     * Rebuild assign fleet choices from owned fleets.
+     *
+     * Purpose: assign chrome fleet id DropDown.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncAssignFleetChoices() {
+        list ids = []
+        int64 index = 0
+        while (index < core.view.fleets.length) {
+            FleetRow row = core.view.fleets[index]
+            if (row.visible
+                and row.ownerId == core.view.viewerId
+                and row.id >= 1) {
+                ids.append(format("{}", row.id))
+            }
+            index = index + 1
+        }
+        assignFleetChoice.setChoices(ids)
+        String cur = assignFleetChoice.value()
+        if (cur.length < 1 and ids.length > 0) {
+            assignFleetChoice.setValue(ids[0])
+        }
+    }
+
+    /*
+     * Reconfigure assign qty SpinButton (1..reasonable).
+     *
+     * Purpose: keep a usable range; over-assign is still a server
+     * reject shown via AlertDialog.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncAssignQtySpin() {
+        if (assignQtySpin == null) {
+            return()
+        }
+        fp64 cur = assignQtySpin.value()
+        GuiScaleRange qtyRange = GuiScaleRange()
+        qtyRange.normalize(cur, 1.0, 99.0, 1.0)
+        if (qtyRange.value < 1.0) {
+            qtyRange.value = 1.0
+        }
+        suppressAssignQty = true
+        assignQtySpin.configure(
+            qtyRange.value, qtyRange.lower, qtyRange.upper,
+            qtyRange.step)
+        suppressAssignQty = false
+        refreshAssignQtyLabel()
+    }
+
+    /*
+     * Assign qty SpinButton moved — refresh caption.
+     *
+     * Purpose: Gtk.SpinButton.onValueChanged.
+     *
+     * Parameters:
+     *   value — new thumb value.
+     *
+     * Returns: nothing.
+     */
+    void onAssignQtyChanged(fp64 value) {
+        if (suppressAssignQty) {
+            return()
+        }
+        refreshAssignQtyLabel()
+    }
+
+    /*
+     * Refresh assign qty caption from the SpinButton.
+     *
+     * Purpose: live label next to the slider.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void refreshAssignQtyLabel() {
+        if (assignQtyLabel == null) {
+            return()
+        }
+        assignQtyLabel.setText(format(
+            "Qty ({})", assignQtyValue()))
     }
 
     /*
@@ -463,6 +682,84 @@ class GuiFleetPage {
                     "Sitting: Dispatch OK. Locked: Recall only.")
             }
         }
+    }
+
+    /*
+     * Read the create-fleet name Entry.
+     *
+     * Purpose: PUT /fleet name field.
+     *
+     * Parameters: none.
+     *
+     * Returns: Entry text.
+     */
+    String createNameValue() {
+        if (createNameEntry == null) {
+            return("")
+        }
+        return(createNameEntry.text())
+    }
+
+    /*
+     * Read the create-fleet park planet id.
+     *
+     * Purpose: PUT /fleet planet field.
+     *
+     * Parameters: none.
+     *
+     * Returns: planet id.
+     */
+    int64 createPlanetValue() {
+        return(createPlanetChoice.intValue())
+    }
+
+    /*
+     * Read the assign fleet id.
+     *
+     * Purpose: PUT /assign fleet field.
+     *
+     * Parameters: none.
+     *
+     * Returns: fleet id.
+     */
+    int64 assignFleetValue() {
+        return(assignFleetChoice.intValue())
+    }
+
+    /*
+     * Read the assign type name Entry.
+     *
+     * Purpose: PUT /assign typeName field.
+     *
+     * Parameters: none.
+     *
+     * Returns: Entry text.
+     */
+    String assignTypeValue() {
+        if (assignTypeEntry == null) {
+            return("")
+        }
+        return(assignTypeEntry.text())
+    }
+
+    /*
+     * Read assign quantity from the SpinButton.
+     *
+     * Purpose: PUT /assign qty field.
+     *
+     * Parameters: none.
+     *
+     * Returns: hull count (>= 1 when SpinButton exists).
+     */
+    int64 assignQtyValue() {
+        if (assignQtySpin == null) {
+            return(1)
+        }
+        int64 qty = int64(assignQtySpin.value() + 0.5)
+        if (qty < 1) {
+            return(1)
+        }
+        return(qty)
     }
 
     /*

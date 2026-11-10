@@ -6,6 +6,7 @@
  *
  * Changelog:
  *   2026-11-09  Initial order planner unit program.
+ *   2026-11-10  CPL-101: stock → create "ai-N" / assign intents.
  */
 
 include "ai/orderPlan.cw"
@@ -15,6 +16,7 @@ include "client/fleetRow.cw"
 include "client/planetRow.cw"
 include "client/progressJob.cw"
 include "client/stateView.cw"
+include "client/stockRow.cw"
 
 start {
     bool ok = true
@@ -87,7 +89,7 @@ start {
         ok = false
     }
 
-    # No sitting fleet → yard build when a ready scout exists.
+    # No sitting fleet + stock → create "ai-N" before build.
     snap.fleets = []
     DesignRow scout = DesignRow()
     scout.id = 0
@@ -95,6 +97,50 @@ start {
     scout.scout = true
     scout.ready = true
     snap.designs.append(scout)
+    StockRow stock = StockRow()
+    stock.designId = 0
+    stock.planetId = 0
+    stock.count = 2
+    snap.stocks.append(stock)
+    AiOrderIntent create = planner.plan(snap, shape)
+    if (ok and not create.kind.equals("fleet")) {
+        ok = false
+    }
+    if (ok and not create.fleetName.equals("ai-1")) {
+        ok = false
+    }
+    if (ok and create.buildPlanetId != 0) {
+        ok = false
+    }
+
+    # Empty named fleet at yard + stock → assign.
+    FleetRow empty = FleetRow()
+    empty.id = 4
+    empty.visible = true
+    empty.sitting = true
+    empty.ownerId = 0
+    empty.locationPlanetId = 0
+    empty.hullCount = 0
+    empty.name = "ai-1"
+    empty.order = "sit"
+    snap.fleets.append(empty)
+    AiOrderIntent assign = planner.plan(snap, shape)
+    if (ok and not assign.kind.equals("assign")) {
+        ok = false
+    }
+    if (ok and assign.fleetId != 4) {
+        ok = false
+    }
+    if (ok and not assign.typeName.equals("scout")) {
+        ok = false
+    }
+    if (ok and assign.qty != 1) {
+        ok = false
+    }
+
+    # No sitting fleet / no stock → yard build when ready scout.
+    snap.fleets = []
+    snap.stocks = []
     AiOrderIntent build = planner.plan(snap, shape)
     if (ok and not build.kind.equals("build")) {
         ok = false

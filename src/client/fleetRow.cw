@@ -13,6 +13,7 @@
  *               orderLocked for dispatch chrome.
  *   2026-11-07  Phase I: outboundEta for map hop progress.
  *   2026-11-09  examineDialogText for fleet TransientWindow.
+ *   2026-11-10  name field for CPL-101 named fleets.
  */
 
 /*
@@ -32,6 +33,7 @@ class FleetRow {
     int64 outboundEta
     int64 hullCount
     String order
+    String name
 
     /*
      * Construct an empty invisible fleet row.
@@ -56,6 +58,7 @@ class FleetRow {
         outboundEta = 0
         hullCount = 0
         order = "sit"
+        name = ""
     }
 
     /*
@@ -144,9 +147,13 @@ class FleetRow {
         if (recallRequested) {
             lock.append(" recall-req")
         }
+        String label = name
+        if (label.length < 1) {
+            label = format("{}", id)
+        }
         return(format(
-            "Fleet {} owner={} order={} hulls={} eta={} loc={} dest={}{}",
-            id, ownerId, order, hullCount, eta,
+            "Fleet {} ({}) owner={} order={} hulls={} eta={} loc={} dest={}{}",
+            id, label, ownerId, order, hullCount, eta,
             locationPlanetId, destPlanetId, lock))
     }
 

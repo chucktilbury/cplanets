@@ -24,6 +24,8 @@
  *               fleets explore / take / yard-build after go.
  *   2026-11-09  Skip order/build while published paused (lobby
  *               hold until operator go, or explicit pause).
+ *   2026-11-10  CPL-101: PUT /fleet + PUT /assign when stock needs
+ *               createNamed + assign before dispatch.
  */
 
 import networking as Networking
@@ -48,11 +50,11 @@ include "view.cw"
  * AiClient talks to a live server over one TCP connection.
  *
  * Brain + ReactionLag decide when to PUT policy. AiOrderPlan turns
- * the same GET snapshot into PUT /order and PUT /build so fleets
- * actually move. GET /state is decoded into ClientStateView (same
- * visibility as a human client) and mirrored into AiExploreState
- * for the on-demand status menu. verbose mirrors AiConfig.verbosity
- * (CLI may overlay).
+ * the same GET snapshot into PUT /order, /build, /fleet, and
+ * /assign so fleets actually move (CPL-101 stock→create→assign).
+ * GET /state is decoded into ClientStateView (same visibility as a
+ * human client) and mirrored into AiExploreState for the on-demand
+ * status menu. verbose mirrors AiConfig.verbosity (CLI may overlay).
  */
 class AiClient {
     AiConfig config
@@ -439,15 +441,16 @@ class AiClient {
     }
 
     /*
-     * Issue one explore/take order or yard build from the snapshot.
+     * Issue one order / build / fleet-create / assign from snapshot.
      *
      * Purpose: after policy PUT (or when lag skips a PUT), make
-     * fleets leave home so quality gets explored. Uses the last
-     * decoded GET snapshot in explore and the last / freshly
-     * generated policy shape for expansion bias. Skips while the
-     * status menu pauses decisions, and while the published
-     * snapshot is paused (lobby hold until operator go, or
-     * explicit pause). Failures are logged; a rejected order does
+     * fleets leave home so quality gets explored. CPL-101: when
+     * only unassigned stock remains, create "ai-N" and assign
+     * before dispatch. Uses the last decoded GET snapshot and the
+     * last / freshly generated policy shape for expansion bias.
+     * Skips while the status menu pauses decisions, and while the
+     * published snapshot is paused (lobby hold until operator go,
+     * or explicit pause). Failures are logged; a rejected verb does
      * not abort the serve-loop.
      *
      * Parameters:
@@ -475,6 +478,33 @@ class AiClient {
         AiOrderIntent intent = orders.plan(explore.snapshot, shape)
         if (intent.kind.equals("none")) {
             return(true)
+        }
+        if (intent.kind.equals("fleet")) {
+            bool created = putFleetCreate(
+                intent.buildPlanetId, intent.fleetName)
+            verbose.logFleet(
+                config.playerId,
+                intent.buildPlanetId,
+                intent.fleetName,
+                created)
+            if (cycleIndex >= 0 and created) {
+                explore.noteCycle(cycleIndex, "fleet")
+            }
+            return(created)
+        }
+        if (intent.kind.equals("assign")) {
+            bool assigned = putAssign(
+                intent.fleetId, intent.typeName, intent.qty)
+            verbose.logAssign(
+                config.playerId,
+                intent.fleetId,
+                intent.typeName,
+                intent.qty,
+                assigned)
+            if (cycleIndex >= 0 and assigned) {
+                explore.noteCycle(cycleIndex, "assign")
+            }
+            return(assigned)
         }
         if (intent.kind.equals("build")) {
             bool built = putBuild(
@@ -565,10 +595,57 @@ class AiClient {
     }
 
     /*
+     * PUT /fleet to create a named empty sitting fleet.
+     *
+     * Purpose: CPL-101 — create "ai-N" at home yard when only
+     * unassigned stock remains, matching HumanSession.putFleetCreate.
+     *
+     * Parameters:
+     *   planetId — owned planet for the empty fleet.
+     *   fleetName — unique per-seat label.
+     *
+     * Returns: true when the server created the fleet.
+     */
+    bool putFleetCreate(int64 planetId, String fleetName) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(planetId)
+        w.writeString(fleetName)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/fleet", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/fleet"))
+    }
+
+    /*
+     * PUT /assign to move type+qty from unassigned stock.
+     *
+     * Purpose: fill a newly created empty fleet before dispatch.
+     *
+     * Parameters:
+     *   fleetId — sitting owned fleet at the stock planet.
+     *   typeName — design name to assign.
+     *   qty — hulls to move.
+     *
+     * Returns: true when the server assigned the hulls.
+     */
+    bool putAssign(int64 fleetId, String typeName, int64 qty) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        w.writeString(typeName)
+        w.writeU32(qty)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/assign", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/assign"))
+    }
+
+    /*
      * Decode a flag-ack body for a PUT path.
      *
-     * Purpose: shared accept check for /order and /build (same
-     * shape as HumanSession.flagAccepted).
+     * Purpose: shared accept check for /order, /build, /fleet, and
+     * /assign (same shape as HumanSession.flagAccepted).
      *
      * Parameters:
      *   resp — raw response envelope bytes.

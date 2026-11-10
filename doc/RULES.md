@@ -209,16 +209,23 @@ much to learn; it is **out**. Loading, cover, production, and reclaim
 all hit the same pools.
 
 **Inventory (empire vs planet).** Empire inventory is the seat’s
-abstract stocks and designs (the empire pool above). **Planet
-inventory** is location-scoped **presence** on that rock — sitting
-fleets (multi-hull stacks you split and send), defenses/satellites,
-yard jobs, population / productive / shipyard flags, and allocation
-— **not** a second wealth/resource bank and **not** an Inventory
-screen. Hulls sit at a planet or ride a fleet; there is no unlocated
-hangar. Builds pay the empire pool and spawn/merge sitting fleets at
-that yard. Do not invent ferry-to-yard logistics. (Planet
-`resources` / livability on the rock are **quality / yield**
-attributes, not empire-style stockpiles.)
+abstract stocks and designs (the empire pool above), plus **unassigned
+hull stocks** staged at the yard planet that completed each build
+(keyed by owner + design + planet). **Planet inventory** is
+location-scoped **presence** on that rock — unassigned stocks at that
+yard, named sitting fleets, defenses/satellites, yard jobs, population
+/ productive / shipyard flags, and allocation — **not** a second
+wealth/resource bank and **not** an Inventory screen. Unassigned hulls
+are empire stocks at a planet; they are **not** a fleet and have **no
+order**. Named fleets are separate containers (create parks an empty
+named fleet at an owned planet; assign moves qty of a type from
+unassigned stock at that same planet into the fleet). Dispatch leaves
+from the fleet’s sitting location, so range-from-occupied-world stays
+intact. There is **no** abstract no-location hangar. Builds pay the
+empire pool and add to unassigned stock at that yard — they do **not**
+auto-fleet. Do not invent ferry-to-yard logistics. (Planet `resources`
+/ livability on the rock are **quality / yield** attributes, not
+empire-style stockpiles.)
 
 ## 3. State
 
@@ -301,11 +308,16 @@ allocations, agreements, …). That **particular in-flight fleet’s
 order** cannot be rewritten except by **`recall`** (same-tick cancel
 if not yet departed) or resolution that frees it.
 
-**Sitting fleets are the ship inventory.** Same-design builds merge
-into one sitting stack at the yard. **Split-dispatch** peels a hull
-count from that stack onto a new order/destination; the remainder
-stays sitting for later sends. That is the assign/send loop — not a
-separate Inventory UI or unlocated hangar.
+**Unassigned inventory + named fleets.** Completed builds add hulls to
+**unassigned** stock at the yard planet (owner + design + planet) —
+not into a fleet. **Fleet create** parks a named empty container at an
+owned planet. **Assign** moves type name + quantity from unassigned
+stock at that same planet into the fleet (over-assign → reject / error
+dialog; no silent truncate). **Split-dispatch** peels hulls from an
+**assigned** sitting fleet onto a new order/destination; the remainder
+stays sitting. Dispatch travel rate = **slowest hull** (lowest speed
+among assigned types) in that fleet. That is the create / assign /
+send loop — not a separate Inventory UI or abstract no-location hangar.
 
 ### 5.1 Dispatch and loading (sender only)
 
@@ -359,6 +371,12 @@ Speed and range raise both costs. **Neither designing a type nor
 building hulls is instant** — both take **time** (ticks / setup
 durations). Hulls keep their stats until destroyed or reclaimed.
 Closing a design does not refund development; production of it stops.
+
+**Develop noop.** If a ship type with the **same parameters** already
+exists for that seat, develop is a **no-op** (optional info dialog;
+silent noop is OK). **Type names are unique per player.** When **all**
+hulls of that name are reclaimed (count → 0 and the design is closed /
+name freed), the name may be reused.
 
 **Captured hulls:** setup **probability** they can actually be used.
 Otherwise they are **destroyed** (Ho default). If usable, they are
@@ -702,9 +720,10 @@ for dumb legal orders. Human client uses Cwhip `DrawingArea`, pointer,
 adoption for policy knobs is still open. No Cwhip GTK subclass
 framework.
 
-**No Inventory screen.** Sitting hulls plus Fleets split-dispatch are
-the ship inventory chrome (§2 / §5). Do not add an Inventory tab or
-dialog.
+**No Inventory screen.** Ships / Fleets panels show type inventory
+(specs + unassigned hull counts), named fleets with assigned ships, and
+a separate **unassigned** line — that is the ship inventory chrome
+(§2 / §5). Do not add a new Inventory tab or dialog.
 
 **Explored planet dialog (human client):** when a planet has been
 **explored** for that human, **pop up a dialog** showing quality /

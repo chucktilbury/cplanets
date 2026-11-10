@@ -31,7 +31,11 @@
  *   2026-11-09  Every seated empire gets a starter scout fleet
  *               (RULES §2), not only seat 0.
  *   2026-11-09  seatHardCap from server config (was literal 256).
+ *   2026-11-10  CPL-101: unassigned HullStock; develop noop/unique
+ *               names; named fleet create + assign; min-speed ETA.
  */
+
+
 
 include "agreement.cw"
 include "confiscate.cw"
@@ -40,6 +44,7 @@ include "event.cw"
 include "fleet.cw"
 include "galaxy.cw"
 include "setupParse.cw"
+include "shipInventory.cw"
 include "tick.cw"
 include "travel.cw"
 
@@ -58,6 +63,11 @@ class State {
     list fleets
     list builds
     list reclaims
+    # Unassigned hulls staged at a yard planet (CPL-101).
+    list stocks
+    ShipInventory inventory
+    # Last develop/assign/create reject reason for driver acks.
+    String lastInventoryError
     list engagements
     list agreements
     list confiscationArms
@@ -97,6 +107,9 @@ class State {
         fleets = []
         builds = []
         reclaims = []
+        stocks = []
+        inventory = ShipInventory()
+        lastInventoryError = ""
         engagements = []
         agreements = []
         confiscationArms = []
@@ -208,6 +221,8 @@ class State {
         fleets = []
         builds = []
         reclaims = []
+        stocks = []
+        lastInventoryError = ""
         engagements = []
         agreements = []
         confiscationArms = []
@@ -378,6 +393,7 @@ class State {
         }
         Fleet home = Fleet(
             nextFleetId, ownerId, homePlanetId, 0, 3)
+        home.name = "starter"
         nextFleetId = nextFleetId + 1
         fleets.append(home)
     }
@@ -542,14 +558,26 @@ class State {
             or destPlanetId >= galaxy.planets.length) {
             return(false)
         }
+        if (fleet.hullCount < 1 or fleet.designId < 0) {
+            return(false)
+        }
         Player seat = players[fleet.ownerId]
         Design design = designs[fleet.designId]
+        Design slow = design
+        if (fleet.escortDesignId >= 0
+            and fleet.escortDesignId < designs.length
+            and fleet.escortHullCount > 0) {
+            Design escort = designs[fleet.escortDesignId]
+            if (escort.speed < slow.speed) {
+                slow = escort
+            }
+        }
         Planet origin = galaxy.planets[fleet.locationPlanetId]
         Planet dest = galaxy.planets[destPlanetId]
         int64 eta = travel.etaTicks(
             scenario,
             seat,
-            design,
+            slow,
             origin,
             dest)
         bool ok = fleet.issueTravel(order, destPlanetId, eta)
@@ -1015,17 +1043,51 @@ class State {
      * Begin developing a new hull design (non-instant).
      *
      * Purpose: designing a type takes designDevelopTicks and mostly
-     * wealth (RULES §5.3). Instant design is out.
+     * wealth (RULES §5.3). Instant design is out. CPL-101: noop
+     * (return existing id, no wealth charge) when an open design
+     * already matches all type knobs for this seat or a shared
+     * system template; reject when the requested name collides
+     * with a different open type owned by this seat.
      *
      * Parameters:
      *   ownerId — empire paying development wealth.
      *   draft — design template to append (id rewritten).
      *
-     * Returns: new design id, or −1 on failure.
+     * Returns: design id (new or existing noop), or −1 on failure.
      */
     int64 queueDesignDevelop(int64 ownerId, Design draft) {
+        lastInventoryError = ""
         if (ownerId < 0 or ownerId >= players.length) {
+            lastInventoryError = "invalid player"
             return(-1)
+        }
+        int64 index = 0
+        while (index < designs.length) {
+            Design existing = designs[index]
+            if (not existing.closed
+                and existing.sameParameters(draft)
+                and (existing.ownerId == ownerId
+                    or existing.ownerId < 0)) {
+                # Develop noop — type-by-parameters already exists.
+                return(existing.id)
+            }
+            index = index + 1
+        }
+        if (draft.name.length > 0) {
+            index = 0
+            while (index < designs.length) {
+                Design named = designs[index]
+                if (not named.closed
+                    and named.ownerId == ownerId
+                    and named.name.equals(draft.name)
+                    and not named.sameParameters(draft)) {
+                    lastInventoryError = format(
+                        "ship type name '{}' already in use",
+                        draft.name)
+                    return(-1)
+                }
+                index = index + 1
+            }
         }
         Player seat = players[ownerId]
         fp64 cost = (
@@ -1034,15 +1096,355 @@ class State {
             * scenario.designSpeedCostCoeff)
         cost = cost * scenario.designRangeCostCoeff
         if (seat.wealth < cost) {
+            lastInventoryError = "insufficient wealth"
             return(-1)
         }
         seat.wealth = seat.wealth - cost
         players[ownerId] = seat
         draft.id = nextDesignId
+        draft.ownerId = ownerId
         nextDesignId = nextDesignId + 1
         draft.beginDevelop(scenario.designDevelopTicks)
         designs.append(draft)
         return(draft.id)
+    }
+
+    /*
+     * Create a named empty sitting fleet at an owned planet.
+     *
+     * Purpose: CPL-101 fleet create is a separate operation from
+     * build and assign. Name must be unique among this seat's
+     * fleets.
+     *
+     * Parameters:
+     *   ownerId — empire creating the fleet.
+     *   fleetName — unique per-seat label (non-empty).
+     *   planetId — owned planet where the empty fleet sits.
+     *
+     * Returns: new fleet id, or −1 on failure.
+     */
+    int64 createNamedFleet(
+        int64 ownerId, String fleetName, int64 planetId) {
+        lastInventoryError = ""
+        if (ownerId < 0 or ownerId >= players.length) {
+            lastInventoryError = "invalid player"
+            return(-1)
+        }
+        if (fleetName.length < 1) {
+            lastInventoryError = "fleet name required"
+            return(-1)
+        }
+        if (planetId < 0 or planetId >= galaxy.planets.length) {
+            lastInventoryError = "invalid planet"
+            return(-1)
+        }
+        Planet rock = galaxy.planets[planetId]
+        if (rock.ownerId != ownerId) {
+            lastInventoryError = "planet not owned"
+            return(-1)
+        }
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet other = fleets[index]
+            if (other.ownerId == ownerId
+                and other.name.equals(fleetName)) {
+                lastInventoryError = format(
+                    "fleet name '{}' already in use", fleetName)
+                return(-1)
+            }
+            index = index + 1
+        }
+        Fleet born = Fleet(nextFleetId, ownerId, planetId, -1, 0)
+        born.name = fleetName
+        nextFleetId = nextFleetId + 1
+        fleets.append(born)
+        return(born.id)
+    }
+
+    /*
+     * Assign type name + quantity from unassigned stock into a fleet.
+     *
+     * Purpose: CPL-101 assign pulls from inventory staged at the
+     * fleet's location planet. Over-assign is a hard reject (no
+     * silent truncate). Mixed types use primary + escort slots
+     * (existing multi-design path).
+     *
+     * Parameters:
+     *   ownerId — empire owning fleet and stock.
+     *   fleetId — sitting unlocked fleet at a planet.
+     *   typeName — design name to assign.
+     *   qty — hulls to move (> 0).
+     *
+     * Returns: true when assigned; false on reject (see
+     * lastInventoryError).
+     */
+    bool assignHullsToFleet(
+        int64 ownerId,
+        int64 fleetId,
+        String typeName,
+        int64 qty) {
+        lastInventoryError = ""
+        if (ownerId < 0 or ownerId >= players.length) {
+            lastInventoryError = "invalid player"
+            return(false)
+        }
+        if (qty <= 0) {
+            lastInventoryError = "quantity must be positive"
+            return(false)
+        }
+        Fleet fleet = findFleet(fleetId)
+        if (fleet.id < 0 or fleet.ownerId != ownerId) {
+            lastInventoryError = "fleet missing or not owned"
+            return(false)
+        }
+        if (not fleet.sitting
+            or fleet.pendingDeparture
+            or fleet.departed
+            or fleet.stranded
+            or fleet.engagementId >= 0) {
+            lastInventoryError = "fleet not sitting"
+            return(false)
+        }
+        int64 designId = findOpenDesignByName(ownerId, typeName)
+        if (designId < 0) {
+            lastInventoryError = format(
+                "ship type '{}' not found", typeName)
+            return(false)
+        }
+        Design design = designs[designId]
+        if (not design.isReady()) {
+            lastInventoryError = "ship type not ready"
+            return(false)
+        }
+        int64 available = inventory.available(
+            stocks, ownerId, designId, fleet.locationPlanetId)
+        if (qty > available) {
+            lastInventoryError = format(
+                "over-assign: requested {} but only {} available",
+                qty, available)
+            return(false)
+        }
+        if (fleet.hullCount <= 0 or fleet.designId < 0) {
+            if (not inventory.debit(
+                stocks, ownerId, designId,
+                fleet.locationPlanetId, qty)) {
+                lastInventoryError = "stock debit failed"
+                return(false)
+            }
+            fleet.designId = designId
+            fleet.hullCount = qty
+            storeFleet(fleet)
+            return(true)
+        }
+        if (fleet.designId == designId) {
+            if (not inventory.debit(
+                stocks, ownerId, designId,
+                fleet.locationPlanetId, qty)) {
+                lastInventoryError = "stock debit failed"
+                return(false)
+            }
+            fleet.hullCount = fleet.hullCount + qty
+            storeFleet(fleet)
+            return(true)
+        }
+        if (fleet.escortDesignId < 0 or fleet.escortHullCount <= 0) {
+            if (not inventory.debit(
+                stocks, ownerId, designId,
+                fleet.locationPlanetId, qty)) {
+                lastInventoryError = "stock debit failed"
+                return(false)
+            }
+            fleet.escortDesignId = designId
+            fleet.escortHullCount = qty
+            storeFleet(fleet)
+            return(true)
+        }
+        if (fleet.escortDesignId == designId) {
+            if (not inventory.debit(
+                stocks, ownerId, designId,
+                fleet.locationPlanetId, qty)) {
+                lastInventoryError = "stock debit failed"
+                return(false)
+            }
+            fleet.escortHullCount = fleet.escortHullCount + qty
+            storeFleet(fleet)
+            return(true)
+        }
+        lastInventoryError = (
+            "fleet already has two ship types; create another fleet")
+        return(false)
+    }
+
+    /*
+     * Find an open design by name usable by a seat.
+     *
+     * Purpose: assign-by-type-name resolves player-owned designs
+     * first, then shared system templates with the same name.
+     *
+     * Parameters:
+     *   ownerId — requesting seat.
+     *   typeName — design name.
+     *
+     * Returns: design id, or −1 when not found / closed.
+     */
+    int64 findOpenDesignByName(int64 ownerId, String typeName) {
+        int64 index = 0
+        while (index < designs.length) {
+            Design design = designs[index]
+            if (not design.closed
+                and design.ownerId == ownerId
+                and design.name.equals(typeName)) {
+                return(design.id)
+            }
+            index = index + 1
+        }
+        index = 0
+        while (index < designs.length) {
+            Design design = designs[index]
+            if (not design.closed
+                and design.ownerId < 0
+                and design.name.equals(typeName)) {
+                return(design.id)
+            }
+            index = index + 1
+        }
+        return(-1)
+    }
+
+    /*
+     * Close a design and free its name when no hulls remain.
+     *
+     * Purpose: CPL-101 — when all hulls of a type are reclaimed
+     * (stock + fleets + pending builds/reclaims = 0), close the
+     * design so the name may be reused.
+     *
+     * Parameters:
+     *   designId — design to consider freeing.
+     *
+     * Returns: true when the design was closed.
+     */
+    bool maybeFreeDesign(int64 designId) {
+        if (designId < 0 or designId >= designs.length) {
+            return(false)
+        }
+        Design design = designs[designId]
+        if (design.closed) {
+            return(false)
+        }
+        int64 ownerId = design.ownerId
+        if (ownerId < 0) {
+            # Shared system templates stay open.
+            return(false)
+        }
+        if (inventory.totalForDesign(stocks, ownerId, designId) > 0) {
+            return(false)
+        }
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet fleet = fleets[index]
+            if (fleet.ownerId == ownerId) {
+                if (fleet.designId == designId
+                    and fleet.hullCount > 0) {
+                    return(false)
+                }
+                if (fleet.escortDesignId == designId
+                    and fleet.escortHullCount > 0) {
+                    return(false)
+                }
+            }
+            index = index + 1
+        }
+        index = 0
+        while (index < builds.length) {
+            BuildJob job = builds[index]
+            if (job.ownerId == ownerId and job.designId == designId) {
+                return(false)
+            }
+            index = index + 1
+        }
+        index = 0
+        while (index < reclaims.length) {
+            ReclaimJob job = reclaims[index]
+            if (job.ownerId == ownerId and job.designId == designId) {
+                return(false)
+            }
+            index = index + 1
+        }
+        design.closed = true
+        designs[designId] = design
+        return(true)
+    }
+
+    /*
+     * Queue reclaim of unassigned stock at a shipyard planet.
+     *
+     * Purpose: Ships inventory reclaim path for staged hulls
+     * (RULES §5.2 / CPL-101). Hard-rejects over-reclaim.
+     *
+     * Parameters:
+     *   ownerId — empire owning the stock.
+     *   planetId — owned shipyard planet.
+     *   designId — type to reclaim.
+     *   hulls — count to reclaim (> 0).
+     *
+     * Returns: true when a ReclaimJob was queued.
+     */
+    bool queueReclaimStock(
+        int64 ownerId,
+        int64 planetId,
+        int64 designId,
+        int64 hulls) {
+        lastInventoryError = ""
+        if (ownerId < 0 or ownerId >= players.length) {
+            lastInventoryError = "invalid player"
+            return(false)
+        }
+        if (hulls <= 0) {
+            lastInventoryError = "quantity must be positive"
+            return(false)
+        }
+        if (planetId < 0 or planetId >= galaxy.planets.length) {
+            lastInventoryError = "invalid planet"
+            return(false)
+        }
+        if (designId < 0 or designId >= designs.length) {
+            lastInventoryError = "invalid design"
+            return(false)
+        }
+        Planet rock = galaxy.planets[planetId]
+        if (not rock.shipyard or rock.ownerId != ownerId) {
+            lastInventoryError = "not an owned shipyard"
+            return(false)
+        }
+        int64 available = inventory.available(
+            stocks, ownerId, designId, planetId)
+        if (hulls > available) {
+            lastInventoryError = format(
+                "over-reclaim: requested {} but only {} available",
+                hulls, available)
+            return(false)
+        }
+        Design design = designs[designId]
+        fp64 basis = (
+            design.size
+            * scenario.yardBuildCostPerSize
+            * fp64(hulls))
+        if (not inventory.debit(
+            stocks, ownerId, designId, planetId, hulls)) {
+            lastInventoryError = "stock debit failed"
+            return(false)
+        }
+        ReclaimJob job = ReclaimJob(
+            nextReclaimId,
+            ownerId,
+            planetId,
+            designId,
+            hulls,
+            scenario.yardBuildTicks,
+            basis)
+        nextReclaimId = nextReclaimId + 1
+        reclaims.append(job)
+        return(true)
     }
 
     /*
@@ -1080,7 +1482,10 @@ class State {
             return(false)
         }
         if (hulls > fleet.hullCount) {
-            hulls = fleet.hullCount
+            lastInventoryError = format(
+                "over-reclaim: requested {} but fleet has {}",
+                hulls, fleet.hullCount)
+            return(false)
         }
         Design design = designs[fleet.designId]
         fp64 basis = (
@@ -1218,6 +1623,7 @@ class State {
             designs,
             builds,
             reclaims,
+            stocks,
             fleets,
             engagements,
             agreements,
@@ -1233,6 +1639,12 @@ class State {
             ended = true
             endReason = driver.endReasonOut
             winnerId = driver.winnerIdOut
+        }
+        # Free player type names when reclaim drained the last hulls.
+        int64 designIndex = 0
+        while (designIndex < designs.length) {
+            maybeFreeDesign(designIndex)
+            designIndex = designIndex + 1
         }
         tickCount = tickCount + 1
         return(events)

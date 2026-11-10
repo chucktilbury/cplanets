@@ -25,6 +25,8 @@
  *   2026-11-09  Keep token on empty/network handshake failure;
  *               only clear after an explicit reject ack (no ghost
  *               allocate from a transient miss).
+ *   2026-11-10  CPL-101: putFleetCreate / putAssign /
+ *               putReclaimStock (flag ack + reject reason).
  */
 
 import networking as Networking
@@ -493,6 +495,81 @@ class HumanSession {
     }
 
     /*
+     * PUT /fleet to create a named empty sitting fleet.
+     *
+     * Purpose: CPL-101 Fleets create chrome — empty container at an
+     * owned planet; assign fills it from unassigned stock.
+     *
+     * Parameters:
+     *   planetId — owned planet where the empty fleet sits.
+     *   fleetName — unique per-seat label (non-empty).
+     *
+     * Returns: true when the server created the fleet. Reject
+     * reason lands in lastRejectReason when present.
+     */
+    bool putFleetCreate(int64 planetId, String fleetName) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(planetId)
+        w.writeString(fleetName)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/fleet", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/fleet"))
+    }
+
+    /*
+     * PUT /assign to move type+qty from unassigned stock into a fleet.
+     *
+     * Purpose: CPL-101 assign chrome. Over-assign rejects with a
+     * reason string for the human error dialog.
+     *
+     * Parameters:
+     *   fleetId — sitting owned fleet at a planet.
+     *   typeName — design name to assign.
+     *   qty — hulls to move (> 0).
+     *
+     * Returns: true when assigned. lastRejectReason set on reject.
+     */
+    bool putAssign(int64 fleetId, String typeName, int64 qty) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        w.writeString(typeName)
+        w.writeU32(qty)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/assign", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/assign"))
+    }
+
+    /*
+     * PUT /reclaim-stock for unassigned hulls at a yard.
+     *
+     * Purpose: Ships inventory reclaim path (CPL-101) — design +
+     * planet + qty, not a fleet id.
+     *
+     * Parameters:
+     *   planetId — owned shipyard planet staging the stock.
+     *   designId — type to reclaim.
+     *   hulls — count to reclaim.
+     *
+     * Returns: true when a ReclaimJob was queued.
+     */
+    bool putReclaimStock(
+        int64 planetId, int64 designId, int64 hulls) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(planetId)
+        w.writeU32(designId)
+        w.writeU32(hulls)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/reclaim-stock", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/reclaim-stock"))
+    }
+
+    /*
      * PUT /budget for an owned planet allocation %.
      *
      * Purpose: Planets-tab budget Scale (DIALOGS §4.2).
@@ -555,7 +632,8 @@ class HumanSession {
      *
      * Purpose: share pause / order / recall / handshake ack shape.
      * When accepted is 0 and a trailing reason string is present
-     * (PUT /order), store it in lastRejectReason for the GUI.
+     * (PUT /order, /assign, /fleet, …), store it in lastRejectReason
+     * for the GUI.
      *
      * Parameters:
      *   resp — raw response envelope bytes.

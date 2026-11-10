@@ -19,6 +19,8 @@
  *   2026-11-07  Surface server /order reject reason in lastError.
  *   2026-11-08  putSuspendedRemote for human AFK CheckButton.
  *   2026-11-09  keepAliveRemote: presence-only handshake for GUI.
+ *   2026-11-10  CPL-101: putFleetCreateRemote / putAssignRemote /
+ *               putReclaimStockRemote; assign uses lastRejectReason.
  */
 
 include "config.cw"
@@ -391,6 +393,119 @@ class AppCore {
             lastError = format(
                 "PUT /reclaim-hulls rejected by {} (fleet={} hulls={})",
                 endpointLabel(), fleetId, hulls)
+        }
+        return(ok)
+    }
+
+    /*
+     * PUT /fleet create over TCP.
+     *
+     * Purpose: Fleets panel Create button — named empty sitting
+     * fleet at an owned planet (CPL-101).
+     *
+     * Parameters:
+     *   planetId — owned planet for the empty fleet.
+     *   fleetName — unique per-seat name.
+     *
+     * Returns: true when accepted. Sets lastError on dial/reject.
+     */
+    bool putFleetCreateRemote(int64 planetId, String fleetName) {
+        lastError = ""
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putFleetCreate(planetId, fleetName)
+        String reject = session.lastRejectReason
+        session.close()
+        if (not ok) {
+            if (reject.length > 0) {
+                lastError = reject
+            } else {
+                lastError = format(
+                    "PUT /fleet rejected by {} (planet={} name={})",
+                    endpointLabel(), planetId, fleetName)
+            }
+        }
+        return(ok)
+    }
+
+    /*
+     * PUT /assign over TCP.
+     *
+     * Purpose: Fleets panel Assign — type name + qty from unassigned
+     * stock at the fleet location. Over-assign must surface
+     * lastRejectReason in lastError for the error dialog.
+     *
+     * Parameters:
+     *   fleetId — sitting owned fleet.
+     *   typeName — design name to assign.
+     *   qty — hulls to move.
+     *
+     * Returns: true when accepted. Sets lastError on dial/reject.
+     */
+    bool putAssignRemote(
+        int64 fleetId, String typeName, int64 qty) {
+        lastError = ""
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putAssign(fleetId, typeName, qty)
+        String reject = session.lastRejectReason
+        session.close()
+        if (not ok) {
+            if (reject.length > 0) {
+                lastError = reject
+            } else {
+                lastError = format(
+                    "PUT /assign rejected by {} (fleet={} type={} qty={})",
+                    endpointLabel(), fleetId, typeName, qty)
+            }
+        }
+        return(ok)
+    }
+
+    /*
+     * PUT /reclaim-stock over TCP.
+     *
+     * Purpose: Ships panel reclaim of unassigned staged hulls
+     * (design + planet + qty).
+     *
+     * Parameters:
+     *   planetId — owned shipyard staging the stock.
+     *   designId — type to reclaim.
+     *   hulls — count to reclaim.
+     *
+     * Returns: true when accepted. Sets lastError on dial/reject.
+     */
+    bool putReclaimStockRemote(
+        int64 planetId, int64 designId, int64 hulls) {
+        lastError = ""
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putReclaimStock(planetId, designId, hulls)
+        String reject = session.lastRejectReason
+        session.close()
+        if (not ok) {
+            if (reject.length > 0) {
+                lastError = reject
+            } else {
+                lastError = format(
+                    "PUT /reclaim-stock rejected by {} (planet={} design={} hulls={})",
+                    endpointLabel(), planetId, designId, hulls)
+            }
         }
         return(ok)
     }

@@ -16,6 +16,7 @@
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
  *   2026-11-08  Structured develop/build/reclaim ProgressJob lists
  *               for Gtk.ProgressBar fraction chrome (CPL-72).
+ *   2026-11-10  Fleet name + unassigned stock rows (CPL-101).
  */
 
 include "../lib/wireBytes.cw"
@@ -24,6 +25,7 @@ include "fleetRow.cw"
 include "planetRow.cw"
 include "progressJob.cw"
 include "stateView.cw"
+include "stockRow.cw"
 
 /*
  * PublishDecode turns opaque GET blobs into ClientStateView rows.
@@ -176,6 +178,7 @@ class PublishDecode {
             row.outboundEta = r.readU32()
             row.hullCount = r.readU32()
             row.order = r.readString()
+            row.name = r.readString()
             view.fleets.append(row)
             index = index + 1
         }
@@ -202,6 +205,7 @@ class PublishDecode {
         view.buildJobs = []
         view.reclaimJobs = []
         view.designs = []
+        view.stocks = []
         view.knownCompetitors = []
         if (r.offset + 4 > blob.length) {
             return()
@@ -294,6 +298,19 @@ class PublishDecode {
             row.sizeMilli = r.readU32()
             row.cargoMilli = r.readU32()
             view.designs.append(row)
+            index = index + 1
+        }
+        if (r.offset + 4 > blob.length) {
+            return()
+        }
+        int64 stockCount = r.readU32()
+        index = 0
+        while (index < stockCount) {
+            StockRow stock = StockRow()
+            stock.designId = r.readU32()
+            stock.planetId = r.readU32()
+            stock.count = r.readU32()
+            view.stocks.append(stock)
             index = index + 1
         }
         if (r.offset + 4 > blob.length) {

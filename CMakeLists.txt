@@ -262,6 +262,7 @@ if(BUILD_TESTING)
         unit_dispatch
         unit_splitDispatch
         unit_orderReject
+        unit_shipInventory
         unit_recallCancel
         unit_stranded
         unit_combat

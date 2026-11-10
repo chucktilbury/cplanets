@@ -37,6 +37,7 @@
  *               keep-alive handshake stays a separate timer.
  *   2026-11-10  CPL-101: create fleet / assign / reclaim-stock
  *               handlers; over-assign error dialog via lastError.
+ *   2026-11-10  Examine pins fleet/design DropDowns by name.
  */
 
 include "appCore.cw"
@@ -738,7 +739,7 @@ class GuiMain {
             }
         }
         if (row.id >= 0) {
-            fleetPage.fleetChoice.setValue(format("{}", row.id))
+            fleetPage.fleetChoice.setValue(row.choiceLabel())
             fleetDialog.presentRow(window, row)
             fleetPage.syncLockChrome()
         }
@@ -762,7 +763,7 @@ class GuiMain {
             row = core.view.designs[0]
         }
         if (row.id >= 0) {
-            yardPage.designChoice.setValue(format("{}", row.id))
+            yardPage.designChoice.setValue(row.choiceLabel())
             shipDialog.presentRow(window, row)
         }
     }

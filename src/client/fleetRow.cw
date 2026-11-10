@@ -14,6 +14,7 @@
  *   2026-11-07  Phase I: outboundEta for map hop progress.
  *   2026-11-09  examineDialogText for fleet TransientWindow.
  *   2026-11-10  name field for CPL-101 named fleets.
+ *   2026-11-10  choiceLabel for name-based DropDown chrome.
  */
 
 /*
@@ -59,6 +60,27 @@ class FleetRow {
         hullCount = 0
         order = "sit"
         name = ""
+    }
+
+    /*
+     * Stable DropDown label for this fleet.
+     *
+     * Purpose: select by fleet name across refresh_ms polls. Falls
+     * back to the decimal id string when name is empty so unnamed
+     * rows stay selectable.
+     *
+     * Parameters: none.
+     *
+     * Returns: non-empty choice string when id is valid.
+     */
+    String choiceLabel() {
+        if (name.length > 0) {
+            return(name)
+        }
+        if (id < 0) {
+            return("")
+        }
+        return(format("{}", id))
     }
 
     /*

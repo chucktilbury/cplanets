@@ -24,9 +24,12 @@
  *   2026-11-09  Safe Scale range via GuiScaleRange (empty fleets).
  *   2026-11-10  CPL-101: unassigned stock block; create fleet +
  *               assign chrome (PUT /fleet, PUT /assign).
+ *   2026-11-10  Fleet/planet DropDowns by name; assign type by
+ *               design name; preserve selection across refresh.
  */
 
 include "appCore.cw"
+include "designRow.cw"
 include "fleetRow.cw"
 include "guiChoiceRow.cw"
 include "guiProgressChrome.cw"
@@ -50,7 +53,7 @@ class GuiFleetPage {
     GuiChoiceRow createPlanetChoice
     Gtk.Button createFleetBtn
     GuiChoiceRow assignFleetChoice
-    Gtk.Entry assignTypeEntry
+    GuiChoiceRow assignTypeChoice
     Gtk.SpinButton assignQtySpin
     Gtk.Label assignQtyLabel
     Gtk.Button assignBtn
@@ -93,7 +96,7 @@ class GuiFleetPage {
         createPlanetChoice = GuiChoiceRow()
         createFleetBtn = null
         assignFleetChoice = GuiChoiceRow()
-        assignTypeEntry = null
+        assignTypeChoice = GuiChoiceRow()
         assignQtySpin = null
         assignQtyLabel = null
         assignBtn = null
@@ -162,7 +165,7 @@ class GuiFleetPage {
             "Unique per-seat fleet name for PUT /fleet.")
         page.append(Gtk.Label("Fleet name"))
         page.append(createNameEntry)
-        page.append(Gtk.Label("Park at planet id"))
+        page.append(Gtk.Label("Park at planet"))
         page.append(createPlanetChoice.buildWidget(
             "Owned planet where the empty fleet sits (yard OK)."))
         createFleetBtn = Gtk.Button("Create fleet")
@@ -174,14 +177,12 @@ class GuiFleetPage {
         page.append(createFleetBtn)
         page.append(Gtk.Label(
             "Assign from unassigned stock (same planet)"))
-        page.append(Gtk.Label("Fleet id"))
+        page.append(Gtk.Label("Fleet"))
         page.append(assignFleetChoice.buildWidget(
             "Sitting owned fleet to fill from stock at its location."))
-        assignTypeEntry = Gtk.Entry("scout")
-        assignTypeEntry.setTooltip(
-            "Ship type name to assign from unassigned stock.")
-        page.append(Gtk.Label("Type name"))
-        page.append(assignTypeEntry)
+        page.append(Gtk.Label("Ship type"))
+        page.append(assignTypeChoice.buildWidget(
+            "Ship type name to assign from unassigned stock."))
         assignQtyLabel = Gtk.Label("Qty (1)")
         assignQtyLabel.setTooltip(
             "Hulls to move from unassigned stock into the fleet.")
@@ -206,17 +207,17 @@ class GuiFleetPage {
         page.append(assignBtn)
         page.append(Gtk.Label(
             "Dispatch (explore/take/trade/move/ambush)"))
-        page.append(Gtk.Label("Fleet id (sitting stack)"))
+        page.append(Gtk.Label("Fleet (sitting stack)"))
         page.append(fleetChoice.buildWidget(
-            "Cycle owned fleets. Prefer a sitting unlocked stack."))
+            "Owned fleets by name. Prefer a sitting unlocked stack."))
         orderChoice.setChoices(orderChoices())
         orderChoice.setValue("explore")
         page.append(Gtk.Label("Order"))
         page.append(orderChoice.buildWidget(
             "Dispatch order: explore, take, trade, move, ambush."))
-        page.append(Gtk.Label("Dest planet id"))
+        page.append(Gtk.Label("Dest planet"))
         page.append(destChoice.buildWidget(
-            "Cycle visible planets, or pick a rock on the map."))
+            "Visible planets by name, or pick a rock on the map."))
         hullsLabel = Gtk.Label("Hulls to send (0 = whole stack)")
         hullsLabel.setTooltip(
             "0 sends the whole sitting stack; >0 peels that many.")
@@ -298,6 +299,7 @@ class GuiFleetPage {
         syncCreatePlanetChoices()
         syncFleetChoices()
         syncAssignFleetChoices()
+        syncAssignTypeChoices()
         syncDestChoices()
         syncHullsSpin()
         syncAssignQtySpin()
@@ -338,68 +340,71 @@ class GuiFleetPage {
      * Returns: nothing.
      */
     void syncCreatePlanetChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.planets.length) {
             PlanetRow row = core.view.planets[index]
             if (row.visible
                 and row.ownerId == core.view.viewerId
                 and row.id >= 0) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        createPlanetChoice.setChoices(ids)
+        createPlanetChoice.setChoices(names)
         int64 homeYard = core.view.firstOwnedYardId()
         if (homeYard >= 0) {
+            PlanetRow home = core.view.findPlanet(homeYard)
+            String homeLabel = home.choiceLabel()
             String cur = createPlanetChoice.value()
             if (cur.length < 1) {
-                createPlanetChoice.setValue(format("{}", homeYard))
+                createPlanetChoice.setValue(homeLabel)
             } else {
-                PlanetRow pick = core.view.findPlanet(cur.toInt64())
+                PlanetRow pick = core.view.findPlanetByName(cur)
                 if (pick.id < 0
                     or pick.ownerId != core.view.viewerId) {
-                    createPlanetChoice.setValue(
-                        format("{}", homeYard))
+                    createPlanetChoice.setValue(homeLabel)
                 }
             }
         }
     }
 
     /*
-     * Rebuild fleet id choices from owned visible fleets.
+     * Rebuild fleet name choices from owned visible fleets.
      *
-     * Purpose: Combo stand-in; prefer keeping the prior pick.
+     * Purpose: DropDown by fleet name; prefer keeping the prior pick.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void syncFleetChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.fleets.length) {
             FleetRow row = core.view.fleets[index]
             if (row.visible
                 and row.ownerId == core.view.viewerId
                 and row.id >= 1) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        if (ids.length < 1) {
+        if (names.length < 1) {
             int64 sit = core.view.firstSittingOwnedFleetId()
             if (sit >= 1) {
-                ids.append(format("{}", sit))
+                FleetRow sitRow = core.view.findFleet(sit)
+                names.append(sitRow.choiceLabel())
             }
         }
-        fleetChoice.setChoices(ids)
+        fleetChoice.setChoices(names)
         int64 prefer = core.view.firstSittingOwnedFleetId()
         if (prefer >= 1) {
             String cur = fleetChoice.value()
-            if (cur.length < 1
-                or not core.view.isOwnedFleet(cur.toInt64())) {
-                fleetChoice.setValue(format("{}", prefer))
+            int64 curId = core.view.resolveFleetChoice(cur)
+            if (cur.length < 1 or not core.view.isOwnedFleet(curId)) {
+                FleetRow preferRow = core.view.findFleet(prefer)
+                fleetChoice.setValue(preferRow.choiceLabel())
             }
         }
     }
@@ -407,28 +412,57 @@ class GuiFleetPage {
     /*
      * Rebuild assign fleet choices from owned fleets.
      *
-     * Purpose: assign chrome fleet id DropDown.
+     * Purpose: assign chrome fleet name DropDown.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void syncAssignFleetChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.fleets.length) {
             FleetRow row = core.view.fleets[index]
             if (row.visible
                 and row.ownerId == core.view.viewerId
                 and row.id >= 1) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        assignFleetChoice.setChoices(ids)
+        assignFleetChoice.setChoices(names)
         String cur = assignFleetChoice.value()
-        if (cur.length < 1 and ids.length > 0) {
-            assignFleetChoice.setValue(ids[0])
+        if (cur.length < 1 and names.length > 0) {
+            assignFleetChoice.setValue(names[0])
+        }
+    }
+
+    /*
+     * Rebuild assign ship-type choices from the design catalog.
+     *
+     * Purpose: assign chrome lists types by name (not design id).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncAssignTypeChoices() {
+        list names = []
+        int64 index = 0
+        while (index < core.view.designs.length) {
+            DesignRow row = core.view.designs[index]
+            if (row.id >= 0 and not row.closed) {
+                String label = row.choiceLabel()
+                if (label.length > 0) {
+                    names.append(label)
+                }
+            }
+            index = index + 1
+        }
+        assignTypeChoice.setChoices(names)
+        String cur = assignTypeChoice.value()
+        if (cur.length < 1 and names.length > 0) {
+            assignTypeChoice.setValue(names[0])
         }
     }
 
@@ -504,16 +538,16 @@ class GuiFleetPage {
      * Returns: nothing.
      */
     void syncDestChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.planets.length) {
             PlanetRow row = core.view.planets[index]
             if (row.visible and row.id >= 0) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        destChoice.setChoices(ids)
+        destChoice.setChoices(names)
     }
 
     /*
@@ -703,43 +737,42 @@ class GuiFleetPage {
     /*
      * Read the create-fleet park planet id.
      *
-     * Purpose: PUT /fleet planet field.
+     * Purpose: PUT /fleet planet field (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: planet id.
+     * Returns: planet id, or -1 when unresolved.
      */
     int64 createPlanetValue() {
-        return(createPlanetChoice.intValue())
+        return(core.view.resolvePlanetChoice(
+            createPlanetChoice.value()))
     }
 
     /*
      * Read the assign fleet id.
      *
-     * Purpose: PUT /assign fleet field.
+     * Purpose: PUT /assign fleet field (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: fleet id.
+     * Returns: fleet id, or -1 when unresolved.
      */
     int64 assignFleetValue() {
-        return(assignFleetChoice.intValue())
+        return(core.view.resolveFleetChoice(
+            assignFleetChoice.value()))
     }
 
     /*
-     * Read the assign type name Entry.
+     * Read the assign type name DropDown.
      *
      * Purpose: PUT /assign typeName field.
      *
      * Parameters: none.
      *
-     * Returns: Entry text.
+     * Returns: selected design / type name.
      */
     String assignTypeValue() {
-        if (assignTypeEntry == null) {
-            return("")
-        }
-        return(assignTypeEntry.text())
+        return(assignTypeChoice.value())
     }
 
     /*
@@ -765,14 +798,15 @@ class GuiFleetPage {
     /*
      * Read the selected fleet id.
      *
-     * Purpose: Dispatch / Recall / Examine PUT fleet field.
+     * Purpose: Dispatch / Recall / Examine PUT fleet field
+     * (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: fleet id from the choice row.
+     * Returns: fleet id from the choice row, or -1 when unresolved.
      */
     int64 fleetIdValue() {
-        return(fleetChoice.intValue())
+        return(core.view.resolveFleetChoice(fleetChoice.value()))
     }
 
     /*
@@ -795,14 +829,14 @@ class GuiFleetPage {
     /*
      * Read the selected destination planet id.
      *
-     * Purpose: Dispatch PUT dest field.
+     * Purpose: Dispatch PUT dest field (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: dest planet id.
+     * Returns: dest planet id, or -1 when unresolved.
      */
     int64 destValue() {
-        return(destChoice.intValue())
+        return(core.view.resolvePlanetChoice(destChoice.value()))
     }
 
     /*
@@ -838,19 +872,23 @@ class GuiFleetPage {
      * Returns: nothing.
      */
     void setDestPlanet(int64 planetId) {
-        String text = format("{}", planetId)
+        PlanetRow row = core.view.findPlanet(planetId)
+        String text = row.choiceLabel()
+        if (text.length < 1) {
+            text = format("Planet {}", planetId)
+        }
         if (not destChoice.setValue(text)) {
-            list ids = []
-            ids.append(text)
+            list names = []
+            names.append(text)
             int64 index = 0
             while (index < destChoice.pendingChoices.length) {
                 String item = destChoice.pendingChoices[index]
                 if (not item.equals(text)) {
-                    ids.append(item)
+                    names.append(item)
                 }
                 index = index + 1
             }
-            destChoice.setChoices(ids)
+            destChoice.setChoices(names)
             destChoice.setValue(text)
         }
         syncLockChrome()

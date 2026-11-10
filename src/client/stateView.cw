@@ -19,6 +19,7 @@
  *   2026-11-10  stocks list for unassigned inventory (CPL-101).
  *   2026-11-10  stocksListText / inventoryByTypeText helpers;
  *               progress hint no longer says builds merge fleets.
+ *   2026-11-10  Name-based find/resolve for DropDown chrome.
  */
 
 include "designRow.cw"
@@ -195,6 +196,49 @@ class ClientStateView {
     }
 
     /*
+     * Find a planet row by DropDown choice label.
+     *
+     * Purpose: resolve name-based planet picks (Home / Planet N).
+     *
+     * Parameters:
+     *   label — choiceLabel() string from the DropDown.
+     *
+     * Returns: PlanetRow, or empty row with id -1 when missing.
+     */
+    PlanetRow findPlanetByName(String label) {
+        if (label.length < 1) {
+            return(PlanetRow())
+        }
+        int64 index = 0
+        while (index < planets.length) {
+            PlanetRow row = planets[index]
+            if (row.choiceLabel().equals(label)) {
+                return(row)
+            }
+            index = index + 1
+        }
+        return(PlanetRow())
+    }
+
+    /*
+     * Resolve a planet DropDown value to a planet id.
+     *
+     * Purpose: PUT bodies still use numeric ids; chrome shows names.
+     *
+     * Parameters:
+     *   label — selected choice text.
+     *
+     * Returns: planet id, or -1 when unresolved.
+     */
+    int64 resolvePlanetChoice(String label) {
+        PlanetRow row = findPlanetByName(label)
+        if (row.id >= 0) {
+            return(row.id)
+        }
+        return(-1)
+    }
+
+    /*
      * Count visible planets owned by this seat.
      *
      * Purpose: AI serve-loop elimination stop — after a home has
@@ -339,6 +383,49 @@ class ClientStateView {
     }
 
     /*
+     * Find a fleet row by DropDown choice label.
+     *
+     * Purpose: resolve name-based fleet picks.
+     *
+     * Parameters:
+     *   label — choiceLabel() string from the DropDown.
+     *
+     * Returns: FleetRow, or empty row with id -1 when missing.
+     */
+    FleetRow findFleetByName(String label) {
+        if (label.length < 1) {
+            return(FleetRow())
+        }
+        int64 index = 0
+        while (index < fleets.length) {
+            FleetRow row = fleets[index]
+            if (row.choiceLabel().equals(label)) {
+                return(row)
+            }
+            index = index + 1
+        }
+        return(FleetRow())
+    }
+
+    /*
+     * Resolve a fleet DropDown value to a fleet id.
+     *
+     * Purpose: PUT /order /assign /reclaim still use fleet ids.
+     *
+     * Parameters:
+     *   label — selected choice text.
+     *
+     * Returns: fleet id, or -1 when unresolved.
+     */
+    int64 resolveFleetChoice(String label) {
+        FleetRow row = findFleetByName(label)
+        if (row.id >= 0) {
+            return(row.id)
+        }
+        return(-1)
+    }
+
+    /*
      * Find a design row by id.
      *
      * Purpose: yard build Entry validation / inspect.
@@ -358,6 +445,49 @@ class ClientStateView {
             index = index + 1
         }
         return(DesignRow())
+    }
+
+    /*
+     * Find a design row by DropDown choice label (type name).
+     *
+     * Purpose: resolve name-based ship-type picks.
+     *
+     * Parameters:
+     *   label — choiceLabel() string from the DropDown.
+     *
+     * Returns: DesignRow, or empty row with id -1 when missing.
+     */
+    DesignRow findDesignByName(String label) {
+        if (label.length < 1) {
+            return(DesignRow())
+        }
+        int64 index = 0
+        while (index < designs.length) {
+            DesignRow row = designs[index]
+            if (row.choiceLabel().equals(label)) {
+                return(row)
+            }
+            index = index + 1
+        }
+        return(DesignRow())
+    }
+
+    /*
+     * Resolve a design DropDown value to a design id.
+     *
+     * Purpose: PUT /build /reclaim-stock still use design ids.
+     *
+     * Parameters:
+     *   label — selected choice text (type name).
+     *
+     * Returns: design id, or -1 when unresolved.
+     */
+    int64 resolveDesignChoice(String label) {
+        DesignRow row = findDesignByName(label)
+        if (row.id >= 0) {
+            return(row.id)
+        }
+        return(-1)
     }
 
     /*

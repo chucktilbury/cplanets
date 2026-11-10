@@ -19,6 +19,7 @@
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
  *   2026-11-10  Fleet name + unassigned hull stock rows (CPL-101).
+ *   2026-11-10  Planet display name on each planet row.
  */
 
 include "../lib/event.cw"
@@ -164,7 +165,8 @@ class PublishCodec {
      * Purpose: list debugger + map canvas (PLAN §4.G / §4.I).
      * Each row carries driver-set visible / qualityKnown /
      * productive / populated flags, 1–10 livability when quality
-     * is known, and continuous x/y as milli-units.
+     * is known, continuous x/y as milli-units, and a display
+     * name (seat home → "Home", else stored unique label).
      *
      * Parameters:
      *   w — WireBytes writer already past the list marker.
@@ -223,8 +225,53 @@ class PublishCodec {
                 alloc = 100
             }
             w.writeU8(alloc)
+            w.writeString(planetPublishName(game, rock, viewerId))
             index = index + 1
         }
+    }
+
+    /*
+     * Choose the planet name written for a seat view.
+     *
+     * Purpose: keep dropdown labels unique while still showing the
+     * viewer's owned home / seat home as "Home". Planet index 0 is
+     * "Home" for its owner (or all-visible admin encode). Foreign
+     * homes that also store name "Home" publish as "Planet {id}".
+     *
+     * Parameters:
+     *   game — current State (unused; reserved for home lookup).
+     *   rock — planet being published.
+     *   viewerId — seat, or -1 for all-visible.
+     *
+     * Returns: non-empty display name string.
+     */
+    String planetPublishName(
+        State game, Planet rock, int64 viewerId) {
+        String stored = rock.name
+        if (stored.length < 1) {
+            if (rock.id == 0) {
+                stored = "Home"
+            } else {
+                stored = format("Planet {}", rock.id)
+            }
+        }
+        # All-visible / admin encode: only planet 0 stays "Home";
+        # other seat homes that also store "Home" get Planet {id}.
+        if (viewerId < 0) {
+            if (stored.equals("Home") and rock.id != 0) {
+                return(format("Planet {}", rock.id))
+            }
+            return(stored)
+        }
+        if (rock.ownerId == viewerId and rock.shipyard) {
+            if (stored.equals("Home") or rock.id == 0) {
+                return("Home")
+            }
+        }
+        if (stored.equals("Home") and rock.ownerId != viewerId) {
+            return(format("Planet {}", rock.id))
+        }
+        return(stored)
     }
 
     /*

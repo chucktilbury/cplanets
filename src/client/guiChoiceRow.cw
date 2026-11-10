@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-09  Initial GuiChoiceRow for View dialog usability.
  *   2026-11-09  Rewrap as Gtk.DropDown (replace prev/next stand-in).
+ *   2026-11-10  Preserve prior selection across setChoices refresh.
  */
 
 /*
@@ -205,7 +206,10 @@ class GuiChoiceRow {
      * Push a choice list into the live DropDown.
      *
      * Purpose: setChoices / applyPending. Empty lists show a disabled
-     * placeholder so the control stays visible.
+     * placeholder so the control stays visible. When the prior
+     * selected label (or pendingValue) still exists in the new list,
+     * reselect it so refresh_ms polls do not reset the operator's
+     * pick back to index 0.
      *
      * Parameters:
      *   newChoices — list of String labels.
@@ -215,6 +219,13 @@ class GuiChoiceRow {
     void applyChoices(list newChoices) {
         if (drop == null) {
             return()
+        }
+        String prior = ""
+        if (drop.size() > 0) {
+            prior = value()
+        }
+        if (prior.length < 1 and hasPendingValue) {
+            prior = pendingValue
         }
         if (newChoices.length < 1) {
             list placeholder = []
@@ -226,6 +237,14 @@ class GuiChoiceRow {
         }
         drop.setSensitive(true)
         drop.setChoices(newChoices)
+        if (prior.length > 0) {
+            if (selectText(prior)) {
+                return()
+            }
+        }
+        if (hasPendingValue and pendingValue.length > 0) {
+            selectText(pendingValue)
+        }
     }
 
     /*

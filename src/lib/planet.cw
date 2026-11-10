@@ -15,6 +15,7 @@
  *   2026-11-05  Phase D5: partitionId for sandbox contact.
  *   2026-11-07  allocationPct stand-in for planet budget chrome.
  *   2026-11-07  allocationPct scales production empire-pool credit.
+ *   2026-11-10  Stable display name; planet 0 defaults to "Home".
  */
 
 /*
@@ -26,6 +27,9 @@
  */
 class Planet {
     int64 id
+    # Stable UI / wire label. Planet index 0 is "Home" (primary
+    # seat home). Other rocks default to "Planet {id}".
+    String name
     fp64 x
     fp64 y
     fp64 livability
@@ -44,7 +48,8 @@ class Planet {
      * Construct an unowned, unexplored rock at the origin.
      *
      * Purpose: allocate a planet slot before galaxy placement fills
-     * coordinates and mix.
+     * coordinates and mix. Index 0 is named "Home"; every other
+     * slot gets a unique "Planet {id}" label for dropdown chrome.
      *
      * Parameters:
      *   planetId — stable index in the galaxy list.
@@ -53,6 +58,11 @@ class Planet {
      */
     Planet(int64 planetId) {
         id = planetId
+        if (planetId == 0) {
+            name = "Home"
+        } else {
+            name = format("Planet {}", planetId)
+        }
         x = 0.0
         y = 0.0
         livability = 0.0

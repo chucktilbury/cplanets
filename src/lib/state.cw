@@ -35,6 +35,7 @@
  *               names; named fleet create + assign; min-speed ETA.
  *   2026-11-09  Free design names only after reclaim completion —
  *               not every zero-presence catalog type each tick.
+ *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
  */
 
 
@@ -1585,6 +1586,33 @@ class State {
         }
         Player seat = players[playerId]
         seat.markAi()
+        players[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * Set a seat's operator-facing display name.
+     *
+     * Purpose: PUT /name from human/AI clients after handshake
+     * (CPL-106). Empty names are rejected by Player.setDisplayName.
+     *
+     * Parameters:
+     *   playerId — seat to update.
+     *   name — non-empty display name.
+     *
+     * Returns: true when the seat exists and the name was stored
+     * (including unchanged equal names as success for the verb).
+     */
+    bool setPlayerDisplayName(int64 playerId, String name) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        String trimmed = name.trim()
+        if (trimmed.length < 1) {
+            return(false)
+        }
+        seat.setDisplayName(trimmed)
         players[playerId] = seat
         return(true)
     }

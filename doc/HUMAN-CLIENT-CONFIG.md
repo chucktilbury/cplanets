@@ -28,6 +28,7 @@ See also: [CPLANETS.md](CPLANETS.md), [DIALOGS.md](DIALOGS.md),
 | `host` | string | `127.0.0.1` | `127.0.0.1` | hostname / IP | Server dial address. CLI `--host`. |
 | `port` | int | `0` | `7700` | `≥ 0` | Server dial port. `0` = offline in-process galaxy (`--gui` / `--test` / `--once`). CLI `--port`. Match server sample `7700` for live play. |
 | `player_id` | int | `-1` | (omit) | `-1` or `≥ 0` | Legacy / offline seat pin. Live TCP: leave `-1`; server assigns. Offline `--once` / port `0` may call `ensureOfflineSeat` → `0`. CLI `--player`. |
+| `display_name` | string | `""` | `Human` (sample) | non-empty preferred | Seat label sent via `PUT /name` after handshake. Shown in chrome / digest / status. Empty → client sends `"Human"`. Changeable in this file. |
 
 `reconnectToken` is **not** a file key (opaque `TOKEN_BYTES` from
 handshake ack, process-local, for reclaim). Live `--gui` schedules a

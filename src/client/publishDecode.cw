@@ -18,12 +18,14 @@
  *               for Gtk.ProgressBar fraction chrome (CPL-72).
  *   2026-11-10  Fleet name + unassigned stock rows (CPL-101).
  *   2026-11-10  Planet display name on each planet row.
+ *   2026-11-10  Player displayName + ownerName fill (CPL-106).
  */
 
 include "../lib/wireBytes.cw"
 include "digestLine.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
+include "playerSeatRow.cw"
 include "progressJob.cw"
 include "stateView.cw"
 include "stockRow.cw"
@@ -74,15 +76,20 @@ class PublishDecode {
         int64 playerCount = r.readU32()
         int64 index = 0
         view.humanCount = 0
+        view.players = []
         while (index < playerCount) {
-            r.readU32()
+            PlayerSeatRow seat = PlayerSeatRow()
+            seat.id = r.readU32()
             r.readU32()
             r.readU8()
             r.readU8()
             int64 humanFlag = r.readU8()
-            if (humanFlag == 1) {
+            seat.human = (humanFlag == 1)
+            if (seat.human) {
                 view.humanCount = view.humanCount + 1
             }
+            seat.displayName = r.readString()
+            view.players.append(seat)
             index = index + 1
         }
         int64 policyCount = r.readU32()
@@ -137,6 +144,7 @@ class PublishDecode {
             row.shipyard = (((flags / 16) % 2) == 1)
             row.useful = (((flags / 32) % 2) == 1)
             row.ownerId = r.readU32() - 1
+            row.ownerName = view.playerDisplayName(row.ownerId)
             row.livabilityDisplay = r.readU8()
             row.resourcesDisplay = r.readU8()
             int64 xMilli = r.readI32()
@@ -174,6 +182,7 @@ class PublishDecode {
             row.pendingDeparture = (((flags / 8) % 2) == 1)
             row.recallRequested = (((flags / 16) % 2) == 1)
             row.ownerId = r.readU32() - 1
+            row.ownerName = view.playerDisplayName(row.ownerId)
             row.destPlanetId = r.readU32() - 1
             row.locationPlanetId = r.readU32() - 1
             row.eta = r.readU32()
@@ -355,6 +364,7 @@ class PublishDecode {
             line.fleetId = r.readU32() - 1
             line.planetId = r.readU32() - 1
             line.playerId = r.readU32() - 1
+            line.playerName = view.playerDisplayName(line.playerId)
             line.value = r.readU32()
             line.text = r.readString()
             view.digest.append(line)

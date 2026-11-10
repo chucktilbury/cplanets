@@ -293,9 +293,11 @@ if(BUILD_TESTING)
         unit_clientLivability
         unit_clientPolicy
         unit_clientPublishDecode
+        unit_displayName
         unit_fleetExamine
         unit_guiScaleRange
-        unit_mapMath)
+        unit_mapMath
+        unit_playerNames)
     foreach(unit IN LISTS cplanets_unit_programs)
         cplanets_add_cw_test(${unit} unit)
     endforeach()

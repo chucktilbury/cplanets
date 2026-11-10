@@ -55,6 +55,7 @@ shape (ticks vs wall) is still open in RULES.
 | `player_id` | int | `-1` | (omit / `-1`) | `-1` or `≥ 0` | Legacy seat pin. Live TCP: leave `-1`; server assigns. Offline `--once` may pin via `ensureOfflineSeat`. |
 | `host` | string | `127.0.0.1` | `127.0.0.1` | hostname / IP | Server dial address. CLI `--host`. |
 | `port` | int | `0` | `7700` | `≥ 0` | Server dial port (`0` = offline / no TCP). CLI `--port`. |
+| `display_name` | string | `""` | (omit) | proper name | Seat label sent via `PUT /name` after handshake. Empty → pick once from the proper-name pool (Alex, Bethany, …) using `seed`. Server `spawn_ai_*` overlays a unique name per child config. |
 
 `reconnectToken` is **not** a file key (opaque bytes from handshake
 ack, process-local).

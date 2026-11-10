@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-05  Initial DigestLine view model.
  *   2026-11-07  Optional compose text on private/broadcast lines.
+ *   2026-11-10  playerName for seat display labels (CPL-106).
  */
 
 /*
@@ -20,6 +21,8 @@ class DigestLine {
     int64 fleetId
     int64 planetId
     int64 playerId
+    # Resolved seat display name for player= chrome.
+    String playerName
     int64 value
     String text
 
@@ -37,8 +40,25 @@ class DigestLine {
         fleetId = -1
         planetId = -1
         playerId = -1
+        playerName = ""
         value = 0
         text = ""
+    }
+
+    /*
+     * Player label for digest chrome.
+     *
+     * Purpose: prefer display name; fall back to decimal id.
+     *
+     * Parameters: none.
+     *
+     * Returns: player text.
+     */
+    String playerLabel() {
+        if (playerName.length > 0) {
+            return(playerName)
+        }
+        return(format("{}", playerId))
     }
 
     /*
@@ -54,10 +74,10 @@ class DigestLine {
         if (text.length > 0) {
             return(format(
                 "{} fleet={} planet={} player={} value={} text={}",
-                kind, fleetId, planetId, playerId, value, text))
+                kind, fleetId, planetId, playerLabel(), value, text))
         }
         return(format(
             "{} fleet={} planet={} player={} value={}",
-            kind, fleetId, planetId, playerId, value))
+            kind, fleetId, planetId, playerLabel(), value))
     }
 }

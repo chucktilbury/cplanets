@@ -38,6 +38,7 @@
  *   2026-11-09  Banner: menu Go closes menu; stray stdin keys flushed.
  *   2026-11-09  Fold scenario into --config; drop --setup / setup=.
  *   2026-11-09  Hard error on unopenable config; new process knobs.
+ *   2026-11-10  Optional spawn_ai_* AI client launch (CPL-106).
  */
 
 import cli as Cli
@@ -45,6 +46,7 @@ import system as Sys
 
 include "lib/machine.cw"
 include "lib/state.cw"
+include "server/aiSpawn.cw"
 include "server/config.cw"
 include "server/configParse.cw"
 include "server/driver.cw"
@@ -445,7 +447,19 @@ class ServerMain {
             "stray keys are flushed).\n")
         # Flush so Python functional tests see PORT= before accept.
         Sys.StandardIO().flush()
+        AiSpawnBook spawns = AiSpawnBook()
+        if (not spawns.spawnAll(
+            cfg, listener.getPort(), cfg.seed)) {
+            print(format(
+                "cplanets-server: AI spawn failed: {}\n",
+                spawns.lastError))
+            spawns.closeAll()
+            listener.close()
+            driver.close()
+            return(1)
+        }
         listener.serve()
+        spawns.closeAll()
         listener.close()
         driver.close()
         return(0)

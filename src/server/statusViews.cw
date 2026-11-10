@@ -16,6 +16,7 @@
  *   2026-11-08  Summary shows seated count vs soft max when set.
  *   2026-11-09  Summary paused= reflects lobby clock hold
  *               (publishPausedFlag), not only the raw pause flag.
+ *   2026-11-10  Player list/detail show displayName (CPL-106).
  */
 
 include "config.cw"
@@ -233,9 +234,10 @@ class StatusViews {
         while (index < game.players.length) {
             Player seat = game.players[index]
             text.append(format(
-                "  [{}] id={} role={} wealth={} res={} tech={} planets={} fleets={} ships={}\n",
+                "  [{}] id={} name={} role={} wealth={} res={} tech={} planets={} fleets={} ships={}\n",
                 index + 1,
                 seat.id,
+                seat.label(),
                 seat.role,
                 seat.wealth,
                 seat.resources,
@@ -269,8 +271,9 @@ class StatusViews {
             human = "true"
         }
         String text = format(
-            "Player id={} role={} human={}\n",
+            "Player id={} name={} role={} human={}\n",
             seat.id,
+            seat.label(),
             seat.role,
             human)
         text.append(format(

@@ -14,6 +14,7 @@
  *   2026-11-08  Assert menu key.
  *   2026-11-08  Drop menu key (status via stdin m while serving).
  *   2026-11-09  Unified config: §14 keys ok; setup= rejected.
+ *   2026-11-10  Assert spawn_ai_* keys (CPL-106).
  */
 
 include "server/configParse.cw"
@@ -33,6 +34,10 @@ start {
     text.append("recv_buffer_bytes = 8192\n")
     text.append("seat_hard_cap = 32\n")
     text.append("verbose_capture_lines = 16\n")
+    text.append("spawn_ai_count = 3\n")
+    text.append("spawn_ai_template = config/ai-default.cfg\n")
+    text.append("spawn_ai_dir = /tmp/ai-spawn\n")
+    text.append("spawn_ai_bin = /bin/cplanets-ai\n")
     text.append("world_count = 18\n")
     text.append("start_wealth = 2500.0\n")
     text.append("tick_period_seconds = 12\n")
@@ -40,6 +45,19 @@ start {
     ServerConfig cfg = parser.parseText(text)
     bool ok = true
     if (not parser.ok) {
+        ok = false
+    }
+    if (ok and cfg.spawnAiCount != 3) {
+        ok = false
+    }
+    if (ok and not cfg.spawnAiTemplate.equals(
+        "config/ai-default.cfg")) {
+        ok = false
+    }
+    if (ok and not cfg.spawnAiDir.equals("/tmp/ai-spawn")) {
+        ok = false
+    }
+    if (ok and not cfg.spawnAiBin.equals("/bin/cplanets-ai")) {
         ok = false
     }
     if (not cfg.host.equals("10.0.0.9")) {

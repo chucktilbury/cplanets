@@ -11,6 +11,7 @@
  *   2026-11-05  Initial HumanConfigParse.
  *   2026-11-07  CLI mirror mode flags: once, pull, gui, test.
  *   2026-11-09  refresh_ms GUI state/digest poll period.
+ *   2026-11-10  display_name seat label (CPL-106).
  */
 
 include "config.cw"
@@ -94,6 +95,8 @@ class HumanConfigParse {
             cfg.test = parseBool(val)
         } else (key.equals("refresh_ms")) {
             cfg.refreshMs = val.toInt64()
+        } else (key.equals("display_name")) {
+            cfg.displayName = val
         }
     }
 

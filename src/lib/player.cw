@@ -16,6 +16,7 @@
  *               scenario start.
  *   2026-11-08  markReseated clears drop when a free seat is
  *               reassigned on a new connect.
+ *   2026-11-10  displayName: seat display name (CPL-106).
  */
 
 include "scenario.cw"
@@ -29,6 +30,10 @@ include "scenario.cw"
  */
 class Player {
     int64 id
+    # Operator-facing seat label (human config or AI proper name).
+    # Empty until PUT /name or offline fixture sets it; label()
+    # falls back to "Player {id}".
+    String displayName
     String role
     fp64 wealth
     fp64 resources
@@ -65,6 +70,7 @@ class Player {
      */
     Player(int64 playerId) {
         id = playerId
+        displayName = ""
         role = "neutral"
         wealth = 0.0
         resources = 0.0
@@ -81,6 +87,48 @@ class Player {
         partitionId = playerId
         knownCompetitors = []
         afkProductionScale = 1.0
+    }
+
+    /*
+     * Effective chrome / digest label for this seat.
+     *
+     * Purpose: prefer the configured or assigned displayName;
+     * fall back to a stable "Player {id}" so lists never show a
+     * blank identity before PUT /name arrives.
+     *
+     * Parameters: none.
+     *
+     * Returns: non-empty display string.
+     */
+    String label() {
+        if (displayName.length > 0) {
+            return(displayName)
+        }
+        return(format("Player {}", id))
+    }
+
+    /*
+     * Set the seat display name from client config / spawn.
+     *
+     * Purpose: human clients send their config display_name; AI
+     * clients send a proper name (config or random pool). Empty
+     * input is ignored so a blank PUT cannot wipe a prior label.
+     *
+     * Parameters:
+     *   name — trimmed display name (non-empty to apply).
+     *
+     * Returns: true when the stored name changed.
+     */
+    bool setDisplayName(String name) {
+        String trimmed = name.trim()
+        if (trimmed.length < 1) {
+            return(false)
+        }
+        if (displayName.equals(trimmed)) {
+            return(false)
+        }
+        displayName = trimmed
+        return(true)
     }
 
     /*

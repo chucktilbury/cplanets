@@ -153,6 +153,16 @@ Handshake **response** shape: `u8 accepted`, `u32 tick`, `u8 ended`,
 token and use `playerId` for all later traffic. Multi-AI sessions do
 **not** need distinct config `player_id` values.
 
+**Seat display names (v1).** Every seated empire has a display name
+shown in chrome / digest / status. After handshake, clients
+`PUT /name` (`playerId` u32 + string). Humans set `display_name` in
+the human client config (changeable there). AI clients use config
+`display_name` or, when empty, a random proper name from a fixed
+pool (Alex, Bethany, …). The server may spawn N AI clients
+(`spawn_ai_count` / `spawn_ai_template` / `spawn_ai_dir` /
+`spawn_ai_bin`) via Cwhip `process`; each child gets its own config
+file and a unique name.
+
 **Reconnect / drop (v1).** Drop frees **presence** (connected=false).
 While **running**, the seat remains **reclaimable with its token**
 until **quit** or **game end** (simple rule — no wall-clock reclaim

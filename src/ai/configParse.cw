@@ -16,6 +16,7 @@
  *   2026-11-07  CLI mirror keys: cycles, once, serve_loop.
  *   2026-11-08  cycles 0 kept (continuous serve-loop default).
  *   2026-11-09  loop_period_ms serve-loop frame budget.
+ *   2026-11-10  display_name seat label (CPL-106).
  */
 
 include "config.cw"
@@ -158,6 +159,8 @@ class AiConfigParse {
             cfg.serveLoop = parseBool(val)
         } else (key.equals("loop_period_ms")) {
             cfg.loopPeriodMs = val.toInt64()
+        } else (key.equals("display_name")) {
+            cfg.displayName = val
         } else {
             if (ok) {
                 ok = false

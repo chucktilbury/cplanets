@@ -17,7 +17,11 @@
  *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
  *   2026-11-08  reconnectToken from handshake ack for reclaim.
  *   2026-11-09  loop_period_ms: serve-loop frame budget (default 100).
+ *   2026-11-10  display_name seat label; empty → random proper
+ *               name at resolve time (CPL-106).
  */
+
+include "../lib/playerNames.cw"
 
 /*
  * AiConfig holds one stand-alone AI client's knobs.
@@ -40,6 +44,9 @@ class AiConfig {
     # Opaque TOKEN_BYTES from handshake ack (process-local; not
     # a config-file key). Prefer this body on reconnect.
     buffer reconnectToken
+    # Seat display name for PUT /name. Empty → pick a random
+    # proper name once via ensureDisplayName() (CPL-106).
+    String displayName
     String host
     int64 port
     # Stdout decision log level. Scale 0–10 (clamped). CLI
@@ -82,6 +89,7 @@ class AiConfig {
         seed = 1u
         playerId = -1
         reconnectToken = buffer[]
+        displayName = ""
         host = "127.0.0.1"
         port = 0
         verbosity = 0
@@ -89,6 +97,29 @@ class AiConfig {
         once = false
         serveLoop = false
         loopPeriodMs = 100
+    }
+
+    /*
+     * Ensure displayName is a non-empty proper name.
+     *
+     * Purpose: server-spawned AI configs set display_name in the
+     * per-child file; manually started AIs with an empty key draw
+     * once from the proper-name pool using the AI seed.
+     *
+     * Parameters: none (mutates this config).
+     *
+     * Returns: the resolved non-empty display name.
+     */
+    String ensureDisplayName() {
+        String trimmed = displayName.trim()
+        if (trimmed.length > 0) {
+            displayName = trimmed
+            return(displayName)
+        }
+        SeededRng rng = SeededRng(seed)
+        PlayerNames names = PlayerNames()
+        displayName = names.pick(rng)
+        return(displayName)
     }
 
     /*

@@ -16,6 +16,7 @@
  *   2026-11-08  cycles 0 default; negative clamps to 0.
  *   2026-11-08  Default playerId -1 (server assigns on handshake).
  *   2026-11-09  Assert loop_period_ms default / parse / clamp.
+ *   2026-11-10  Assert display_name (CPL-106).
  */
 
 include "ai/configParse.cw"
@@ -61,9 +62,13 @@ start {
     text.append("once = true\n")
     text.append("serve_loop = true\n")
     text.append("loop_period_ms = 250\n")
+    text.append("display_name = Kai\n")
     AiConfigParse parser = AiConfigParse()
     AiConfig cfg = parser.parseText(text)
     if (not parser.ok) {
+        ok = false
+    }
+    if (ok and not cfg.displayName.equals("Kai")) {
         ok = false
     }
     if (cfg.aggression != 0.9f64) {

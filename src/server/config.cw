@@ -17,6 +17,8 @@
  *   2026-11-08  players = optional soft max seats (0 = unlimited).
  *   2026-11-09  Fold Scenario into ServerConfig; drop setup path.
  *   2026-11-09  recv_buffer_bytes, seat_hard_cap, verbose_capture_lines.
+ *   2026-11-10  spawn_ai_* keys for server-launched AI clients
+ *               (CPL-106).
  */
 
 /*
@@ -58,6 +60,18 @@ class ServerConfig {
     int64 seatHardCap
     # ServerVerboseLog ring size (former maxLines 64 literal).
     int64 verboseCaptureLines
+    # How many AI client processes to spawn after listen (0 = none).
+    # Each child gets its own config file under spawnAiDir with a
+    # unique display_name from the proper-name pool (CPL-106).
+    int64 spawnAiCount
+    # AI config template copied per spawned child (required when
+    # spawnAiCount > 0). Typically config/ai-default.cfg.
+    String spawnAiTemplate
+    # Directory for generated per-AI configs. Empty → system temp
+    # dir under a cplanets-ai-spawn-* folder.
+    String spawnAiDir
+    # Path to cplanets-ai. Empty → sibling of this process argv[0].
+    String spawnAiBin
     # §14 galaxy / economy / combat / design magnitudes.
     Scenario scenario
 
@@ -89,6 +103,10 @@ class ServerConfig {
         recvBufferBytes = 65536
         seatHardCap = 256
         verboseCaptureLines = 64
+        spawnAiCount = 0
+        spawnAiTemplate = ""
+        spawnAiDir = ""
+        spawnAiBin = ""
         scenario = Scenario()
     }
 
@@ -119,6 +137,9 @@ class ServerConfig {
         }
         if (verbosity < 0) {
             verbosity = 0
+        }
+        if (spawnAiCount < 0) {
+            spawnAiCount = 0
         } else (verbosity > 10) {
             verbosity = 10
         }

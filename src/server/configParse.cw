@@ -16,6 +16,7 @@
  *   2026-11-08  Drop menu key (status via stdin m while serving).
  *   2026-11-09  Accept §14 scenario keys; reject setup= path.
  *   2026-11-09  recv_buffer_bytes, seat_hard_cap, verbose_capture_lines.
+ *   2026-11-10  spawn_ai_count / template / dir / bin (CPL-106).
  */
 
 include "../lib/setupParse.cw"
@@ -162,6 +163,14 @@ class ServerConfigParse {
             cfg.seatHardCap = val.toInt64()
         } else (key.equals("verbose_capture_lines")) {
             cfg.verboseCaptureLines = val.toInt64()
+        } else (key.equals("spawn_ai_count")) {
+            cfg.spawnAiCount = val.toInt64()
+        } else (key.equals("spawn_ai_template")) {
+            cfg.spawnAiTemplate = val
+        } else (key.equals("spawn_ai_dir")) {
+            cfg.spawnAiDir = val
+        } else (key.equals("spawn_ai_bin")) {
+            cfg.spawnAiBin = val
         } else {
             applyScenarioKey(cfg, key, val)
         }

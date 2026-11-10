@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **CTest: ship inventory / design yard:** stop auto-closing
+  never-built player designs each tick (`maybeFreeDesign` now runs
+  only after a reclaim completes). Fixes `fn_combatDesigns` and
+  `functional_design_yard` (develop never reached ready). Also fix
+  `unit_shipInventory` compile (`players[0].wealth` any member
+  access). Inventory model unchanged (unassigned stock + named
+  fleets).
 - **CPL-101 ship-build / fleet-dispatch model:** develop is a noop when
   the same parameters already exist for that seat (silent OK);
   type names unique per player and freed when all hulls of that name

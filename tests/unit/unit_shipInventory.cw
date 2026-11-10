@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-10  Initial CPL-101 inventory unit program.
+ *   2026-11-09  Assign players[0] to Player before .wealth (any).
  */
 
 include "lib/design.cw"
@@ -48,7 +49,8 @@ start {
     if (ok and secondId != firstId) {
         ok = false
     }
-    if (ok and noop.players[0].wealth != wealth0) {
+    Player afterSecond = noop.players[0]
+    if (ok and afterSecond.wealth != wealth0) {
         ok = false
     }
 

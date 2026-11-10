@@ -33,6 +33,8 @@
  *   2026-11-09  seatHardCap from server config (was literal 256).
  *   2026-11-10  CPL-101: unassigned HullStock; develop noop/unique
  *               names; named fleet create + assign; min-speed ETA.
+ *   2026-11-09  Free design names only after reclaim completion —
+ *               not every zero-presence catalog type each tick.
  */
 
 
@@ -1324,7 +1326,10 @@ class State {
      *
      * Purpose: CPL-101 — when all hulls of a type are reclaimed
      * (stock + fleets + pending builds/reclaims = 0), close the
-     * design so the name may be reused.
+     * design so the name may be reused. Call only from the reclaim
+     * completion path — sweeping every zero-presence catalog type
+     * each tick wrongly closed never-built / still-developing
+     * designs (fn_combatDesigns / functional_design_yard).
      *
      * Parameters:
      *   designId — design to consider freeing.
@@ -1337,6 +1342,10 @@ class State {
         }
         Design design = designs[designId]
         if (design.closed) {
+            return(false)
+        }
+        if (design.developTicksLeft > 0) {
+            # Still developing — not a reclaim-empty type.
             return(false)
         }
         int64 ownerId = design.ownerId
@@ -1648,11 +1657,16 @@ class State {
             endReason = driver.endReasonOut
             winnerId = driver.winnerIdOut
         }
-        # Free player type names when reclaim drained the last hulls.
-        int64 designIndex = 0
-        while (designIndex < designs.length) {
-            maybeFreeDesign(designIndex)
-            designIndex = designIndex + 1
+        # Free player type names only when a reclaim job completed
+        # this tick (CPL-101). fleetId on "reclaim" events carries
+        # the design id (Production.completeReclaim).
+        int64 ei = 0
+        while (ei < events.length) {
+            TickEvent ev = events[ei]
+            if (ev.kind.equals("reclaim")) {
+                maybeFreeDesign(ev.fleetId)
+            }
+            ei = ei + 1
         }
         tickCount = tickCount + 1
         return(events)

@@ -15,6 +15,8 @@
  *   2026-11-07  Scale empire-pool credit by Planet.allocationPct.
  *   2026-11-10  completeBuild credits unassigned HullStock (CPL-101)
  *               instead of auto-spawning / merging a sitting fleet.
+ *   2026-11-09  reclaim event fleetId carries designId so State can
+ *               free the type name after the last hulls reclaim.
  */
 
 include "design.cw"
@@ -316,7 +318,9 @@ class Production {
      * Credit reclaim percent of production basis to the empire.
      *
      * Purpose: setup reclaimPercent of resources; never wealth
-     * development (RULES §5.2).
+     * development (RULES §5.2). Emits a "reclaim" TickEvent whose
+     * fleetId slot carries job.designId so State.tick can free the
+     * type name when no hulls of that design remain (CPL-101).
      *
      * Parameters:
      *   scenario — reclaimPercent.
@@ -345,10 +349,13 @@ class Production {
         Player seat = players[job.ownerId]
         seat.resources = seat.resources + credit
         players[job.ownerId] = seat
+        # fleetId slot carries designId so State.tick can call
+        # maybeFreeDesign after the last hulls of a type reclaim
+        # (CPL-101 name free). value remains hull count for digest.
         events.append(
             TickEvent(
                 "reclaim",
-                -1,
+                job.designId,
                 job.planetId,
                 job.ownerId,
                 job.hullCount))

@@ -23,6 +23,8 @@ from wire import (
     get_state,
     handshake,
     put_suspended,
+    skip_player_row,
+    u32_at,
 )
 
 LIST_MARKER = 1196445777
@@ -44,48 +46,47 @@ def exchange(host: str, port: int, frame: bytes, timeout: float = 2.0) -> bytes:
         return b"".join(chunks)
 
 
-def u32(buf: bytes, off: int) -> int:
-    return int.from_bytes(buf[off : off + 4], "little")
-
-
 def parse_state_blob(blob: bytes) -> tuple[int, int, int]:
     """Return (tick, seat0_wealth_milli, planet_count) from publish blob."""
     off = 0
-    tick = u32(blob, off)
+    tick = u32_at(blob, off)
     off += 4
     # ended u8, winner u32
     off += 1
     off += 4
-    player_count = u32(blob, off)
+    player_count = u32_at(blob, off)
     off += 4
+    if player_count > 1024:
+        raise ValueError(f"implausible player_count {player_count}")
     wealth0 = 0
     for i in range(player_count):
-        _pid = u32(blob, off)
-        off += 4
-        milli = u32(blob, off)
-        off += 4
-        off += 3  # quit, drop, human
+        milli = u32_at(blob, off + 4)
+        off = skip_player_row(blob, off)
         if i == 0:
             wealth0 = milli
-    policy_count = u32(blob, off)
+    policy_count = u32_at(blob, off)
     off += 4
+    if policy_count > 1024:
+        raise ValueError(f"implausible policy_count {policy_count}")
     for _ in range(policy_count):
-        plen = u32(blob, off)
+        plen = u32_at(blob, off)
         off += 4 + plen
+        if off > len(blob):
+            raise ValueError("policy row overrun")
     if off + 8 > len(blob):
         raise ValueError("missing list marker")
-    marker = u32(blob, off)
+    marker = u32_at(blob, off)
     off += 4
     if marker != LIST_MARKER:
         raise ValueError(f"bad list marker {marker}")
     off += 4  # viewerId+1
-    planet_count = u32(blob, off)
+    planet_count = u32_at(blob, off)
     return tick, wealth0, planet_count
 
 
 def state_payload(body: bytes) -> bytes:
     """Strip GET /state response wrapper to the publish blob."""
-    blob_len = u32(body, 4)
+    blob_len = u32_at(body, 4)
     return body[8 : 8 + blob_len]
 
 

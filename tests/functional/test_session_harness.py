@@ -27,6 +27,8 @@ from wire import (
     parse_handshake_ack,
     put_policy,
     put_suspended,
+    skip_player_row,
+    u32_at,
 )
 
 LIST_MARKER = 1196445777
@@ -50,53 +52,54 @@ def exchange(host: str, port: int, frame: bytes, timeout: float = 2.0) -> bytes:
         return b"".join(chunks)
 
 
-def u32(buf: bytes, off: int) -> int:
-    return int.from_bytes(buf[off : off + 4], "little")
-
-
 def state_payload(body: bytes) -> bytes:
-    blob_len = u32(body, 4)
+    blob_len = u32_at(body, 4)
     return body[8 : 8 + blob_len]
 
 
 def parse_state_tick_planets(blob: bytes) -> tuple[int, int]:
     """Return (tick, planet_count) from a publish state blob."""
     off = 0
-    tick = u32(blob, off)
+    tick = u32_at(blob, off)
     off += 4
     off += 1  # ended
     off += 4  # winner
-    player_count = u32(blob, off)
+    player_count = u32_at(blob, off)
     off += 4
+    if player_count > 1024:
+        raise ValueError(f"implausible player_count {player_count}")
     for _ in range(player_count):
-        off += 4  # id
-        off += 4  # wealth milli
-        off += 3  # quit, drop, human
-    policy_count = u32(blob, off)
+        # id, wealth, quit/drop/human, displayName (CPL-106)
+        off = skip_player_row(blob, off)
+    policy_count = u32_at(blob, off)
     off += 4
+    if policy_count > 1024:
+        raise ValueError(f"implausible policy_count {policy_count}")
     for _ in range(policy_count):
-        plen = u32(blob, off)
+        plen = u32_at(blob, off)
         off += 4 + plen
+        if off > len(blob):
+            raise ValueError("policy row overrun")
     if off + 8 > len(blob):
         raise ValueError("missing list marker")
-    marker = u32(blob, off)
+    marker = u32_at(blob, off)
     off += 4
     if marker != LIST_MARKER:
         raise ValueError(f"bad list marker {marker}")
     off += 4  # viewerId+1
-    planet_count = u32(blob, off)
+    planet_count = u32_at(blob, off)
     return tick, planet_count
 
 
 def parse_digest_body(body: bytes) -> tuple[int, int, int]:
     """Return (resp_tick, blob_tick, event_count) from GET /digest."""
-    resp_tick = u32(body, 0)
-    blob_len = u32(body, 4)
+    resp_tick = u32_at(body, 0)
+    blob_len = u32_at(body, 4)
     blob = body[8 : 8 + blob_len]
     if blob_len < 8:
         return resp_tick, -1, 0
-    blob_tick = u32(blob, 0)
-    event_count = u32(blob, 4)
+    blob_tick = u32_at(blob, 0)
+    event_count = u32_at(blob, 4)
     return resp_tick, blob_tick, event_count
 
 

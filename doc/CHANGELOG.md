@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **CPL-110 Ships/Fleets submenu dialogs:** replace monolithic Ships
+  and Fleets panel dialogs with MenuBar submenus of smaller
+  non-modal Apply+Close dialogs — Ships → Develop / Build / Reclaim /
+  Inventory; Fleets → Create / Assign / Deploy / Inventory.
+  Develop/build/reclaim ProgressBars live in the matching Ships
+  dialogs; Deploy keeps travel ProgressBar. Inventory dialogs select
+  a type/fleet and Apply examines. Map dispatch raises Deploy.
+  Docs: [DIALOGS.md](DIALOGS.md), [CPLANETS.md](CPLANETS.md),
+  [RULES.md](RULES.md) §16.
 - **CTest: functional harness state parse:** `functional_setup_path`
   and `functional_session_harness` skipped the CPL-106 seat
   `displayName` string on published player rows, mis-read

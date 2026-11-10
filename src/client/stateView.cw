@@ -21,6 +21,7 @@
  *               progress hint no longer says builds merge fleets.
  *   2026-11-10  Name-based find/resolve for DropDown chrome.
  *   2026-11-10  players list + playerDisplayName (CPL-106).
+ *   2026-11-10  CPL-110: leadReclaimJob for Reclaim ProgressBar.
  */
 
 include "designRow.cw"
@@ -769,6 +770,23 @@ class ClientStateView {
             return(ProgressJob())
         }
         return(buildJobs[0])
+    }
+
+    /*
+     * Lead in-progress reclaim job, if any.
+     *
+     * Purpose: Ships Reclaim dialog ProgressBar primary slot
+     * (CPL-110).
+     *
+     * Parameters: none.
+     *
+     * Returns: first ProgressJob in reclaimJobs, or id -1 sentinel.
+     */
+    ProgressJob leadReclaimJob() {
+        if (reclaimJobs.length < 1) {
+            return(ProgressJob())
+        }
+        return(reclaimJobs[0])
     }
 
     /*

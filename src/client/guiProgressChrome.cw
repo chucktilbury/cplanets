@@ -1,10 +1,10 @@
 /*
- * src/client/guiProgressChrome.cw — develop / build ProgressBars.
+ * src/client/guiProgressChrome.cw — develop / build / reclaim bars.
  *
- * Shared footer chrome for Ships and Fleets panel dialogs.
- * Horizontal bars + detail label sit in a vertical Box inside the
- * non-modal Fleets / Ships TransientWindows (CPL-72 /
- * DIALOGS §6). Nothing here depends on Notebook tab chrome.
+ * Shared ProgressBar chrome for Ships submenu dialogs (and Deploy
+ * travel is separate). Horizontal bars + detail label sit in a
+ * vertical Box inside non-modal TransientWindows (CPL-72 /
+ * CPL-110 / DIALOGS §6).
  *
  * Created: 2026-11-08
  * Author: Auto
@@ -13,29 +13,40 @@
  *   2026-11-08  Initial GuiProgressChrome (fraction / pulse).
  *   2026-11-09  Hosted in Fleets / Ships panel dialogs.
  *   2026-11-09  Tooltips on develop/build bars (View usable).
+ *   2026-11-10  CPL-110: kind filter + reclaim ProgressBar.
  */
 
 include "appCore.cw"
 include "progressJob.cw"
 
 /*
- * GuiProgressChrome owns two Gtk.ProgressBar widgets plus a detail
- * Label for multi-job / reclaim text.
+ * GuiProgressChrome owns optional Gtk.ProgressBar widgets plus a
+ * detail Label for multi-job text.
  *
- * Lead develop and lead build jobs drive the bars from
- * ticksLeft / setup totals; unknown totals pulse. Refresh on every
- * snapshot pull / tick redraw.
+ * kindMask selects which bars to build (develop / build / reclaim).
+ * Lead jobs drive bars from ticksLeft / setup totals; unknown
+ * totals pulse. Refresh on every snapshot pull / tick redraw.
  */
 class GuiProgressChrome {
+    enum {
+        KIND_DEVELOP = 1,
+        KIND_BUILD = 2,
+        KIND_RECLAIM = 4,
+        KIND_ALL = 7
+    }
+
     AppCore core
+    int64 kindMask
     Gtk.ProgressBar developBar
     Gtk.ProgressBar buildBar
+    Gtk.ProgressBar reclaimBar
     Gtk.Label detailLabel
 
     /*
      * Construct progress chrome bound to an AppCore.
      *
-     * Purpose: delay widget build until buildWidget().
+     * Purpose: delay widget build until buildWidget(); default
+     * mask shows develop + build (legacy Ships/Fleets footer).
      *
      * Parameters:
      *   appCore — shared headless coordinator (view source).
@@ -44,42 +55,73 @@ class GuiProgressChrome {
      */
     GuiProgressChrome(AppCore appCore) {
         core = appCore
+        kindMask = KIND_DEVELOP + KIND_BUILD
         developBar = null
         buildBar = null
+        reclaimBar = null
         detailLabel = null
     }
 
     /*
-     * Build the develop/build progress footer widget tree.
+     * Select which ProgressBars buildWidget will create.
+     *
+     * Purpose: Ships Develop / Build / Reclaim dialogs show only
+     * the bar that matches their job (CPL-110).
+     *
+     * Parameters:
+     *   mask — KIND_DEVELOP / KIND_BUILD / KIND_RECLAIM bits.
+     *
+     * Returns: nothing.
+     */
+    void setKindMask(int64 mask) {
+        kindMask = mask
+    }
+
+    /*
+     * Build the progress footer widget tree for the kind mask.
      *
      * Purpose: dialog-friendly vertical stack — section labels,
-     * ProgressBars with showText, then a multi-line detail Label
-     * for reclaim rows and multi-job lists.
+     * ProgressBars with showText, then a multi-line detail Label.
      *
      * Parameters: none.
      *
-     * Returns: footer Box for page.append (or a future dialog).
+     * Returns: footer Box for page.append.
      */
     Gtk.Widget buildWidget() {
         Gtk.Box footer = Gtk.Box(Gtk.Box.VERTICAL, 4)
-        footer.append(Gtk.Label("Design develop progress"))
-        developBar = Gtk.ProgressBar(Gtk.ProgressBar.HORIZONTAL)
-        developBar.setShowText(true)
-        developBar.setHExpand(true)
-        developBar.setText("develop idle")
-        developBar.setFraction(0.0)
-        developBar.setTooltip(
-            "Lead design-develop job: done ticks / setup total.")
-        footer.append(developBar)
-        footer.append(Gtk.Label("Yard build progress"))
-        buildBar = Gtk.ProgressBar(Gtk.ProgressBar.HORIZONTAL)
-        buildBar.setShowText(true)
-        buildBar.setHExpand(true)
-        buildBar.setText("build idle")
-        buildBar.setFraction(0.0)
-        buildBar.setTooltip(
-            "Lead yard-build job: done ticks / setup total.")
-        footer.append(buildBar)
+        if ((kindMask & KIND_DEVELOP) != 0) {
+            footer.append(Gtk.Label("Design develop progress"))
+            developBar = Gtk.ProgressBar(Gtk.ProgressBar.HORIZONTAL)
+            developBar.setShowText(true)
+            developBar.setHExpand(true)
+            developBar.setText("develop idle")
+            developBar.setFraction(0.0)
+            developBar.setTooltip(
+                "Lead design-develop job: done ticks / setup total.")
+            footer.append(developBar)
+        }
+        if ((kindMask & KIND_BUILD) != 0) {
+            footer.append(Gtk.Label("Yard build progress"))
+            buildBar = Gtk.ProgressBar(Gtk.ProgressBar.HORIZONTAL)
+            buildBar.setShowText(true)
+            buildBar.setHExpand(true)
+            buildBar.setText("build idle")
+            buildBar.setFraction(0.0)
+            buildBar.setTooltip(
+                "Lead yard-build job: done ticks / setup total.")
+            footer.append(buildBar)
+        }
+        if ((kindMask & KIND_RECLAIM) != 0) {
+            footer.append(Gtk.Label("Reclaim progress"))
+            reclaimBar = Gtk.ProgressBar(Gtk.ProgressBar.HORIZONTAL)
+            reclaimBar.setShowText(true)
+            reclaimBar.setHExpand(true)
+            reclaimBar.setText("reclaim idle")
+            reclaimBar.setFraction(0.0)
+            reclaimBar.setTooltip(
+                "Lead reclaim job: done ticks / yard-build total.")
+            footer.append(reclaimBar)
+        }
         detailLabel = Gtk.Label("(progress)")
         detailLabel.setHExpand(true)
         detailLabel.setTooltip(
@@ -111,6 +153,12 @@ class GuiProgressChrome {
             core.view.yardBuildTicks,
             core.view.buildJobs.length,
             "build idle")
+        applyBar(
+            reclaimBar,
+            core.view.leadReclaimJob(),
+            core.view.yardBuildTicks,
+            core.view.reclaimJobs.length,
+            "reclaim idle")
         if (detailLabel != null) {
             detailLabel.setText(core.view.progressText())
         }
@@ -124,7 +172,7 @@ class GuiProgressChrome {
      * idle text at fraction 0 when no jobs.
      *
      * Parameters:
-     *   bar — develop or build ProgressBar (may be null).
+     *   bar — develop / build / reclaim ProgressBar (may be null).
      *   job — lead ProgressJob (id < 0 when none).
      *   total — designDevelopTicks or yardBuildTicks.
      *   jobCount — how many jobs of this kind are active.

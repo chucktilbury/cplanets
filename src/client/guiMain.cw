@@ -1,13 +1,13 @@
 /*
  * src/client/guiMain.cw — GTK human client main window (G / B / I).
  *
- * Map canvas is the main panel. Former Notebook tabs (Planets,
- * Fleets, Ships, Digest, Policy) open as non-modal top-level
- * menubar TransientWindows. Pause gated to one human; fleet
- * dispatch/recall; design/yard; planet budget Scales;
+ * Map canvas is the main panel. Planets / Digest / Policy open as
+ * non-modal root dialogs; Ships and Fleets are menubar submenus
+ * of smaller Apply+Close dialogs (CPL-110). Pause gated to one
+ * human; fleet deploy/recall; design/yard; planet budget Scales;
  * known-competitor compose; explored dialog auto-presents on
- * quality / productive changes. Develop/build ProgressBars live
- * in Fleets / Ships panel dialogs.
+ * quality / productive changes. Develop/build/reclaim ProgressBars
+ * live in the matching Ships dialogs.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -40,21 +40,28 @@
  *   2026-11-10  Examine pins fleet/design DropDowns by name.
  *   2026-11-10  Status bar shows seat display name (CPL-106).
  *   2026-11-10  File→Quit PUT /quit for last-human exit (CPL-108).
+ *   2026-11-10  CPL-110: Ships/Fleets submenu dialogs.
  */
 
 include "appCore.cw"
 include "designRow.cw"
 include "exploredTrack.cw"
 include "guiDigestPage.cw"
+include "guiFleetAssignPage.cw"
+include "guiFleetCreatePage.cw"
+include "guiFleetDeployPage.cw"
 include "guiFleetDialog.cw"
-include "guiFleetPage.cw"
+include "guiFleetInventoryPage.cw"
 include "guiMapPage.cw"
 include "guiPanelHost.cw"
 include "guiPlanetDialog.cw"
 include "guiPlanetPage.cw"
 include "guiPolicyPage.cw"
+include "guiShipBuildPage.cw"
+include "guiShipDevelopPage.cw"
 include "guiShipDialog.cw"
-include "guiYardPage.cw"
+include "guiShipInventoryPage.cw"
+include "guiShipReclaimPage.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
 
@@ -64,11 +71,11 @@ include "planetRow.cw"
  * Policy Apply PUTs standing policy with no dumb-order warnings.
  * Pause CheckButton is sensitive only when pauseOffered().
  * AFK CheckButton sends PUT /suspended (handshake_miss hold).
- * Top-level Planets / Fleets / Ships / Digest / Policy menus
- * raise non-modal panel dialogs for list chrome. TCP sessions
- * schedule a presence keep-alive (handshake only) under the
- * server handshake_miss window so an idle window does not drop
- * the human seat before operator go. A separate refresh_ms timer
+ * Planets / Digest / Policy root clicks and Ships / Fleets
+ * submenus raise non-modal panel dialogs. TCP sessions schedule
+ * a presence keep-alive (handshake only) under the server
+ * handshake_miss window so an idle window does not drop the
+ * human seat before operator go. A separate refresh_ms timer
  * pulls GET /state + GET /digest so ProgressBars and lists move
  * without File→Refresh (pull-only wire; 0 disables).
  */
@@ -82,10 +89,16 @@ class GuiMain {
     GuiFleetDialog fleetDialog
     GuiShipDialog shipDialog
     GuiPlanetPage planetPage
-    GuiFleetPage fleetPage
-    GuiYardPage yardPage
     GuiDigestPage digestPage
     GuiPolicyPage policyPage
+    GuiShipDevelopPage shipDevelopPage
+    GuiShipBuildPage shipBuildPage
+    GuiShipReclaimPage shipReclaimPage
+    GuiShipInventoryPage shipInventoryPage
+    GuiFleetCreatePage fleetCreatePage
+    GuiFleetAssignPage fleetAssignPage
+    GuiFleetDeployPage fleetDeployPage
+    GuiFleetInventoryPage fleetInventoryPage
     GuiMapPage mapPage
     GuiPanelHost panels
     ExploredTrack explored
@@ -155,17 +168,29 @@ class GuiMain {
         fleetDialog = GuiFleetDialog()
         shipDialog = GuiShipDialog()
         planetPage = GuiPlanetPage(appCore)
-        fleetPage = GuiFleetPage(appCore)
-        yardPage = GuiYardPage(appCore)
         digestPage = GuiDigestPage(appCore)
         policyPage = GuiPolicyPage(appCore)
+        shipDevelopPage = GuiShipDevelopPage(appCore)
+        shipBuildPage = GuiShipBuildPage(appCore)
+        shipReclaimPage = GuiShipReclaimPage(appCore)
+        shipInventoryPage = GuiShipInventoryPage(appCore)
+        fleetCreatePage = GuiFleetCreatePage(appCore)
+        fleetAssignPage = GuiFleetAssignPage(appCore)
+        fleetDeployPage = GuiFleetDeployPage(appCore)
+        fleetInventoryPage = GuiFleetInventoryPage(appCore)
         mapPage = GuiMapPage(appCore)
         panels = GuiPanelHost()
         panels.showPlanetsAction = panels.showPlanets
-        panels.showFleetsAction = panels.showFleets
-        panels.showShipsAction = panels.showShips
         panels.showDigestAction = panels.showDigest
         panels.showPolicyAction = panels.showPolicy
+        panels.showShipDevelopAction = panels.showShipDevelop
+        panels.showShipBuildAction = panels.showShipBuild
+        panels.showShipReclaimAction = panels.showShipReclaim
+        panels.showShipInventoryAction = panels.showShipInventory
+        panels.showFleetCreateAction = panels.showFleetCreate
+        panels.showFleetAssignAction = panels.showFleetAssign
+        panels.showFleetDeployAction = panels.showFleetDeploy
+        panels.showFleetInventoryAction = panels.showFleetInventory
         explored = ExploredTrack()
         suppressPauseToggle = false
         suppressAfkToggle = false
@@ -245,13 +270,12 @@ class GuiMain {
      *
      * Purpose: raise a non-modal panel dialog on root-label click.
      * GtkPopoverMenuBar cannot host leaf actions as top-level items
-     * (GTK requires submenus there), so panel names sit beside File
-     * as flat Buttons instead of Open submenus.
+     * (GTK requires submenus there), so Planets / Digest / Policy
+     * sit beside File/Fleets/Ships as flat Buttons.
      *
      * Parameters:
-     *   strip — horizontal menu chrome Box (File MenuBar + openers).
-     *   label — button text (Planets / Fleets / Ships / Digest /
-     *     Policy).
+     *   strip — horizontal menu chrome Box (MenuBar + openers).
+     *   label — button text (Planets / Digest / Policy).
      *   action — show* callback from GuiPanelHost (may be null).
      *
      * Returns: nothing.
@@ -285,20 +309,33 @@ class GuiMain {
         panels.setParent(window)
         Gtk.Box root = Gtk.Box(Gtk.Box.VERTICAL, 0)
         window.setChild(root)
-        /* File stays a real MenuBar submenu. Panel openers are flat
-         * Buttons beside it: GtkPopoverMenuBar only accepts submenus
-         * as top-level GMenu entries, so a nested Open item was the
-         * prior workaround. Click-to-activate roots need Buttons (or
-         * a future Cwhip MenuBar.addAction). */
+        /* File / Fleets / Ships are real MenuBar submenus. Planets /
+         * Digest / Policy stay flat Buttons: GtkPopoverMenuBar only
+         * accepts submenus as top-level leaf-free GMenu entries. */
         Gtk.Box menuStrip = Gtk.Box(Gtk.Box.HORIZONTAL, 0)
         Gtk.MenuBar menu = Gtk.MenuBar()
         int64 fileMenu = menu.addMenu("File")
         menu.addItem(fileMenu, "Refresh", refreshAction)
         menu.addItem(fileMenu, "Quit", closeAction)
+        int64 fleetsMenu = menu.addMenu("Fleets")
+        menu.addItem(
+            fleetsMenu, "Create", panels.showFleetCreateAction)
+        menu.addItem(
+            fleetsMenu, "Assign", panels.showFleetAssignAction)
+        menu.addItem(
+            fleetsMenu, "Deploy", panels.showFleetDeployAction)
+        menu.addItem(
+            fleetsMenu, "Inventory", panels.showFleetInventoryAction)
+        int64 shipsMenu = menu.addMenu("Ships")
+        menu.addItem(
+            shipsMenu, "Develop", panels.showShipDevelopAction)
+        menu.addItem(shipsMenu, "Build", panels.showShipBuildAction)
+        menu.addItem(
+            shipsMenu, "Reclaim", panels.showShipReclaimAction)
+        menu.addItem(
+            shipsMenu, "Inventory", panels.showShipInventoryAction)
         menuStrip.append(menu)
         appendPanelOpener(menuStrip, "Planets", panels.showPlanetsAction)
-        appendPanelOpener(menuStrip, "Fleets", panels.showFleetsAction)
-        appendPanelOpener(menuStrip, "Ships", panels.showShipsAction)
         appendPanelOpener(menuStrip, "Digest", panels.showDigestAction)
         appendPanelOpener(menuStrip, "Policy", panels.showPolicyAction)
         root.append(menuStrip)
@@ -337,47 +374,27 @@ class GuiMain {
         planetPage.planetChoice.bindSelected(
             planetPage.planetChoice.onSelected)
         planetPage.planetChoice.changedAction = planetPage.onPlanetChoiceChanged
-        fleetPage.createFleetAction = createFleetAction
-        fleetPage.assignAction = assignAction
-        fleetPage.dispatchAction = dispatchAction
-        fleetPage.recallAction = recallAction
-        fleetPage.examineAction = examineFleetAction
-        fleetPage.hullsChangedAction = fleetPage.onHullsChanged
-        fleetPage.assignQtyChangedAction = fleetPage.onAssignQtyChanged
-        fleetPage.createPlanetChoice.bindSelected(
-            fleetPage.createPlanetChoice.onSelected)
-        fleetPage.assignFleetChoice.bindSelected(
-            fleetPage.assignFleetChoice.onSelected)
-        fleetPage.fleetChoice.bindSelected(
-            fleetPage.fleetChoice.onSelected)
-        fleetPage.fleetChoice.changedAction = fleetPage.onFleetChoiceChanged
-        fleetPage.orderChoice.bindSelected(
-            fleetPage.orderChoice.onSelected)
-        fleetPage.destChoice.bindSelected(
-            fleetPage.destChoice.onSelected)
-        yardPage.developAction = developAction
-        yardPage.buildAction = buildAction
-        yardPage.reclaimStockAction = reclaimStockAction
-        yardPage.reclaimAction = reclaimAction
-        yardPage.examineAction = examineShipAction
-        yardPage.reclaimHullsChangedAction = yardPage.onReclaimHullsChanged
-        yardPage.reclaimStockHullsChangedAction = (
-            yardPage.onReclaimStockHullsChanged)
-        yardPage.kindChoice.bindSelected(
-            yardPage.kindChoice.onSelected)
-        yardPage.planetChoice.bindSelected(
-            yardPage.planetChoice.onSelected)
-        yardPage.planetChoice.changedAction = (
-            yardPage.syncReclaimStockHullsSpin)
-        yardPage.designChoice.bindSelected(
-            yardPage.designChoice.onSelected)
-        yardPage.reclaimStockDesignChoice.bindSelected(
-            yardPage.reclaimStockDesignChoice.onSelected)
-        yardPage.reclaimStockDesignChoice.changedAction = (
-            yardPage.onReclaimStockDesignChanged)
-        yardPage.reclaimFleetChoice.bindSelected(
-            yardPage.reclaimFleetChoice.onSelected)
-        yardPage.reclaimFleetChoice.changedAction = yardPage.onReclaimFleetChanged
+        shipReclaimPage.reclaimFleetAction = reclaimAction
+        shipReclaimPage.reclaimHullsChangedAction = (
+            shipReclaimPage.onReclaimHullsChanged)
+        shipReclaimPage.reclaimStockHullsChangedAction = (
+            shipReclaimPage.onReclaimStockHullsChanged)
+        shipReclaimPage.planetChoice.changedAction = (
+            shipReclaimPage.syncReclaimStockHullsSpin)
+        shipReclaimPage.reclaimStockDesignChoice.changedAction = (
+            shipReclaimPage.onReclaimStockDesignChanged)
+        shipReclaimPage.reclaimFleetChoice.changedAction = (
+            shipReclaimPage.onReclaimFleetChanged)
+        shipInventoryPage.designChoice.changedAction = (
+            shipInventoryPage.refreshSelectedHint)
+        fleetAssignPage.assignQtyChangedAction = (
+            fleetAssignPage.onAssignQtyChanged)
+        fleetDeployPage.recallAction = recallAction
+        fleetDeployPage.hullsChangedAction = fleetDeployPage.onHullsChanged
+        fleetDeployPage.fleetChoice.changedAction = (
+            fleetDeployPage.onFleetChoiceChanged)
+        fleetInventoryPage.fleetChoice.changedAction = (
+            fleetInventoryPage.refreshSelectedHint)
         digestPage.sendAction = sendAction
         digestPage.toChoice.bindSelected(
             digestPage.toChoice.onSelected)
@@ -388,8 +405,34 @@ class GuiMain {
         policyPage.escortChangedAction = policyPage.onEscortChanged
         policyPage.agreementChangedAction = policyPage.onAgreementChanged
         policyPage.techChangedAction = policyPage.onTechChanged
+        panels.shipDevelopPanel.applyAction = developAction
+        panels.shipBuildPanel.applyAction = buildAction
+        panels.shipReclaimPanel.applyAction = reclaimStockAction
+        panels.shipInventoryPanel.applyAction = examineShipAction
+        panels.fleetCreatePanel.applyAction = createFleetAction
+        panels.fleetAssignPanel.applyAction = assignAction
+        panels.fleetDeployPanel.applyAction = dispatchAction
+        panels.fleetInventoryPanel.applyAction = examineFleetAction
+        shipDevelopPage.bindChoices()
+        shipBuildPage.bindChoices()
+        shipReclaimPage.bindChoices()
+        shipInventoryPage.bindChoices()
+        fleetCreatePage.bindChoices()
+        fleetAssignPage.bindChoices()
+        fleetDeployPage.bindChoices()
+        fleetInventoryPage.bindChoices()
         panels.wire(
-            planetPage, fleetPage, yardPage, digestPage, policyPage)
+            planetPage,
+            digestPage,
+            policyPage,
+            shipDevelopPage,
+            shipBuildPage,
+            shipReclaimPage,
+            shipInventoryPage,
+            fleetCreatePage,
+            fleetAssignPage,
+            fleetDeployPage,
+            fleetInventoryPage)
         planetDialog.closeAction = dialogCloseAction
         planetDialog.closeRequestAction = planetDialog.onCloseRequest
         fleetDialog.closeAction = dialogCloseAction
@@ -568,8 +611,14 @@ class GuiMain {
      */
     void refreshLists() {
         planetPage.refresh()
-        fleetPage.refresh()
-        yardPage.refresh()
+        shipDevelopPage.refresh()
+        shipBuildPage.refresh()
+        shipReclaimPage.refresh()
+        shipInventoryPage.refresh()
+        fleetCreatePage.refresh()
+        fleetAssignPage.refresh()
+        fleetDeployPage.refresh()
+        fleetInventoryPage.refresh()
         mapPage.refresh()
         digestPage.refresh()
         policyPage.syncFromDraft()
@@ -710,19 +759,18 @@ class GuiMain {
     }
 
     /*
-     * Open fleet examine dialog for the Fleets panel fleet choice.
+     * Open fleet examine dialog for Fleets→Inventory selection.
      *
-     * Purpose: Section C — Inspect was a Label dump only; this
-     * presents GuiFleetDialog for the selected (or first sitting)
-     * fleet and pins the choice row.
+     * Purpose: Inventory Apply presents GuiFleetDialog for the
+     * selected (or first sitting) fleet and pins the choice row.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void showFleetExamine() {
-        fleetPage.syncFleetChoices()
-        int64 fleetId = fleetPage.fleetIdValue()
+        fleetInventoryPage.syncFleetChoices()
+        int64 fleetId = fleetInventoryPage.fleetIdValue()
         FleetRow row = core.view.findFleet(fleetId)
         if (row.id < 0) {
             int64 sit = core.view.firstSittingOwnedFleetId()
@@ -742,37 +790,36 @@ class GuiMain {
             }
         }
         if (row.id >= 0) {
-            fleetPage.fleetChoice.setValue(row.choiceLabel())
+            fleetInventoryPage.setFleetChoice(row.choiceLabel())
             fleetDialog.presentRow(window, row)
-            fleetPage.syncLockChrome()
         }
     }
 
     /*
-     * Open design examine dialog for the Ships panel design choice.
+     * Open design examine dialog for Ships→Inventory selection.
      *
-     * Purpose: Section C — Designs (inspect) was Label-only; this
-     * presents GuiShipDialog and pins the design choice row.
+     * Purpose: Inventory Apply presents GuiShipDialog and pins the
+     * design choice row.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void showShipExamine() {
-        yardPage.syncDesignChoices()
-        int64 designId = yardPage.designIdValue()
+        shipInventoryPage.syncDesignChoices()
+        int64 designId = shipInventoryPage.designIdValue()
         DesignRow row = core.view.findDesign(designId)
         if (row.id < 0 and core.view.designs.length > 0) {
             row = core.view.designs[0]
         }
         if (row.id >= 0) {
-            yardPage.designChoice.setValue(row.choiceLabel())
+            shipInventoryPage.setDesignChoice(row.choiceLabel())
             shipDialog.presentRow(window, row)
         }
     }
 
     /*
-     * Map primary-click: fill Fleets dest choice.
+     * Map primary-click: fill Fleets→Deploy dest choice.
      *
      * Purpose: pick-to-dispatch fewest-hoops path — same PUT
      * /order chrome; click only sets destination.
@@ -783,19 +830,18 @@ class GuiMain {
      * Returns: nothing.
      */
     void onMapPlanetPicked(int64 planetId) {
-        fleetPage.setDestPlanet(planetId)
+        fleetDeployPage.setDestPlanet(planetId)
         if (status != null) {
             status.setText(format(
-                "map dest={} (Fleets → Dispatch)", planetId))
+                "map dest={} (Fleets → Deploy)", planetId))
         }
     }
 
     /*
-     * Map ContextMenu: dispatch toward the selected rock.
+     * Map ContextMenu: deploy toward the selected rock.
      *
-     * Purpose: set dest from selection, raise Fleets panel, then
-     * reuse onDispatch (fleet id + order still come from Fleets
-     * Entries).
+     * Purpose: set dest from selection, raise Deploy dialog, then
+     * reuse onDispatch (fleet id + order still come from Deploy).
      *
      * Parameters: none.
      *
@@ -806,8 +852,8 @@ class GuiMain {
             status.setText("dispatch needs a map planet")
             return()
         }
-        fleetPage.setDestPlanet(mapPage.selectedId)
-        panels.showFleets()
+        fleetDeployPage.setDestPlanet(mapPage.selectedId)
+        panels.showFleetDeploy()
         onDispatch()
     }
 
@@ -1019,11 +1065,11 @@ class GuiMain {
      * Returns: nothing.
      */
     void onDispatch() {
-        fleetPage.syncFleetChoices()
-        int64 fleetId = fleetPage.fleetIdValue()
-        String order = fleetPage.orderValue()
-        int64 dest = fleetPage.destValue()
-        int64 hulls = fleetPage.hullsValue()
+        fleetDeployPage.syncFleetChoices()
+        int64 fleetId = fleetDeployPage.fleetIdValue()
+        String order = fleetDeployPage.orderValue()
+        int64 dest = fleetDeployPage.destValue()
+        int64 hulls = fleetDeployPage.hullsValue()
         FleetRow row = core.view.findFleet(fleetId)
         if (row.id < 0) {
             String missing = format(
@@ -1034,7 +1080,7 @@ class GuiMain {
         }
         if (row.orderLocked()) {
             status.setText("fleet locked — use Recall")
-            fleetPage.syncLockChrome()
+            fleetDeployPage.syncLockChrome()
             return()
         }
         if (hulls > row.hullCount) {
@@ -1081,7 +1127,7 @@ class GuiMain {
     }
 
     /*
-     * Create fleet: PUT /fleet from Fleets panel Entries.
+     * Create fleet: PUT /fleet from Fleets→Create dialog.
      *
      * Purpose: CPL-101 named empty sitting fleet at an owned planet.
      *
@@ -1094,8 +1140,8 @@ class GuiMain {
             status.setText("create fleet needs live server")
             return()
         }
-        String name = fleetPage.createNameValue()
-        int64 planetId = fleetPage.createPlanetValue()
+        String name = fleetCreatePage.createNameValue()
+        int64 planetId = fleetCreatePage.createPlanetValue()
         if (core.putFleetCreateRemote(planetId, name)) {
             core.pullRemote()
             refreshLists()
@@ -1113,7 +1159,7 @@ class GuiMain {
     }
 
     /*
-     * Assign hulls: PUT /assign from Fleets panel Entries.
+     * Assign hulls: PUT /assign from Fleets→Assign dialog.
      *
      * Purpose: CPL-101 move type+qty from unassigned stock into a
      * sitting fleet. Over-assign shows AlertDialog with lastError.
@@ -1127,9 +1173,9 @@ class GuiMain {
             status.setText("assign needs live server")
             return()
         }
-        int64 fleetId = fleetPage.assignFleetValue()
-        String typeName = fleetPage.assignTypeValue()
-        int64 qty = fleetPage.assignQtyValue()
+        int64 fleetId = fleetAssignPage.assignFleetValue()
+        String typeName = fleetAssignPage.assignTypeValue()
+        int64 qty = fleetAssignPage.assignQtyValue()
         if (core.putAssignRemote(fleetId, typeName, qty)) {
             core.pullRemote()
             refreshLists()
@@ -1148,7 +1194,7 @@ class GuiMain {
     }
 
     /*
-     * Recall button: PUT /recall for the fleet Entry id.
+     * Recall button: PUT /recall for the Deploy fleet choice.
      *
      * Purpose: cancel pending or turn in-flight home.
      *
@@ -1157,7 +1203,7 @@ class GuiMain {
      * Returns: nothing.
      */
     void onRecall() {
-        int64 fleetId = fleetPage.fleetIdValue()
+        int64 fleetId = fleetDeployPage.fleetIdValue()
         if (core.config.port < 1) {
             status.setText("recall needs live server")
             return()
@@ -1172,7 +1218,7 @@ class GuiMain {
     }
 
     /*
-     * Start develop: PUT /design from Ships panel Entries.
+     * Start develop: PUT /design from Ships→Develop dialog.
      *
      * Purpose: non-instant design development (RULES §5.3). Status
      * ack is applied after refreshLists so it is not overwritten.
@@ -1187,12 +1233,12 @@ class GuiMain {
             return()
         }
         if (core.putDesignRemote(
-            yardPage.nameValue(),
-            yardPage.speedValue(),
-            yardPage.hopValue(),
-            yardPage.sizeValue(),
-            yardPage.cargoValue(),
-            yardPage.kindValue())) {
+            shipDevelopPage.nameValue(),
+            shipDevelopPage.speedValue(),
+            shipDevelopPage.hopValue(),
+            shipDevelopPage.sizeValue(),
+            shipDevelopPage.cargoValue(),
+            shipDevelopPage.kindValue())) {
             core.pullRemote()
             refreshLists()
             status.setText("design develop queued")
@@ -1206,10 +1252,10 @@ class GuiMain {
     }
 
     /*
-     * Queue build: PUT /build from Ships panel Entries.
+     * Queue build: PUT /build from Ships→Build dialog.
      *
      * Purpose: non-instant yard hull production (RULES §5.3).
-     * Yard planet defaults to home (0); status ack after refresh.
+     * Yard planet defaults to home; status ack after refresh.
      *
      * Parameters: none.
      *
@@ -1220,8 +1266,8 @@ class GuiMain {
             status.setText("build needs live server")
             return()
         }
-        int64 planetId = yardPage.planetValue()
-        int64 designId = yardPage.designIdValue()
+        int64 planetId = shipBuildPage.planetValue()
+        int64 designId = shipBuildPage.designIdValue()
         if (core.putBuildRemote(planetId, designId)) {
             core.pullRemote()
             refreshLists()
@@ -1240,7 +1286,7 @@ class GuiMain {
     }
 
     /*
-     * Reclaim stock: PUT /reclaim-stock from Ships panel Entries.
+     * Reclaim stock: PUT /reclaim-stock from Ships→Reclaim Apply.
      *
      * Purpose: preferred CPL-101 path for unassigned staged hulls
      * (design + yard planet + qty). Status ack after refreshLists.
@@ -1254,9 +1300,9 @@ class GuiMain {
             status.setText("reclaim stock needs live server")
             return()
         }
-        int64 planetId = yardPage.planetValue()
-        int64 designId = yardPage.reclaimStockDesignValue()
-        int64 hulls = yardPage.reclaimStockHullsValue()
+        int64 planetId = shipReclaimPage.planetValue()
+        int64 designId = shipReclaimPage.reclaimStockDesignValue()
+        int64 hulls = shipReclaimPage.reclaimStockHullsValue()
         if (core.putReclaimStockRemote(planetId, designId, hulls)) {
             core.pullRemote()
             refreshLists()
@@ -1275,7 +1321,7 @@ class GuiMain {
     }
 
     /*
-     * Reclaim hulls: PUT /reclaim-hulls from Ships panel Entries.
+     * Reclaim hulls: PUT /reclaim-hulls from Ships→Reclaim button.
      *
      * Purpose: yard reclaim path for sitting assigned hulls
      * (RULES §5.2). Status ack is applied after refreshLists.
@@ -1289,8 +1335,8 @@ class GuiMain {
             status.setText("reclaim needs live server")
             return()
         }
-        int64 fleetId = yardPage.reclaimFleetValue()
-        int64 hulls = yardPage.reclaimHullsValue()
+        int64 fleetId = shipReclaimPage.reclaimFleetValue()
+        int64 hulls = shipReclaimPage.reclaimHullsValue()
         if (core.putReclaimHullsRemote(fleetId, hulls)) {
             core.pullRemote()
             refreshLists()

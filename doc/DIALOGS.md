@@ -32,32 +32,39 @@ Context: `design-decisions.md`, `project-context.md`,
 
 | Surface | Role | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Main window** | Always-on client shell; never ticks | Title; File + Planets/Fleets/Ships/Digest/Policy menus; status line (tick / counts); map canvas | **Exists (Phase G + menubar)** |
+| **Main window** | Always-on client shell; never ticks | Title; File + Fleets/Ships submenus + Planets/Digest/Policy openers; status line (tick / counts); map canvas | **Exists (Phase G + menubar + CPL-110)** |
 | **File menu** | Session chrome | Refresh (re-pull state+digest); Quit | **Exists (Phase G)** + live GUI also polls state+digest on `refresh_ms` (default 1000; `0`=off; distinct from presence keep-alive) |
-| **Panel openers** | Former Notebook tab names at menubar root | Planets / Fleets / Ships / Digest / Policy — each root label click raises its non-modal panel dialog (flat Buttons beside File; no nested Open) | **Exists** |
+| **Panel openers** | Former Notebook names | **Planets / Digest / Policy** — root-label flat Buttons raise non-modal dialogs. **Fleets / Ships** — real MenuBar submenus of smaller Apply+Close dialogs (**CPL-110**) | **Exists** |
 | **Map canvas panel** | Galaxy graphic as the main client surface | Hot spots; status colors; dotted ETA paths; pan/zoom; pick→fleet dest; ContextMenu status + zoom-to-known + dispatch/budget | **Exists (Phase I + pick-to-dispatch)** |
 
 **Principle:** the map is the main **panel**. Standing policy and list
-chrome open as **non-modal top-level menubar dialogs** (same content as the
-former Notebook tabs). Focused inspect dialogs (explored / examine)
-remain separate TransientWindows.
+chrome open as **non-modal menubar dialogs**. Ships/Fleets use
+**smaller submenu dialogs** (Apply + Close) instead of one mega
+panel each. Focused inspect dialogs (explored / examine) remain
+separate TransientWindows.
 
 ### 1.2 True dialogs / overlays
 
 | Dialog | When shown | Status |
 | --- | --- | --- |
 | **Planets panel dialog** | Planets root click (or map budget ContextMenu) | **Exists** — former Planets notebook page in `GuiPanelDialog` (list + explored button + budget Scale) |
-| **Fleets panel dialog** | Fleets root click (or map dispatch ContextMenu) | **Exists** — choice rows + hulls Scale; Examine fleet; develop/build/**travel** **ProgressBars**; tooltips. **CPL-101:** create named fleet; assign type+qty from unassigned at that planet; show fleets + **unassigned** line; over-assign → error dialog; split-dispatch of assigned fleets |
-| **Ships panel dialog** | Ships root click | **Exists** — kind/yard/design choice rows; reclaim Scale; Examine design; develop/build **ProgressBars**; tooltips. **CPL-101:** type inventory (specs + **unassigned available** count); develop noop when same params already exist (silent OK) |
+| **Fleets→Create** | Fleets → Create | **Exists (CPL-110)** — name + park planet; Apply → `PUT /fleet` |
+| **Fleets→Assign** | Fleets → Assign | **Exists (CPL-110)** — fleet + type + qty; Apply → `PUT /assign`; over-assign → error dialog; stock list |
+| **Fleets→Deploy** | Fleets → Deploy (or map dispatch ContextMenu) | **Exists (CPL-110)** — fleet/order/dest/hulls; Apply → `PUT /order`; Recall button; **travel** ProgressBar; map pick fills dest |
+| **Fleets→Inventory** | Fleets → Inventory | **Exists (CPL-110)** — unassigned stock + named fleets; select fleet; Apply → Examine |
+| **Ships→Develop** | Ships → Develop | **Exists (CPL-110)** — design Entries + kind; Apply → `PUT /design`; develop **ProgressBar**; noop when same params exist |
+| **Ships→Build** | Ships → Build | **Exists (CPL-110)** — yard + type DropDowns; Apply → `PUT /build`; build **ProgressBar** |
+| **Ships→Reclaim** | Ships → Reclaim | **Exists (CPL-110)** — stock reclaim Apply → `PUT /reclaim-stock`; fleet reclaim button → `PUT /reclaim-hulls`; reclaim **ProgressBar** |
+| **Ships→Inventory** | Ships → Inventory | **Exists (CPL-110)** — type inventory (specs + available); select type; Apply → Examine |
 | **Digest panel dialog** | Digest root click | **Exists** — newspaper + known competitors + compose (recipient choice row); tooltips |
 | **Policy panel dialog** | Policy root click | **Exists** — role choice row + % Scales + Apply; tooltips |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
-| Fleet examine dialog | Fleets panel **Examine fleet** (id choice / first visible) | **Exists** — `GuiFleetDialog` TransientWindow from `FleetRow.examineDialogText()` |
-| Design / ship examine dialog | Ships panel **Examine design** (design id choice / first catalog) | **Exists** — `GuiShipDialog` TransientWindow from `DesignRow.examineDialogText()` |
+| Fleet examine dialog | Fleets→Inventory **Apply** (selected / first visible) | **Exists** — `GuiFleetDialog` TransientWindow from `FleetRow.examineDialogText()` |
+| Design / ship examine dialog | Ships→Inventory **Apply** (selected / first catalog) | **Exists** — `GuiShipDialog` TransientWindow from `DesignRow.examineDialogText()` |
 | Planet status / budget menus | Click planet → menu options (README) | Budget **Exists** on Planets panel + map ContextMenu (owned) |
 | Map right-click context menu | Right-click / selected planet | **Exists** — status + explored + zoom-to-known + dispatch/budget (owned) |
-| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets panel choice rows/buttons; map pick fills dest; ContextMenu “Dispatch fleet here” → `PUT /order` |
-| Design / build timing surfaces | Start or inspect design development / yard build | **Exists** (Ships panel list stand-ins) |
+| Fleet dispatch / recall surfaces | Pick destination / recall in-flight | **Exists** — Fleets→Deploy; map pick fills dest; ContextMenu “Dispatch fleet here” → Deploy + `PUT /order` |
+| Design / build timing surfaces | Start or inspect design development / yard build | **Exists** — Ships→Develop / Ships→Build |
 | Compose private message | Player chooses send-to known competitor | **Exists** (Digest panel DropDown + multiline TextView) |
 | Known-competitors picker | Contact adds names; compose-to-pick | **Exists** (list + To choice row) |
 | Pause control | Exactly one human | Server gate **Exists**; client CheckButton **Exists (TUNING B)** (sensitive only when offered) |
@@ -138,7 +145,7 @@ addition to mouse pan/zoom.
 Map panel pick/pan/zoom/scrollbars; primary pick fills Fleets dest
 Entry; ContextMenu status + zoom-to-known + “Dispatch fleet here” /
 “Budget this planet”; dotted hop paths when `outboundEta` published.
-Dispatch still uses Fleets fleet-id/order/dest/**hulls** Entries +
+Dispatch still uses Fleets→Deploy fleet/order/dest/**hulls** +
 `PUT /order` (no second order surface). Hulls peels a subset from an
 **assigned** sitting fleet so remaining assigned hulls can go
 elsewhere. Unassigned stock is not dispatched until create+assign
@@ -194,11 +201,11 @@ still **Intended playable**.
 
 | Surface | When | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Create / assign** | Before first send of new hulls | Create named empty fleet at owned planet; assign type name + qty from **unassigned** stock at that same planet | **CPL-101 (Intended)** — over-assign → **error dialog** (hard reject); unassigned line separate from named fleets |
-| **Dispatch** | Map click destination or fleet action | Choose hulls from an **assigned** sitting fleet; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs; travel rate = slowest hull in fleet | **Exists** — list Entries (fleet id / order / dest / **hulls**, `0`=all) → `PUT /order` peels subset from assigned sitting fleet; map pick sets dest; ContextMenu dispatch reuses same chrome; reject reason on missing/locked fleet |
-| **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; list shows `LOCKED` + Dispatch disabled (**TUNING B**) |
-| **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Recall → `PUT /recall` |
-| **Fleet list** | Always | Named fleets (assigned ships) + **unassigned** inventory line; read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list; unassigned presentation **CPL-101** |
+| **Create / assign** | Before first send of new hulls | Create named empty fleet at owned planet; assign type name + qty from **unassigned** stock at that same planet | **Exists (CPL-110)** — Fleets→Create / Fleets→Assign Apply dialogs; over-assign → **error dialog**; unassigned line on Inventory/Assign |
+| **Dispatch** | Map click destination or fleet action | Choose hulls from an **assigned** sitting fleet; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs; travel rate = slowest hull in fleet | **Exists (CPL-110)** — Fleets→Deploy Apply (fleet / order / dest / **hulls**, `0`=all) → `PUT /order`; map pick sets dest; ContextMenu raises Deploy; reject reason on missing/locked fleet |
+| **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; Deploy lock hint + Recall (**TUNING B**) |
+| **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Deploy Recall → `PUT /recall` |
+| **Fleet list** | Fleets→Inventory | Named fleets (assigned ships) + **unassigned** inventory line; select + Examine | **Exists (CPL-110)** |
 
 Do **not** freeze the UI on send. Do **not** allow mid-hop rewrite of
 that fleet without recall.
@@ -212,16 +219,16 @@ ticks) — not instant.
 
 | Surface | Contents | Status |
 | --- | --- | --- |
-| **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks; develop is **noop** if same parameters already exist for that seat (silent OK) | **Exists** Ships panel Entries → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in); noop feedback **CPL-101** |
-| **Type inventory** | Rows by type name + specs + **unassigned available** hull count | **CPL-101** — Ships panel presentation (not a new Inventory tab) |
-| **Yard / build queue** | Produce hulls (resources) at productive shipyard → **unassigned** stock at that yard (not auto-fleet); show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships panel → `PUT /build` / `PUT /reclaim-hulls`; build→unassigned **CPL-101** |
-| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets panel-dialog `Gtk.ProgressBar` footer (develop/build from ticksLeft / setup total; Fleets also has **travel** bar from eta/outboundEta; pulse if indeterminate) + detail Label from chrome trailer |
+| **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks; develop is **noop** if same parameters already exist for that seat (silent OK) | **Exists (CPL-110)** Ships→Develop Apply → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in); noop feedback **CPL-101** |
+| **Type inventory** | Rows by type name + specs + **unassigned available** hull count; select + Examine | **Exists (CPL-110)** — Ships→Inventory (not a top-level Inventory product tab) |
+| **Yard / build queue** | Produce hulls (resources) at productive shipyard → **unassigned** stock at that yard (not auto-fleet); show build duration remaining; reclaim path at shipyard worlds | **Exists (CPL-110)** Ships→Build Apply → `PUT /build`; Ships→Reclaim → `PUT /reclaim-stock` / `PUT /reclaim-hulls`; build→unassigned **CPL-101** |
+| **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists (CPL-110)** — develop/build/reclaim ProgressBars in matching Ships dialogs; Deploy **travel** bar from eta/outboundEta; pulse if indeterminate + detail Label |
 
 Enum/id picks use `GuiChoiceRow` (thin `Gtk.DropDown` wrapper);
 integer ranges use `Gtk.SpinButton`. Float design fields stay
 Entries; digest compose body uses `Gtk.TextView`.
-ProgressBars live in the Fleets / Ships `GuiPanelDialog` footers
-(top-level menubar). Timed develop/build use existing
+Ships/Fleets submenu dialogs use Apply + Close footers
+(`GuiPanelDialog`). Timed develop/build/reclaim use existing
 `State.queueDesignDevelop` / `queueYardBuild` / `queueReclaim`.
 
 ---
@@ -311,13 +318,15 @@ v1. File/scenario edit remains the v1 path.
 
 ### Already in Phase G / TUNING B / Phase I human client
 
-- Main window + File Refresh/Quit + **Planets / Fleets / Ships / Digest / Policy** root-click openers
+- Main window + File Refresh/Quit + **Planets / Digest / Policy**
+  root-click openers + **Fleets / Ships** MenuBar submenus (**CPL-110**)
 - **Map canvas** as the main panel: DrawingArea hot spots, status
   colors, dotted hop paths, pick/pan/zoom, Scrollbars, ContextMenu
-  status + zoom-to-known + dispatch/budget; pick fills fleet dest
+  status + zoom-to-known + dispatch/budget; pick fills Deploy dest
   (**Phase I + pick-to-dispatch**)
-- Non-modal **Planets / Fleets / Ships / Digest / Policy** root clicks
-  panel dialogs (former Notebook tabs; `GuiPanelDialog`)
+- Non-modal **Planets / Digest / Policy** dialogs; Ships submenu
+  Develop/Build/Reclaim/Inventory; Fleets submenu
+  Create/Assign/Deploy/Inventory — each Apply+Close (`GuiPanelDialog`)
 - Explored-planet TransientWindow (1–10 + populated/productive note);
   manual “Show first explored” + auto-present on quality /
   productive / populated flips (**TUNING B**); map menu open explored
@@ -329,20 +338,17 @@ v1. File/scenario edit remains the v1 path.
   `PUT /message` (seat-scoped digest; recipient choice row)
 - TCP pull of seat-scoped publish flags (no second fog)
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
-- Fleet Dispatch / Recall choice rows → `PUT /order` / `PUT /recall`
-  with in-flight lock labels (**B**); hulls Scale peel for split-
-  dispatch of assigned sitting fleets; map pick-to-dispatch
-- Design/build **ProgressBars** + Fleets **travel** ProgressBar +
-  reclaim detail from chrome trailer (**B** + **CPL-72**) inside
-  Fleets / Ships panel dialogs
-- Ships panel design develop / yard build / reclaim + design catalog
-  (`PUT /design`, `/build`, `/reclaim-hulls`)
+- Fleets→Deploy Apply / Recall → `PUT /order` / `PUT /recall` with
+  in-flight lock labels (**B**); hulls Spin peel for split-dispatch;
+  map pick-to-dispatch
+- Design/build/reclaim **ProgressBars** + Deploy **travel**
+  ProgressBar (**B** + **CPL-72** + **CPL-110**)
+- Ships→Develop / Build / Reclaim + Inventory examine
+  (`PUT /design`, `/build`, `/reclaim-stock`, `/reclaim-hulls`)
+- Fleets→Create / Assign / Inventory examine (**CPL-101** + **CPL-110**)
 
 ### Remaining for intended playable human UI
 
-- **CPL-101 chrome:** create fleet; assign type+qty; type inventory +
-  unassigned line on Ships/Fleets; over-assign error dialog; develop
-  noop silent OK (RULES §5 / §5.3 / §16)
 - Richer planet budget knobs once RULES names them (beyond
   allocationPct production fraction)
 - Richer design editor (weapons/shields fields) beyond Entries
@@ -358,8 +364,9 @@ v1. File/scenario edit remains the v1 path.
 ### Explicit non-goals
 
 - Warning dialogs for legal-but-stupid orders
-- A new **Inventory** product tab/dialog (Ships/Fleets cover
-  unassigned + fleets — CPL-101 / RULES §16)
+- A standalone top-level **Inventory** product tab (Ships→Inventory /
+  Fleets→Inventory cover unassigned + fleets — CPL-101 / CPL-110 /
+  RULES §16)
 - Specializing Cwhip GTK for Cplanets-only widgets (use generic gaps
   list instead)
 

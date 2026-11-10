@@ -10,6 +10,7 @@
  * Changelog:
  *   2026-11-07  Initial DesignRow for ship create / yard GUI.
  *   2026-11-09  examineDialogText for design TransientWindow.
+ *   2026-11-10  choiceLabel for name-based DropDown chrome.
  */
 
 /*
@@ -54,6 +55,26 @@ class DesignRow {
         hopMilli = 0
         sizeMilli = 0
         cargoMilli = 0
+    }
+
+    /*
+     * Stable DropDown label for this design / ship type.
+     *
+     * Purpose: select by type name across refresh_ms polls. Falls
+     * back to the decimal id string when name is empty.
+     *
+     * Parameters: none.
+     *
+     * Returns: non-empty choice string when id is valid.
+     */
+    String choiceLabel() {
+        if (name.length > 0) {
+            return(name)
+        }
+        if (id < 0) {
+            return("")
+        }
+        return(format("{}", id))
     }
 
     /*

@@ -17,6 +17,7 @@
  *   2026-11-09  Menubar opener is root Planets click (no Open submenu).
  *   2026-11-09  Planet id choice row + tooltips (View usable).
  *   2026-11-09  DropDown + SpinButton replace GuiChoiceRow/Scale stand-ins.
+ *   2026-11-10  Planet DropDown by name (Home / Planet N).
  */
 
 include "appCore.cw"
@@ -94,7 +95,7 @@ class GuiPlanetPage {
         page.append(exploreBtn)
         page.append(Gtk.Label(
             "Planet budget (owned; allocation %)"))
-        page.append(Gtk.Label("Planet id"))
+        page.append(Gtk.Label("Planet"))
         page.append(planetChoice.buildWidget(
             "Select a visible planet (owned rocks for Apply budget)."))
         budgetLabel = Gtk.Label("Allocation % (100)")
@@ -157,16 +158,16 @@ class GuiPlanetPage {
      * Returns: nothing.
      */
     void syncPlanetChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.planets.length) {
             PlanetRow row = core.view.planets[index]
             if (row.visible and row.id >= 0) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        planetChoice.setChoices(ids)
+        planetChoice.setChoices(names)
     }
 
     /*
@@ -210,14 +211,14 @@ class GuiPlanetPage {
     /*
      * Planet id from the budget DropDown.
      *
-     * Purpose: Apply budget handler.
+     * Purpose: Apply budget handler (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: selected planet id (may be 0 when empty).
+     * Returns: selected planet id, or -1 when unresolved.
      */
     int64 planetIdValue() {
-        return(planetChoice.intValue())
+        return(core.view.resolvePlanetChoice(planetChoice.value()))
     }
 
     /*
@@ -233,19 +234,23 @@ class GuiPlanetPage {
      * Returns: nothing.
      */
     void setPlanetId(int64 planetId) {
-        String text = format("{}", planetId)
+        PlanetRow row = core.view.findPlanet(planetId)
+        String text = row.choiceLabel()
+        if (text.length < 1) {
+            text = format("Planet {}", planetId)
+        }
         if (not planetChoice.setValue(text)) {
-            list ids = []
-            ids.append(text)
+            list names = []
+            names.append(text)
             int64 index = 0
             while (index < planetChoice.pendingChoices.length) {
                 String item = planetChoice.pendingChoices[index]
                 if (not item.equals(text)) {
-                    ids.append(item)
+                    names.append(item)
                 }
                 index = index + 1
             }
-            planetChoice.setChoices(ids)
+            planetChoice.setChoices(names)
             planetChoice.setValue(text)
         }
         syncBudgetFromSelection()

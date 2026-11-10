@@ -21,6 +21,7 @@
  *   2026-11-09  Safe Scale range via GuiScaleRange (empty/1 hull).
  *   2026-11-10  CPL-101: inventory by type+specs+available;
  *               reclaim-stock chrome (design+planet+qty).
+ *   2026-11-10  Yard/design/fleet DropDowns by name not index.
  */
 
 include "appCore.cw"
@@ -191,12 +192,12 @@ class GuiYardPage {
         page.append(developBtn)
         page.append(Gtk.Label(
             "Yard build (resources; timed; productive yard)"))
-        page.append(Gtk.Label("Yard planet id"))
+        page.append(Gtk.Label("Yard planet"))
         page.append(planetChoice.buildWidget(
-            "Cycle owned shipyard planets for Queue build."))
-        page.append(Gtk.Label("Ready design id"))
+            "Owned shipyard planets by name for Queue build."))
+        page.append(Gtk.Label("Ship type"))
         page.append(designChoice.buildWidget(
-            "Cycle catalog designs for build / examine."))
+            "Catalog ship types by name for build / examine."))
         buildBtn = Gtk.Button("Queue build")
         buildBtn.setTooltip(
             "PUT /build — queue timed yard hull production.")
@@ -206,9 +207,9 @@ class GuiYardPage {
         page.append(buildBtn)
         page.append(Gtk.Label(
             "Reclaim unassigned stock (design + yard + qty)"))
-        page.append(Gtk.Label("Stock design id"))
+        page.append(Gtk.Label("Stock ship type"))
         page.append(reclaimStockDesignChoice.buildWidget(
-            "Cycle designs that have unassigned stock to reclaim."))
+            "Ship types by name that have unassigned stock to reclaim."))
         reclaimStockHullsLabel = Gtk.Label("Stock hulls (1)")
         reclaimStockHullsLabel.setTooltip(
             "How many unassigned hulls to reclaim at the yard planet.")
@@ -235,9 +236,9 @@ class GuiYardPage {
         page.append(reclaimStockBtn)
         page.append(Gtk.Label(
             "Reclaim assigned hulls (sitting fleet at yard)"))
-        page.append(Gtk.Label("Fleet id"))
+        page.append(Gtk.Label("Fleet"))
         page.append(reclaimFleetChoice.buildWidget(
-            "Cycle owned fleets eligible for reclaim."))
+            "Owned fleets by name eligible for reclaim."))
         reclaimHullsLabel = Gtk.Label("Hulls (1)")
         reclaimHullsLabel.setTooltip(
             "How many hulls to reclaim from the sitting fleet.")
@@ -320,82 +321,84 @@ class GuiYardPage {
      * Returns: nothing.
      */
     void syncYardPlanetChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.planets.length) {
             PlanetRow row = core.view.planets[index]
             if (row.visible
                 and row.shipyard
                 and row.ownerId == core.view.viewerId) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        planetChoice.setChoices(ids)
+        planetChoice.setChoices(names)
         int64 homeYard = core.view.firstOwnedYardId()
         if (homeYard >= 0) {
+            PlanetRow home = core.view.findPlanet(homeYard)
             String cur = planetChoice.value()
-            if (cur.length < 1
-                or not core.view.isOwnedYard(cur.toInt64())) {
-                planetChoice.setValue(format("{}", homeYard))
+            int64 curId = core.view.resolvePlanetChoice(cur)
+            if (cur.length < 1 or not core.view.isOwnedYard(curId)) {
+                planetChoice.setValue(home.choiceLabel())
             }
         }
     }
 
     /*
-     * Rebuild design id choices from the catalog.
+     * Rebuild design name choices from the catalog.
      *
-     * Purpose: Combo stand-in for Examine / Queue build.
+     * Purpose: DropDown by ship type name for Examine / Queue build.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void syncDesignChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.designs.length) {
             DesignRow row = core.view.designs[index]
             if (row.id >= 0) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        designChoice.setChoices(ids)
+        designChoice.setChoices(names)
     }
 
     /*
      * Rebuild reclaim-stock design choices from catalog.
      *
-     * Purpose: prefer designs that currently have unassigned stock.
+     * Purpose: prefer designs that currently have unassigned stock;
+     * list by type name.
      *
      * Parameters: none.
      *
      * Returns: nothing.
      */
     void syncReclaimStockDesignChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.designs.length) {
             DesignRow row = core.view.designs[index]
             if (row.id >= 0
                 and not row.closed
                 and core.view.stockCountForDesign(row.id) > 0) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        if (ids.length < 1) {
+        if (names.length < 1) {
             index = 0
             while (index < core.view.designs.length) {
                 DesignRow row = core.view.designs[index]
                 if (row.id >= 0) {
-                    ids.append(format("{}", row.id))
+                    names.append(row.choiceLabel())
                 }
                 index = index + 1
             }
         }
-        reclaimStockDesignChoice.setChoices(ids)
+        reclaimStockDesignChoice.setChoices(names)
     }
 
     /*
@@ -497,18 +500,18 @@ class GuiYardPage {
      * Returns: nothing.
      */
     void syncReclaimFleetChoices() {
-        list ids = []
+        list names = []
         int64 index = 0
         while (index < core.view.fleets.length) {
             FleetRow row = core.view.fleets[index]
             if (row.visible
                 and row.ownerId == core.view.viewerId
                 and row.id >= 1) {
-                ids.append(format("{}", row.id))
+                names.append(row.choiceLabel())
             }
             index = index + 1
         }
-        reclaimFleetChoice.setChoices(ids)
+        reclaimFleetChoice.setChoices(names)
     }
 
     /*
@@ -682,40 +685,41 @@ class GuiYardPage {
     /*
      * Read the yard planet choice.
      *
-     * Purpose: PUT /build planet id.
+     * Purpose: PUT /build planet id (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: planet id.
+     * Returns: planet id, or -1 when unresolved.
      */
     int64 planetValue() {
-        return(planetChoice.intValue())
+        return(core.view.resolvePlanetChoice(planetChoice.value()))
     }
 
     /*
      * Read the design id choice.
      *
-     * Purpose: PUT /build / Examine design id.
+     * Purpose: PUT /build / Examine design id (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: design id.
+     * Returns: design id, or -1 when unresolved.
      */
     int64 designIdValue() {
-        return(designChoice.intValue())
+        return(core.view.resolveDesignChoice(designChoice.value()))
     }
 
     /*
      * Read the reclaim-stock design id choice.
      *
-     * Purpose: PUT /reclaim-stock design field.
+     * Purpose: PUT /reclaim-stock design field (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: design id.
+     * Returns: design id, or -1 when unresolved.
      */
     int64 reclaimStockDesignValue() {
-        return(reclaimStockDesignChoice.intValue())
+        return(core.view.resolveDesignChoice(
+            reclaimStockDesignChoice.value()))
     }
 
     /*
@@ -741,14 +745,15 @@ class GuiYardPage {
     /*
      * Read the reclaim fleet choice.
      *
-     * Purpose: PUT /reclaim-hulls fleet id.
+     * Purpose: PUT /reclaim-hulls fleet id (resolve name → id).
      *
      * Parameters: none.
      *
-     * Returns: fleet id.
+     * Returns: fleet id, or -1 when unresolved.
      */
     int64 reclaimFleetValue() {
-        return(reclaimFleetChoice.intValue())
+        return(core.view.resolveFleetChoice(
+            reclaimFleetChoice.value()))
     }
 
     /*

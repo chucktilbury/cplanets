@@ -13,6 +13,7 @@
  *   2026-11-07  List label notes shipyard rocks.
  *   2026-11-07  Phase I: published x/y for map canvas.
  *   2026-11-07  allocationPct for planet budget chrome.
+ *   2026-11-10  Published display name + choiceLabel helper.
  */
 
 /*
@@ -23,6 +24,7 @@
  */
 class PlanetRow {
     int64 id
+    String name
     bool visible
     bool qualityKnown
     bool productive
@@ -47,6 +49,7 @@ class PlanetRow {
      */
     PlanetRow() {
         id = -1
+        name = ""
         visible = false
         qualityKnown = false
         productive = false
@@ -59,6 +62,30 @@ class PlanetRow {
         allocationPct = 100
         x = 0.0
         y = 0.0
+    }
+
+    /*
+     * Stable DropDown label for this planet.
+     *
+     * Purpose: select by name across refresh_ms polls. Prefers the
+     * published name (planet 0 / seat home → "Home"); falls back
+     * to "Planet {id}" when the wire name is empty.
+     *
+     * Parameters: none.
+     *
+     * Returns: non-empty choice string.
+     */
+    String choiceLabel() {
+        if (name.length > 0) {
+            return(name)
+        }
+        if (id == 0) {
+            return("Home")
+        }
+        if (id < 0) {
+            return("")
+        }
+        return(format("Planet {}", id))
     }
 
     /*
@@ -81,9 +108,10 @@ class PlanetRow {
                 own = format("owner={}", ownerId)
             }
         }
+        String label = choiceLabel()
         if (not qualityKnown) {
             return(format(
-                "Planet {} — {}; quality unknown", id, own))
+                "{} — {}; quality unknown", label, own))
         }
         String flags = ""
         if (populated) {
@@ -96,8 +124,8 @@ class PlanetRow {
             flags.append(" yard")
         }
         return(format(
-            "Planet {} — {}; liv={}/10 res={}/10{}",
-            id, own, livabilityDisplay, resourcesDisplay, flags))
+            "{} — {}; liv={}/10 res={}/10{}",
+            label, own, livabilityDisplay, resourcesDisplay, flags))
     }
 
     /*
@@ -135,8 +163,8 @@ class PlanetRow {
             return("")
         }
         String text = format(
-            "Planet {}\nLivability: {}\nQuality/resources: {}\n",
-            id, livabilityDisplay, resourcesDisplay)
+            "{}\nLivability: {}\nQuality/resources: {}\n",
+            choiceLabel(), livabilityDisplay, resourcesDisplay)
         if (productive) {
             text.append("Status: productive\n")
         } else {
@@ -164,8 +192,9 @@ class PlanetRow {
      * Returns: short summary string.
      */
     String listLabel() {
+        String label = choiceLabel()
         if (not visible) {
-            return(format("Planet {} (hidden)", id))
+            return(format("{} (hidden)", label))
         }
         String yard = ""
         if (shipyard) {
@@ -173,12 +202,12 @@ class PlanetRow {
         }
         if (not qualityKnown) {
             return(format(
-                "Planet {} owner={} quality=unknown{} alloc={}%",
-                id, ownerId, yard, allocationPct))
+                "{} owner={} quality=unknown{} alloc={}%",
+                label, ownerId, yard, allocationPct))
         }
         return(format(
-            "Planet {} owner={} liv={}/10 res={}/10{} alloc={}%",
-            id, ownerId, livabilityDisplay, resourcesDisplay,
+            "{} owner={} liv={}/10 res={}/10{} alloc={}%",
+            label, ownerId, livabilityDisplay, resourcesDisplay,
             yard, allocationPct))
     }
 }

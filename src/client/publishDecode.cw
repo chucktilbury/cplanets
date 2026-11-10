@@ -17,6 +17,7 @@
  *   2026-11-08  Structured develop/build/reclaim ProgressJob lists
  *               for Gtk.ProgressBar fraction chrome (CPL-72).
  *   2026-11-10  Fleet name + unassigned stock rows (CPL-101).
+ *   2026-11-10  Planet display name on each planet row.
  */
 
 include "../lib/wireBytes.cw"
@@ -143,6 +144,7 @@ class PublishDecode {
             row.x = fp64(xMilli) / 1000.0
             row.y = fp64(yMilli) / 1000.0
             row.allocationPct = r.readU8()
+            row.name = r.readString()
             view.planets.append(row)
             index = index + 1
         }

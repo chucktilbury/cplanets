@@ -16,6 +16,7 @@
  *   2026-11-07  Spawn/mix/fallback/contact knobs from Scenario.
  *   2026-11-08  claimPrimaryHome; start layout may leave planet 0
  *               unowned until seat connect.
+ *   2026-11-10  Sandbox seat home renamed to "Home" for that rock.
  */
 
 import math as Math
@@ -157,6 +158,7 @@ class Galaxy {
         rock.qualityKnown = true
         rock.ownerId = ownerPlayerId
         rock.population = 1.0
+        rock.name = "Home"
         if (ownerPlayerId >= 0) {
             rock.partitionId = ownerPlayerId
         } else {
@@ -307,6 +309,9 @@ class Galaxy {
                 rock.ownerId = ownerPlayerId
                 rock.population = 1.0
                 rock.partitionId = partitionId
+                # Seat home chrome label (planet 0 is already
+                # "Home"; sandbox homes match for that seat).
+                rock.name = "Home"
                 planets[index] = rock
                 stampNearbyPartition(
                     scenario, rock.x, rock.y, partitionId)

@@ -11,6 +11,7 @@
  *   2026-11-07  Phase I: assert published home x/y milli round-trip.
  *   2026-11-07  allocationPct + knownCompetitors trailer.
  *   2026-11-07  Default allocationPct is 100 (full production).
+ *   2026-11-10  Assert planet 0 publishes as "Home".
  */
 
 include "client/publishDecode.cw"
@@ -37,6 +38,12 @@ start {
     }
     PlanetRow home = view.findPlanet(0)
     if (ok and home.id != 0) {
+        ok = false
+    }
+    if (ok and not home.name.equals("Home")) {
+        ok = false
+    }
+    if (ok and not home.choiceLabel().equals("Home")) {
         ok = false
     }
     if (ok and not home.qualityKnown) {

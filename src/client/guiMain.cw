@@ -39,6 +39,7 @@
  *               handlers; over-assign error dialog via lastError.
  *   2026-11-10  Examine pins fleet/design DropDowns by name.
  *   2026-11-10  Status bar shows seat display name (CPL-106).
+ *   2026-11-10  File→Quit PUT /quit for last-human exit (CPL-108).
  */
 
 include "appCore.cw"
@@ -1319,6 +1320,11 @@ class GuiMain {
     void onClose() {
         stopPresenceKeepAlive()
         stopRefreshPoll()
+        # Voluntary leave so last-human all_humans_quit can fire
+        # without waiting for handshake_miss (CPL-108).
+        if (core.config.port > 0 and core.config.playerId >= 0) {
+            core.putQuitRemote()
+        }
         panels.closeAll()
         planetDialog.close()
         fleetDialog.close()

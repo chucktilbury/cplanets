@@ -18,6 +18,7 @@
  *               reassigned on a new connect.
  *   2026-11-10  displayName: seat display name (CPL-106).
  *   2026-11-10  exploredPlanetIds: per-seat fog discovery (CPL-107).
+ *   2026-11-10  markHuman for human allocate seat reuse (CPL-108).
  */
 
 include "scenario.cw"
@@ -260,6 +261,21 @@ class Player {
      */
     void markAi() {
         human = false
+    }
+
+    /*
+     * Mark this seat as a human client.
+     *
+     * Purpose: empty-body / kind=0 handshake allocate must restore
+     * human=true when reusing a free former AI seat so
+     * all-humans-quit still tracks the live human (CPL-108).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void markHuman() {
+        human = true
     }
 
     /*

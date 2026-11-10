@@ -37,6 +37,7 @@
  *               not every zero-presence catalog type each tick.
  *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
  *   2026-11-10  Mark home explored for seat fog (CPL-107).
+ *   2026-11-10  markPlayerHuman for human allocate reuse (CPL-108).
  */
 
 
@@ -1589,6 +1590,28 @@ class State {
         }
         Player seat = players[playerId]
         seat.markAi()
+        players[playerId] = seat
+        return(true)
+    }
+
+    /*
+     * Mark a seat as human.
+     *
+     * Purpose: human handshake allocate restores human=true when
+     * reusing a free former AI seat so all-humans-quit tracks the
+     * live human (CPL-108).
+     *
+     * Parameters:
+     *   playerId — seat to mark.
+     *
+     * Returns: true when updated.
+     */
+    bool markPlayerHuman(int64 playerId) {
+        if (playerId < 0 or playerId >= players.length) {
+            return(false)
+        }
+        Player seat = players[playerId]
+        seat.markHuman()
         players[playerId] = seat
         return(true)
     }

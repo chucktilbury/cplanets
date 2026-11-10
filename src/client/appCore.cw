@@ -21,6 +21,7 @@
  *   2026-11-09  keepAliveRemote: presence-only handshake for GUI.
  *   2026-11-10  CPL-101: putFleetCreateRemote / putAssignRemote /
  *               putReclaimStockRemote; assign uses lastRejectReason.
+ *   2026-11-10  putQuitRemote for File→Quit (CPL-108).
  */
 
 include "config.cw"
@@ -227,6 +228,31 @@ class AppCore {
         }
         session.handshake()
         bool ok = session.putSuspended(wantSuspended)
+        session.close()
+        return(ok)
+    }
+
+    /*
+     * PUT /quit over TCP when port and seat are set.
+     *
+     * Purpose: GuiMain File→Quit — voluntary leave so the last
+     * human can trip all_humans_quit without waiting for
+     * handshake_miss (CPL-108).
+     *
+     * Parameters: none (uses config host/port/playerId).
+     *
+     * Returns: true when the server accepted the quit.
+     */
+    bool putQuitRemote() {
+        if (config.port < 1 or config.playerId < 0) {
+            return(false)
+        }
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            return(false)
+        }
+        # Quit does not need a fresh handshake; seat id is enough.
+        bool ok = session.putQuit()
         session.close()
         return(ok)
     }

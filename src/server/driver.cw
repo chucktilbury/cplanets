@@ -48,6 +48,9 @@
  *               all_humans_quit while AI/live humans remain.
  *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
  *   2026-11-10  Seat digest filters fog-hidden tick events (CPL-107).
+ *   2026-11-10  Retire keeps human=true; go refreshes end-status
+ *               so last-human leave still all_humans_quit (CPL-108).
+ *               Human allocate restores human after AI seat reuse.
  */
 
 include "clock.cw"
@@ -230,8 +233,11 @@ class GameDriver {
      * (tryAutoGoAllHumansReady is the stub hook). Before flipping
      * running, retires lobby-abandoned seats so a human that
      * miss-dropped while seating (token cleared) cannot make the
-     * first maybeTick trip all_humans_quit while AI or other live
-     * humans remain seated.
+     * first maybeTick trip all_humans_quit while other live
+     * humans remain seated. After running flips true, refresh
+     * end-status immediately so a session whose last human already
+     * quit/dropped ends with all_humans_quit (no AI-only zombie
+     * match — RULES §2) without waiting for the next cadence fire.
      *
      * Parameters: none.
      *
@@ -247,6 +253,7 @@ class GameDriver {
         }
         retireLobbyAbandonedSeats()
         running = true
+        refreshEndStatusIfRunning()
         republishWithoutTick()
         return(true)
     }
@@ -257,14 +264,18 @@ class GameDriver {
      * Purpose: lobby miss-drop clears the reconnect token so a
      * restarted client can re-allocate, but the Player row stays
      * with human=true / dropped=true. Operator go then enables
-     * end-status; allHumansGone sees that abandoned human and
-     * ends the server even when AI seats (or other live humans)
-     * are still connected. Retire those seats **before** running
-     * becomes true: clear human so all-humans-quit ignores them,
-     * mark quit so they are settled, leave homeGranted so closed
+     * end-status. Retire those seats **before** running becomes
+     * true: markQuit so they are settled and skipped by
+     * findFreeSeat, **keep human=true** so allHumansGone still
+     * sees them as departed humans (clearing human made
+     * humans==0 look like a pure-AI fixture and blocked
+     * all_humans_quit — CPL-108). Leave homeGranted so closed
      * eliminate-all still sees more than one contender when an AI
-     * remains (avoids crowning a lone AI the instant go fires).
-     * Connected seats and token-held reclaimable seats are kept.
+     * remains (avoids crowning a lone AI the instant go fires
+     * when another live human is also seated). Connected seats
+     * and token-held reclaimable seats are kept. When every human
+     * is gone after retire, go()'s refreshEndStatus ends the
+     * session even if AI seats remain (RULES §2).
      *
      * Parameters: none.
      *
@@ -297,7 +308,9 @@ class GameDriver {
                 continue
             }
             # Lobby-abandoned: miss-drop cleared the token.
-            seat.human = false
+            # Keep human so all_humans_quit still sees a departed
+            # human seat (do not clear human — that masked the
+            # last-human exit path as a pure-AI fixture).
             seat.markQuit()
             game.players[index] = seat
             presence.markDrop(index)
@@ -1019,7 +1032,10 @@ class GameDriver {
      * allows (0 = unlimited). AI seats get markAi() so
      * all-humans-quit ignores them (RULES §2 / §15) — a lone AI
      * in lobby must not end the server on handshake_miss drop.
-     * Never steals a token-held dropped seat.
+     * Human allocate always markHuman() so reusing a free former
+     * AI seat (dropped, token cleared) cannot leave human=false
+     * and hide the last-human exit path (CPL-108). Never steals a
+     * token-held dropped seat.
      *
      * Parameters:
      *   asAi — true to mark the seat non-human after connect.
@@ -1045,8 +1061,10 @@ class GameDriver {
         }
         if (asAi) {
             game.markPlayerAi(playerId)
-            republishWithoutTick()
+        } else {
+            game.markPlayerHuman(playerId)
         }
+        republishWithoutTick()
         return(playerId)
     }
 

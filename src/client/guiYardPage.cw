@@ -418,9 +418,9 @@ class GuiYardPage {
         if (stock.count > 0) {
             maxHulls = stock.count
         } else {
-            int64 any = core.view.stockCountForDesign(designId)
-            if (any > 0) {
-                maxHulls = any
+            int64 designStock = core.view.stockCountForDesign(designId)
+            if (designStock > 0) {
+                maxHulls = designStock
             }
         }
         fp64 cur = reclaimStockHullsSpin.value()

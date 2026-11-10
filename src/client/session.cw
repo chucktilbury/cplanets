@@ -28,6 +28,7 @@
  *   2026-11-10  CPL-101: putFleetCreate / putAssign /
  *               putReclaimStock (flag ack + reject reason).
  *   2026-11-10  putDisplayName after handshake (CPL-106).
+ *   2026-11-10  putQuit for File→Quit last-human exit (CPL-108).
  */
 
 import networking as Networking
@@ -415,6 +416,29 @@ class HumanSession {
             Envelope.VERB_PUT, "/suspended", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
         return(flagAccepted(resp, "/suspended"))
+    }
+
+    /*
+     * PUT /quit with playerId u32.
+     *
+     * Purpose: voluntary leave (File→Quit). After operator go, the
+     * last human quit ends the server with all_humans_quit without
+     * waiting for handshake_miss drop (CPL-108 / RULES §2).
+     *
+     * Parameters: none (uses config.playerId).
+     *
+     * Returns: true when the server accepted the quit.
+     */
+    bool putQuit() {
+        if (config.playerId < 0) {
+            return(false)
+        }
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/quit", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/quit"))
     }
 
     /*

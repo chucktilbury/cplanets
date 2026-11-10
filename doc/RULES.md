@@ -143,10 +143,16 @@ the session is running. Lobby miss-drop clears the reconnect token
 so the seat is free for re-allocate (no ghost seats from abandoned
 clients); after go, drop keeps the token for reclaim. Operator
 `go` **retires** lobby-abandoned seats (dropped, no token, not
-connected): clears `human` and marks quit so a miss-dropped human
-that left before start cannot trip `all_humans_quit` on the first
-running maybeTick while AI or other live humans remain seated.
-Connected seats and token-held reclaimable seats are kept.
+connected): marks quit (settled; not reusable) but **keeps**
+`human=true` so departed humans still count for all-humans-quit.
+When another **live** human remains seated, go does not end the
+session. When every human is gone (quit/drop/retire), go refreshes
+end-status and ends with `all_humans_quit` even if AI seats remain
+(no AI-only zombie match). Clearing `human` on retire is forbidden
+— that made `humans==0` look like a pure-AI fixture and blocked
+exit. Connected seats and token-held reclaimable seats are kept.
+Human empty-body allocate restores `human=true` when reusing a free
+former AI seat.
 
 Handshake **response** shape: `u8 accepted`, `u32 tick`, `u8 ended`,
 `u32 playerId`, **16-byte token**. Human and AI clients store the

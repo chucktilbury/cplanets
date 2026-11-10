@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **CPL-108 last-human exit:** lobby `go` retire no longer clears
+  `human` on abandoned seats (that made `allHumansGone` treat the
+  session as a pure-AI fixture and blocked exit). `go()` refreshes
+  end-status immediately after leaving lobby so the last departed
+  human ends with `all_humans_quit` even when AI remain (RULES §2).
+  Live humans still keep the session up. Human allocate restores
+  `human=true` when reusing a free former AI seat. Human File→Quit
+  sends `PUT /quit`. Test: `unit_humanSeatGo`.
 - **CPL-107 hide undiscovered foreign planets:** seat fog no longer
   treats global `Planet.qualityKnown` as visibility. Foreign-owned
   rocks stay hidden until in detection range of an owned world or
@@ -55,12 +63,14 @@
   [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md),
   [CPLANETS.md](CPLANETS.md). Test: `unit_clientConfig`.
 - **Human seat + operator go:** lobby miss-dropped human seats
-  (token cleared) no longer make `g` / `PUT /admin/go` exit via
-  `all_humans_quit` while AI or live humans remain. `go()` retires
-  abandoned lobby seats first. Human GUI schedules a presence
-  keep-alive handshake (~2s) so an idle window does not drop its
-  seat before go; `--pull` fails loudly when handshake cannot
-  allocate a seat. Test: `unit_humanSeatGo`.
+  (token cleared) are retired on `g` / `PUT /admin/go` so a ghost
+  seat cannot end the session while another **live** human remains.
+  Human GUI schedules a presence keep-alive handshake (~2s) so an
+  idle window does not drop its seat before go; `--pull` fails
+  loudly when handshake cannot allocate a seat. (CPL-108 restores
+  last-human `all_humans_quit` when no live human remains, including
+  with AI still connected — see Unreleased CPL-108.) Test:
+  `unit_humanSeatGo`.
 - **Panel menubar root clicks:** Planets / Fleets / Ships / Digest /
   Policy open their non-modal dialogs on the root label click (flat
   Buttons beside File). No nested **Open** submenu — GtkPopoverMenuBar

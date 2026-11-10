@@ -144,16 +144,20 @@ the reconnect token so a restarted client reuses the seat (no ghost
 seats); after go, drop keeps the token for reclaim. Type **`g` then
 Enter** on the server console (banner prints `GO_KEY=g`) — or choose
 **Go** in the status menu — to leave lobby (`PHASE=running`). Go
-**retires lobby-abandoned seats** (miss-dropped, token cleared) so a
-departed human cannot trip `all_humans_quit` while AI / live humans
-remain. Go starts with **whatever seats are already allocated**; it
-does not wait for `--players` / soft max. Harnesses may
-`PUT /admin/go` (same path). Later “all humans ready” can share that
-path; v1 is operator go only. Injectable `/admin/advance` is also
-blocked until go. AI clients allocate with handshake kind=`1`
-(marked non-human). The human GTK client keep-alives presence
-(~2s handshake) while the window is open so idle UI does not
-miss-drop its seat before go.
+**retires lobby-abandoned seats** (miss-dropped, token cleared;
+mark quit, keep `human`) and refreshes end-status: if another live
+human remains, play continues; if the last human is already gone,
+the server ends with `all_humans_quit` (AI seats alone do not keep
+the session alive). Go starts with **whatever seats are already
+allocated**; it does not wait for `--players` / soft max. Harnesses
+may `PUT /admin/go` (same path). Later “all humans ready” can share
+that path; v1 is operator go only. Injectable `/admin/advance` is
+also blocked until go. AI clients allocate with handshake kind=`1`
+(marked non-human); human allocate restores `human=true` on seat
+reuse. The human GTK client keep-alives presence (~2s handshake)
+while the window is open so idle UI does not miss-drop its seat
+before go, and File→Quit sends `PUT /quit` so the last human leave
+can end the server without waiting for handshake_miss.
 
 **Seats / `players`:** live serve starts with **zero** seats and
 **grows** a seat on empty-body handshake when needed. `players` /

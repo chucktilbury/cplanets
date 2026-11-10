@@ -1,17 +1,19 @@
 /*
- * tests/unit/unit_humanSeatGo.cw — human seat + go must not quit.
+ * tests/unit/unit_humanSeatGo.cw — human seat + go / last-human exit.
  *
- * Regression: a human that miss-drops in lobby (token cleared) left
- * human=true / dropped=true. Operator go then enabled end-status and
- * all_humans_quit ended the server even when AI seats were still
- * connected. go() must retire lobby-abandoned seats first; a live
- * human keep-alive path must still all_humans_quit after go on miss.
+ * Lobby-abandoned humans must not block go when another live human
+ * remains, but when the last human is gone (quit/drop/retire) the
+ * server must all_humans_quit — including when AI seats remain
+ * (RULES §2: no AI-only zombie match). Human allocate must restore
+ * human=true when reusing a free former AI seat (CPL-108).
  *
  * Created: 2026-11-09
  * Author: Auto
  *
  * Changelog:
  *   2026-11-09  Initial human-seat / go-quit regression unit.
+ *   2026-11-10  CPL-108: last human gone → all_humans_quit on go;
+ *               human reuse of former AI seat stays human.
  */
 
 include "lib/state.cw"
@@ -20,7 +22,7 @@ include "server/driver.cw"
 start {
     bool ok = true
 
-    # --- AI still connected + lobby-abandoned human; go must not end ---
+    # --- AI + lobby-abandoned human, no live human: go ends ---
     State both = State()
     both.startClosed(41u, 0)
     GameDriver bothDrv = GameDriver(both, true, "", false, 500u)
@@ -55,27 +57,63 @@ start {
     if (ok and not bothDrv.go()) {
         ok = false
     }
-    if (ok and bothDrv.game.ended) {
+    # Last human already gone → all_humans_quit even with AI live.
+    if (ok and not bothDrv.game.ended) {
         ok = false
     }
-    if (ok and bothDrv.inLobby()) {
+    if (ok and not bothDrv.game.endReason.equals("all_humans_quit")) {
         ok = false
     }
     Player retired = bothDrv.game.players[1]
-    if (ok and retired.human) {
+    if (ok and not retired.human) {
         ok = false
     }
     if (ok and not retired.quit) {
         ok = false
     }
-    # Cadence / end-status after go must still leave AI playable.
-    bothDrv.maybeTick()
-    if (ok and bothDrv.game.ended) {
-        ok = false
-    }
     bothDrv.close()
 
-    # --- sole human miss-drop in lobby + go: retire, do not end ---
+    # --- AI + live human + abandoned other: go must not end ---
+    State keepLive = State()
+    keepLive.startClosed(42u, 0)
+    GameDriver keepLiveDrv = GameDriver(
+        keepLive, true, "", false, 5000u)
+    keepLiveDrv.softMaxPlayers = 0
+    if (keepLiveDrv.handshakeAllocateAs(true) != 0) {
+        ok = false
+    }
+    if (ok and keepLiveDrv.handshakeAllocate() != 1) {
+        ok = false
+    }
+    if (ok and keepLiveDrv.handshakeAllocate() != 2) {
+        ok = false
+    }
+    if (ok and not keepLiveDrv.dropPlayer(2)) {
+        ok = false
+    }
+    if (ok and not keepLiveDrv.go()) {
+        ok = false
+    }
+    if (ok and keepLiveDrv.game.ended) {
+        ok = false
+    }
+    Player liveKept = keepLiveDrv.game.players[1]
+    if (ok and not liveKept.human) {
+        ok = false
+    }
+    if (ok and liveKept.quit) {
+        ok = false
+    }
+    Player abandoned = keepLiveDrv.game.players[2]
+    if (ok and not abandoned.quit) {
+        ok = false
+    }
+    if (ok and not abandoned.human) {
+        ok = false
+    }
+    keepLiveDrv.close()
+
+    # --- sole human miss-drop in lobby + go: all_humans_quit ---
     State solo = State()
     solo.startClosed(43u, 0)
     GameDriver soloDrv = GameDriver(solo, true, "", false, 500u)
@@ -91,15 +129,17 @@ start {
     if (ok and not soloDrv.go()) {
         ok = false
     }
-    if (ok and soloDrv.game.ended) {
+    if (ok and not soloDrv.game.ended) {
+        ok = false
+    }
+    if (ok and not soloDrv.game.endReason.equals("all_humans_quit")) {
         ok = false
     }
     Player soloRetired = soloDrv.game.players[0]
-    if (ok and soloRetired.human) {
+    if (ok and not soloRetired.human) {
         ok = false
     }
-    soloDrv.maybeTick()
-    if (ok and soloDrv.game.ended) {
+    if (ok and not soloRetired.quit) {
         ok = false
     }
     soloDrv.close()
@@ -148,6 +188,60 @@ start {
         ok = false
     }
     keepDrv.close()
+
+    # --- human reuses free former AI seat: human=true + quit ends ---
+    State reuse = State()
+    reuse.startClosed(49u, 0)
+    GameDriver reuseDrv = GameDriver(reuse, true, "", false, 5000u)
+    reuseDrv.softMaxPlayers = 0
+    if (reuseDrv.handshakeAllocateAs(true) != 0) {
+        ok = false
+    }
+    if (ok and not reuseDrv.dropPlayer(0)) {
+        ok = false
+    }
+    if (ok and reuseDrv.presence.hasReconnectToken(0)) {
+        ok = false
+    }
+    if (ok and reuseDrv.handshakeAllocate() != 0) {
+        ok = false
+    }
+    Player reused = reuseDrv.game.players[0]
+    if (ok and not reused.human) {
+        ok = false
+    }
+    if (ok and not reuseDrv.go()) {
+        ok = false
+    }
+    if (ok and reuseDrv.game.ended) {
+        ok = false
+    }
+    if (ok and not reuseDrv.quitPlayer(0)) {
+        ok = false
+    }
+    if (ok and not reuseDrv.game.ended) {
+        ok = false
+    }
+    if (ok and not reuseDrv.game.endReason.equals("all_humans_quit")) {
+        ok = false
+    }
+    reuseDrv.close()
+
+    # --- pure AI (never a human): go must not all_humans_quit ---
+    State pureAi = State()
+    pureAi.startClosed(51u, 0)
+    GameDriver pureAiDrv = GameDriver(
+        pureAi, true, "", false, 5000u)
+    if (pureAiDrv.handshakeAllocateAs(true) != 0) {
+        ok = false
+    }
+    if (ok and not pureAiDrv.go()) {
+        ok = false
+    }
+    if (ok and pureAiDrv.game.ended) {
+        ok = false
+    }
+    pureAiDrv.close()
 
     if (ok) {
         print("true\n")

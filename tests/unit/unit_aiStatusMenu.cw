@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-08  Initial AI status menu unit program.
  *   2026-11-09  Assert configDump includes loopPeriodMs.
+ *   2026-11-10  Expect planet-0 "Home" label (named planets).
  */
 
 include "ai/config.cw"
@@ -48,6 +49,7 @@ start {
     snap.resourcesMilli = 800
     PlanetRow home = PlanetRow()
     home.id = 0
+    home.name = "Home"
     home.visible = true
     home.ownerId = 1
     home.shipyard = true
@@ -57,6 +59,7 @@ start {
     snap.planets.append(home)
     FleetRow stack = FleetRow()
     stack.id = 1
+    stack.name = "home-guard"
     stack.visible = true
     stack.ownerId = 1
     stack.sitting = true
@@ -112,18 +115,26 @@ start {
     if (not planets.contains("[1]")) {
         ok = false
     }
+    if (not planets.contains("Home")) {
+        ok = false
+    }
     int64 planetId = views.planetIdAt(1)
     if (planetId != 0) {
         ok = false
     } else {
         String detail = views.planetDetail(planetId)
-        if (not detail.contains("Planet")) {
+        // Named planet chrome: seat home publishes as "Home",
+        // not the old "Planet {id}" listLabel prefix.
+        if (not detail.contains("Home")) {
             ok = false
         }
     }
 
     String fleets = views.fleetList()
     if (not fleets.contains("Fleets (client-visible):")) {
+        ok = false
+    }
+    if (not fleets.contains("home-guard")) {
         ok = false
     }
     int64 fleetId = views.fleetIdAt(1)

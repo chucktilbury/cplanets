@@ -381,7 +381,7 @@ class Design {
  * BuildJob is one in-progress yard hull production.
  *
  * Completes after yardBuildTicks (scenario) unless cancelled.
- * Phase C credits one hull into a sitting fleet at the yard.
+ * CPL-101 credits one hull into unassigned stock at the yard.
  */
 class BuildJob {
     int64 id

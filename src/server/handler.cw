@@ -5,13 +5,15 @@
  * against a GameDriver. Paths: GET /state, PUT /policy, GET
  * /digest|/events, PUT /handshake, PUT /suspended, PUT /quit,
  * PUT /pause, PUT /order, PUT /recall, PUT /design, PUT /build,
- * PUT /reclaim-hulls, PUT /budget, PUT /message,
- * PUT /admin/advance. No ready-barrier verb (PLAN §4.F).
+ * PUT /reclaim-hulls, PUT /fleet, PUT /assign, PUT /reclaim-stock,
+ * PUT /budget, PUT /message, PUT /admin/advance. No ready-barrier
+ * verb (PLAN §4.F).
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
+ *   2026-11-10  CPL-101: PUT /fleet, /assign, /reclaim-stock.
  *   2026-11-05  Initial server message handler.
  *   2026-11-05  Phase G: GET /state uses seat-scoped list view.
  *   2026-11-06  TUNING B: PUT /order, PUT /recall; pause in state.

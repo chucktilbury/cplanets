@@ -963,10 +963,18 @@ class State {
         Player seat = players[fleet.ownerId]
         Planet origin = galaxy.planets[fleet.locationPlanetId]
         Planet destRock = galaxy.planets[destPlanetId]
+        # CPL-101: dispatch rate = slowest hull in the mix.
+        Design slow = design
+        if (escortDesignId >= 0 and escortHulls > 0) {
+            Design escort = designs[escortDesignId]
+            if (escort.speed < slow.speed) {
+                slow = escort
+            }
+        }
         int64 eta = travel.etaTicks(
             scenario,
             seat,
-            design,
+            slow,
             origin,
             destRock)
         bool ok = fleet.issueTravel("trade", destPlanetId, eta)

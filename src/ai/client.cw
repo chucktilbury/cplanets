@@ -18,6 +18,7 @@
  *               playerId for all subsequent traffic.
  *   2026-11-08  Store/send reconnect token; reclaim after drop.
  *   2026-11-08  Allocate with 1-byte kind=1 so server marks AI.
+ *   2026-11-10  putDisplayName after handshake (CPL-106).
  *   2026-11-09  Keep token on empty/network handshake failure;
  *               only clear after an explicit reject ack.
  *   2026-11-09  PUT /order + PUT /build from AiOrderPlan so AI
@@ -69,6 +70,8 @@ class AiClient {
     VerbGetState getStateVerb
     VerbGetDigest getDigestVerb
     bool connected
+    # True after a successful PUT /name for the current seat.
+    bool namePublished
 
     /*
      * Construct a client around a config.
@@ -96,6 +99,7 @@ class AiClient {
         getStateVerb = VerbGetState()
         getDigestVerb = VerbGetDigest()
         connected = false
+        namePublished = false
     }
 
     /*
@@ -236,10 +240,59 @@ class AiClient {
                 Envelope.VERB_PUT, "/handshake", kind.bytes)
             buffer resp = exchange(EnvelopeCodec().encode(alloc))
             ok = adoptHandshakeSeat(resp)
+            if (ok) {
+                namePublished = false
+            }
+        }
+        if (ok) {
+            ensureDisplayName()
         }
         explore.noteHandshake(ok)
         verbose.logSeat(config.playerId, ok)
         return(ok)
+    }
+
+    /*
+     * PUT /name once per seat with the AI display label.
+     *
+     * Purpose: publish config display_name (or random proper name)
+     * so server chrome/digest show the AI identity (CPL-106).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void ensureDisplayName() {
+        if (namePublished) {
+            return()
+        }
+        if (config.playerId < 0) {
+            return()
+        }
+        String name = config.ensureDisplayName()
+        if (putDisplayName(name)) {
+            namePublished = true
+        }
+    }
+
+    /*
+     * PUT /name with playerId + display string.
+     *
+     * Purpose: store the seat label on the server Player.
+     *
+     * Parameters:
+     *   name — non-empty display name.
+     *
+     * Returns: true when a non-empty ack returns.
+     */
+    bool putDisplayName(String name) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeString(name)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/name", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(resp.length > 0)
     }
 
     /*

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **CPL-106 player names + server AI spawn:** every seat has a
+  `displayName` (human `display_name` from human config via
+  `PUT /name`; AI uses config `display_name` or a random proper
+  name from the Alex/Bethany/… pool). Published on `GET /state`
+  and shown in chrome/digest/status. Server keys `spawn_ai_count`,
+  `spawn_ai_template`, `spawn_ai_dir`, `spawn_ai_bin` launch N
+  `cplanets-ai` children via Cwhip `process` (`AsyncProcess`), each
+  with its own generated config + unique name. Docs:
+  [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md),
+  [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md). Tests:
+  `unit_playerNames`, `unit_displayName`, config units.
 - **CTest: `unit_aiStatusMenu`:** fixture expects named planet-0
   `"Home"` (and a named fleet) after DropDown/name chrome; stale
   `planetDetail` assert looked for `"Planet"`.

@@ -46,6 +46,7 @@
  *   2026-11-09  go() retires lobby-abandoned seats (miss-dropped,
  *               token cleared) so operator g does not trip
  *               all_humans_quit while AI/live humans remain.
+ *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
  */
 
 include "clock.cw"
@@ -1145,6 +1146,29 @@ class GameDriver {
             return(false)
         }
         if (not game.ensureHomeForSeat(playerId)) {
+            return(false)
+        }
+        republishWithoutTick()
+        return(true)
+    }
+
+    /*
+     * Store a seat display name and republish.
+     *
+     * Purpose: PUT /name from clients after handshake so chrome
+     * and digest show human/AI proper names (CPL-106).
+     *
+     * Parameters:
+     *   playerId — empire seat.
+     *   name — non-empty display name.
+     *
+     * Returns: true when the seat exists and the name was stored.
+     */
+    bool setPlayerDisplayName(int64 playerId, String name) {
+        if (game.ended) {
+            return(false)
+        }
+        if (not game.setPlayerDisplayName(playerId, name)) {
             return(false)
         }
         republishWithoutTick()

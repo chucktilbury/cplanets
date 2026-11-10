@@ -13,6 +13,7 @@
  *   2026-11-08  playerId -1 = unassigned; TCP seat from handshake.
  *   2026-11-08  reconnectToken from handshake ack for reclaim.
  *   2026-11-09  refresh_ms: GUI GET /state+/digest poll period.
+ *   2026-11-10  display_name seat label (CPL-106).
  */
 
 /*
@@ -30,6 +31,9 @@
 class HumanConfig {
     int64 playerId
     buffer reconnectToken
+    # Seat display name sent via PUT /name after handshake.
+    # Empty → client sends "Human" so chrome is never blank.
+    String displayName
     String host
     int64 port
     bool once
@@ -56,6 +60,7 @@ class HumanConfig {
     HumanConfig() {
         playerId = -1
         reconnectToken = buffer[]
+        displayName = ""
         host = "127.0.0.1"
         port = 0
         once = false
@@ -63,6 +68,24 @@ class HumanConfig {
         gui = false
         test = false
         refreshMs = 1000
+    }
+
+    /*
+     * Effective display name for PUT /name.
+     *
+     * Purpose: config may omit display_name; chrome still needs a
+     * non-empty label. Empty → "Human".
+     *
+     * Parameters: none.
+     *
+     * Returns: non-empty name string.
+     */
+    String resolvedDisplayName() {
+        String trimmed = displayName.trim()
+        if (trimmed.length > 0) {
+            return(trimmed)
+        }
+        return("Human")
     }
 
     /*

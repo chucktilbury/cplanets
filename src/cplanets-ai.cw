@@ -34,6 +34,7 @@
  *   2026-11-08  TCP seats from handshake; offline --once pins seat 0.
  *   2026-11-08  Serve-loop re-handshakes each cycle (presence).
  *   2026-11-09  loop_period_ms / --loop-period-ms frame-budget sleep.
+ *   2026-11-10  ensureDisplayName on load (CPL-106).
  */
 
 import cli as Cli
@@ -289,6 +290,8 @@ class AiMain {
                 commandLine.value("loop-period-ms").toInt64())
         }
         cfg.clampAll()
+        # Resolve empty display_name to a proper name before serve.
+        cfg.ensureDisplayName()
         return(cfg)
     }
 
@@ -304,6 +307,7 @@ class AiMain {
      */
     void runOnce(AiConfig cfg) {
         cfg.ensureOfflineSeat()
+        cfg.ensureDisplayName()
         AiBrain brain = AiBrain(cfg)
         AiView view = AiView(cfg.playerId)
         view.currentRole = "neutral"

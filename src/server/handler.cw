@@ -29,6 +29,7 @@
  *   2026-11-08  Handshake 1-byte kind: 0 human / 1 AI allocate.
  *   2026-11-09  GET /state publishes lobby hold as paused via
  *               GameDriver.publishPausedFlag().
+ *   2026-11-10  PUT /name seat display name (CPL-106).
  */
 
 include "driver.cw"
@@ -101,6 +102,10 @@ class ServerHandler {
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/handshake")) {
             return(handleHandshake(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/name")) {
+            return(handleName(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/suspended")) {
@@ -330,6 +335,30 @@ class ServerHandler {
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/handshake", w.bytes)
         return(codec.encode(env))
+    }
+
+    /*
+     * Serve PUT /name body (playerId u32, string displayName).
+     *
+     * Purpose: store the seat display name from human/AI client
+     * config after handshake (CPL-106). Republishes state so
+     * chrome/digest see the label.
+     *
+     * Parameters:
+     *   body — uncompressed request body.
+     *
+     * Returns: ack envelope on /name.
+     */
+    buffer handleName(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        String name = r.readString()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_name"))
+        }
+        bool ok = driver.setPlayerDisplayName(player, name)
+        return(flagAck("/name", ok))
     }
 
     /*

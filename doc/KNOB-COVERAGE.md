@@ -66,6 +66,7 @@ written — include it when merged; not required for this docs PR.
 | `accept_poll_ms` | `config/server-*.cfg` → `ServerListen` | textfile already · server-textfile-only |
 | `verbosity` (0–10 clamped; provisional: 0 errors / 3 settings / 6 combat / 10 full) | `config/server-*.cfg` + CLI `--verbosity` overlay | textfile already · server-textfile-only |
 | `setup` / `host` (`address` alias) / `serve` / `port` / `players` / `seed` / `cycles` / `injectable` | `config/server-*.cfg` + CLI overlay (path `--config` excluded) | textfile already · server-textfile-only |
+| `spawn_ai_count` / `spawn_ai_template` / `spawn_ai_dir` / `spawn_ai_bin` | `config/server-*.cfg` → `AiSpawnBook` (`process.AsyncProcess`) | textfile already · server-textfile-only |
 
 ---
 
@@ -89,7 +90,8 @@ written — include it when merged; not required for this docs PR.
 | --- | --- | --- |
 | `start_wealth` / `start_resources` / `start_tech` / `start_power` / `start_experience` | setup | textfile already · server-textfile-only |
 | Standing policy % (expansion, escort, tech bias, `S`) | human client Entries → wire | GUI candidate (Scale later) · textfile N/A (runtime) |
-| Human dial (`player_id`, host, port) + modes (`once` / `pull` / `gui` / `test`) + `refresh_ms` (GUI state/digest poll; default 1000; `0`=off; distinct from presence keep-alive) | `config/human-default.cfg` + CLI overlay (path `--config` excluded; `--refresh-ms`) | textfile already · GUI candidate (connect dialog later) |
+| Human dial (`player_id`, host, port) + modes (`once` / `pull` / `gui` / `test`) + `refresh_ms` (GUI state/digest poll; default 1000; `0`=off; distinct from presence keep-alive) + `display_name` (seat label → `PUT /name`) | `config/human-default.cfg` + CLI overlay (path `--config` excluded; `--refresh-ms`) | textfile already · GUI candidate (connect dialog later) |
+| AI `display_name` (empty → random proper-name pool) | `config/ai-*.cfg` → `PUT /name` | textfile already · server-textfile-only (AI process) |
 
 ---
 

@@ -20,6 +20,8 @@
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
  *   2026-11-10  Fleet name + unassigned hull stock rows (CPL-101).
  *   2026-11-10  Planet display name on each planet row.
+ *   2026-11-10  Player displayName string on each seat row
+ *               (CPL-106).
  */
 
 include "../lib/event.cw"
@@ -138,6 +140,7 @@ class PublishCodec {
             } else {
                 w.writeU8(0)
             }
+            w.writeString(seat.label())
             index = index + 1
         }
         w.writeU32(policies.slots.length)

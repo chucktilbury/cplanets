@@ -10,6 +10,7 @@
  *   2026-11-07  Assert once / pull / gui / test mode keys.
  *   2026-11-08  Default playerId -1 (server assigns on handshake).
  *   2026-11-09  Assert refresh_ms default / parse / clamp.
+ *   2026-11-10  Assert display_name (CPL-106).
  */
 
 include "client/configParse.cw"
@@ -21,6 +22,9 @@ start {
         ok = false
     }
     if (ok and baseline.refreshMs != 1000) {
+        ok = false
+    }
+    if (ok and not baseline.resolvedDisplayName().equals("Human")) {
         ok = false
     }
     baseline.refreshMs = -5
@@ -41,9 +45,13 @@ start {
     text.append("gui = false\n")
     text.append("test = 1\n")
     text.append("refresh_ms = 250\n")
+    text.append("display_name = Jordan\n")
     HumanConfigParse parser = HumanConfigParse()
     HumanConfig cfg = parser.parseText(text)
     if (cfg.playerId != 2) {
+        ok = false
+    }
+    if (ok and not cfg.displayName.equals("Jordan")) {
         ok = false
     }
     if (ok and not cfg.host.equals("10.0.0.1")) {

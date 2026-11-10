@@ -12,6 +12,7 @@
  *   2026-11-08  Initial AI client status formatters.
  *   2026-11-08  Summary line includes suspended flag.
  *   2026-11-09  configDump includes loopPeriodMs.
+ *   2026-11-10  Summary/seat detail show displayName (CPL-106).
  */
 
 include "../client/designRow.cw"
@@ -78,8 +79,9 @@ class AiStatusViews {
             err = state.lastError
         }
         return(format(
-            "seat={} tick={} dial={} handshake={} snapshot={} paused={} suspended={} cycles={} lastError={}",
+            "seat={} name={} tick={} dial={} handshake={} snapshot={} paused={} suspended={} cycles={} lastError={}",
             state.config.playerId,
+            state.config.displayName,
             state.view.publishedTick,
             dial,
             handshake,
@@ -165,8 +167,9 @@ class AiStatusViews {
             ambush = "true"
         }
         String text = format(
-            "Seat id={} role={} ambushLocked={}\n",
+            "Seat id={} name={} role={} ambushLocked={}\n",
             state.view.playerId,
+            state.config.displayName,
             state.view.currentRole,
             ambush)
         text.append(format(

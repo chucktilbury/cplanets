@@ -38,6 +38,7 @@
  *   2026-11-10  CPL-101: create fleet / assign / reclaim-stock
  *               handlers; over-assign error dialog via lastError.
  *   2026-11-10  Examine pins fleet/design DropDowns by name.
+ *   2026-11-10  Status bar shows seat display name (CPL-106).
  */
 
 include "appCore.cw"
@@ -580,7 +581,8 @@ class GuiMain {
                 pauseBit.append(" AFK")
             }
             status.setText(format(
-                "tick={} planets={} fleets={} humans={}{}",
+                "name={} tick={} planets={} fleets={} humans={}{}",
+                core.view.playerDisplayName(core.view.viewerId),
                 core.view.tick,
                 core.view.visiblePlanetCount(),
                 core.view.visibleFleetCount(),

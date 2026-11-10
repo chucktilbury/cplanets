@@ -27,6 +27,7 @@
  *               allocate from a transient miss).
  *   2026-11-10  CPL-101: putFleetCreate / putAssign /
  *               putReclaimStock (flag ack + reject reason).
+ *   2026-11-10  putDisplayName after handshake (CPL-106).
  */
 
 import networking as Networking
@@ -56,6 +57,8 @@ class HumanSession {
     PublishDecode decoder
     bool connected
     String lastRejectReason
+    # True after a successful PUT /name for the current seat.
+    bool namePublished
 
     /*
      * Construct a session around a config.
@@ -76,6 +79,7 @@ class HumanSession {
         decoder = PublishDecode()
         connected = false
         lastRejectReason = ""
+        namePublished = false
     }
 
     /*
@@ -165,6 +169,7 @@ class HumanSession {
                 Envelope.VERB_PUT, "/handshake", tok.bytes)
             buffer resp = exchange(EnvelopeCodec().encode(env))
             if (adoptHandshakeSeat(resp)) {
+                ensureDisplayName()
                 return(true)
             }
             if (resp.length < 1) {
@@ -173,6 +178,7 @@ class HumanSession {
             }
             # Explicit reject — token no longer valid.
             config.reconnectToken = buffer[]
+            namePublished = false
         }
         if (config.playerId >= 0) {
             WireBytes keep = WireBytes()
@@ -182,6 +188,7 @@ class HumanSession {
             buffer keepResp = exchange(
                 EnvelopeCodec().encode(keepEnv))
             if (adoptHandshakeSeat(keepResp)) {
+                ensureDisplayName()
                 return(true)
             }
             if (keepResp.length < 1) {
@@ -189,11 +196,60 @@ class HumanSession {
             }
             # Not connected / stale config id — allocate fresh.
             config.playerId = -1
+            namePublished = false
         }
         Envelope alloc = Envelope().make(
             Envelope.VERB_PUT, "/handshake", buffer[])
         buffer resp = exchange(EnvelopeCodec().encode(alloc))
-        return(adoptHandshakeSeat(resp))
+        if (adoptHandshakeSeat(resp)) {
+            namePublished = false
+            ensureDisplayName()
+            return(true)
+        }
+        return(false)
+    }
+
+    /*
+     * PUT /name once per seat with the human config label.
+     *
+     * Purpose: publish display_name so chrome/digest show the
+     * configured identity (CPL-106). Skips when already sent for
+     * this seat so keep-alive handshakes stay cheap.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void ensureDisplayName() {
+        if (namePublished) {
+            return()
+        }
+        if (config.playerId < 0) {
+            return()
+        }
+        if (putDisplayName(config.resolvedDisplayName())) {
+            namePublished = true
+        }
+    }
+
+    /*
+     * PUT /name with playerId + display string.
+     *
+     * Purpose: store the seat label on the server Player.
+     *
+     * Parameters:
+     *   name — non-empty display name.
+     *
+     * Returns: true when the server accepted the change.
+     */
+    bool putDisplayName(String name) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeString(name)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/name", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/name"))
     }
 
     /*

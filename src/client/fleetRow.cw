@@ -15,6 +15,7 @@
  *   2026-11-09  examineDialogText for fleet TransientWindow.
  *   2026-11-10  name field for CPL-101 named fleets.
  *   2026-11-10  choiceLabel for name-based DropDown chrome.
+ *   2026-11-10  ownerName for seat display labels (CPL-106).
  */
 
 /*
@@ -28,6 +29,8 @@ class FleetRow {
     bool pendingDeparture
     bool recallRequested
     int64 ownerId
+    # Resolved seat display name for owner= chrome.
+    String ownerName
     int64 destPlanetId
     int64 locationPlanetId
     int64 eta
@@ -53,6 +56,7 @@ class FleetRow {
         pendingDeparture = false
         recallRequested = false
         ownerId = -1
+        ownerName = ""
         destPlanetId = -1
         locationPlanetId = -1
         eta = 0
@@ -60,6 +64,22 @@ class FleetRow {
         hullCount = 0
         order = "sit"
         name = ""
+    }
+
+    /*
+     * Owner label for list / examine chrome.
+     *
+     * Purpose: prefer display name; fall back to decimal id.
+     *
+     * Parameters: none.
+     *
+     * Returns: owner text.
+     */
+    String ownerLabel() {
+        if (ownerName.length > 0) {
+            return(ownerName)
+        }
+        return(format("{}", ownerId))
     }
 
     /*
@@ -175,7 +195,7 @@ class FleetRow {
         }
         return(format(
             "Fleet {} ({}) owner={} order={} hulls={} eta={} loc={} dest={}{}",
-            id, label, ownerId, order, hullCount, eta,
+            id, label, ownerLabel(), order, hullCount, eta,
             locationPlanetId, destPlanetId, lock))
     }
 
@@ -196,7 +216,7 @@ class FleetRow {
         }
         String text = format(
             "Fleet {}\nOwner: {}\nOrder: {}\nHulls: {}\n",
-            id, ownerId, order, hullCount)
+            id, ownerLabel(), order, hullCount)
         text.append(format(
             "Location planet: {}\nDestination planet: {}\n",
             locationPlanetId, destPlanetId))

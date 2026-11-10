@@ -20,12 +20,14 @@
  *   2026-11-10  stocksListText / inventoryByTypeText helpers;
  *               progress hint no longer says builds merge fleets.
  *   2026-11-10  Name-based find/resolve for DropDown chrome.
+ *   2026-11-10  players list + playerDisplayName (CPL-106).
  */
 
 include "designRow.cw"
 include "digestLine.cw"
 include "fleetRow.cw"
 include "planetRow.cw"
+include "playerSeatRow.cw"
 include "policyShape.cw"
 include "progressJob.cw"
 include "stockRow.cw"
@@ -57,6 +59,8 @@ class ClientStateView {
     list buildJobs
     list reclaimJobs
     list knownCompetitors
+    # Published seat identities (id / displayName / human).
+    list players
     HumanPolicyShape policy
 
     /*
@@ -90,13 +94,41 @@ class ClientStateView {
         buildJobs = []
         reclaimJobs = []
         knownCompetitors = []
+        players = []
         policy = HumanPolicyShape()
     }
 
     /*
-     * Join known-competitor ids for the Digest compose list.
+     * Look up a seat display name from the published player list.
+     *
+     * Purpose: owner/competitor/digest chrome (CPL-106). Missing
+     * seats fall back to "Player {id}" (or "" when id < 0).
+     *
+     * Parameters:
+     *   playerId — empire seat id.
+     *
+     * Returns: non-empty label, or empty string when playerId < 0.
+     */
+    String playerDisplayName(int64 playerId) {
+        if (playerId < 0) {
+            return("")
+        }
+        int64 index = 0
+        while (index < players.length) {
+            PlayerSeatRow seat = players[index]
+            if (seat.id == playerId) {
+                return(seat.label())
+            }
+            index = index + 1
+        }
+        return(format("Player {}", playerId))
+    }
+
+    /*
+     * Join known-competitor labels for the Digest compose list.
      *
      * Purpose: RULES §13 — no contact, no name on the list.
+     * After contact, show display names when published.
      *
      * Parameters: none.
      *
@@ -110,7 +142,8 @@ class ClientStateView {
         int64 index = 0
         while (index < knownCompetitors.length) {
             int64 other = knownCompetitors[index]
-            text.append(format("competitor {}\n", other))
+            text.append(format(
+                "competitor {}\n", playerDisplayName(other)))
             index = index + 1
         }
         return(text)

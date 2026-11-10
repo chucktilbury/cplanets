@@ -14,6 +14,7 @@
  *   2026-11-07  Phase I: published x/y for map canvas.
  *   2026-11-07  allocationPct for planet budget chrome.
  *   2026-11-10  Published display name + choiceLabel helper.
+ *   2026-11-10  ownerName for seat display labels (CPL-106).
  */
 
 /*
@@ -32,6 +33,9 @@ class PlanetRow {
     bool shipyard
     bool useful
     int64 ownerId
+    # Resolved seat display name for owner= chrome (may be empty
+    # when unowned).
+    String ownerName
     int64 livabilityDisplay
     int64 resourcesDisplay
     int64 allocationPct
@@ -57,11 +61,31 @@ class PlanetRow {
         shipyard = false
         useful = false
         ownerId = -1
+        ownerName = ""
         livabilityDisplay = 0
         resourcesDisplay = 0
         allocationPct = 100
         x = 0.0
         y = 0.0
+    }
+
+    /*
+     * Owner label for list / map chrome.
+     *
+     * Purpose: prefer display name; fall back to decimal id.
+     *
+     * Parameters: none.
+     *
+     * Returns: owner text, or empty when unowned.
+     */
+    String ownerLabel() {
+        if (ownerId < 0) {
+            return("")
+        }
+        if (ownerName.length > 0) {
+            return(ownerName)
+        }
+        return(format("{}", ownerId))
     }
 
     /*
@@ -105,7 +129,7 @@ class PlanetRow {
             own = "owned by you"
         } else {
             if (ownerId >= 0) {
-                own = format("owner={}", ownerId)
+                own = format("owner={}", ownerLabel())
             }
         }
         String label = choiceLabel()
@@ -203,11 +227,11 @@ class PlanetRow {
         if (not qualityKnown) {
             return(format(
                 "{} owner={} quality=unknown{} alloc={}%",
-                label, ownerId, yard, allocationPct))
+                label, ownerLabel(), yard, allocationPct))
         }
         return(format(
             "{} owner={} liv={}/10 res={}/10{} alloc={}%",
-            label, ownerId, livabilityDisplay, resourcesDisplay,
+            label, ownerLabel(), livabilityDisplay, resourcesDisplay,
             yard, allocationPct))
     }
 }

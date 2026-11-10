@@ -1,12 +1,10 @@
 /*
  * src/client/guiPanelDialog.cw — non-modal panel TransientWindow.
  *
- * Hosts former Notebook tab content (Planets / Fleets / Ships /
- * Digest / Policy) behind top-level menubar root clicks.
- * Hide-on-close matches explored / examine dialogs so present()
- * never hits a destroyed GtkWindow. ProgressBar chrome stays
- * inside Fleets / Ships page widgets placed as this dialog's
- * content.
+ * Hosts menubar panel content (Planets / Digest / Policy and the
+ * smaller Ships / Fleets submenu dialogs). Hide-on-close matches
+ * explored / examine dialogs so present() never hits a destroyed
+ * GtkWindow. Optional Apply sits beside Close in the footer.
  *
  * Created: 2026-11-09
  * Author: Auto
@@ -15,14 +13,16 @@
  *   2026-11-09  Initial panel dialog host (menubar rearrange).
  *   2026-11-09  Openers are top-level menubar menus (not View).
  *   2026-11-09  Openers are root click Buttons (no Open submenu).
+ *   2026-11-10  CPL-110: optional Apply beside Close footer.
  */
 
 /*
  * GuiPanelDialog presents one main-chrome panel as a non-modal
  * TransientWindow.
  *
- * Content is built once by the page class (GuiPlanetPage, …) and
- * adopted here. Close / WM close-request only hide the shell.
+ * Content is built once by a page class and adopted here. Close /
+ * WM close-request only hide the shell. When applyAction is set,
+ * an Apply button sits before Close (Ships/Fleets submenu dialogs).
  */
 class GuiPanelDialog {
     Gtk.TransientWindow window
@@ -30,6 +30,7 @@ class GuiPanelDialog {
     int64 width
     int64 height
     Gtk.Widget content
+    void<> applyAction
     void<> closeAction
     bool<> closeRequestAction
 
@@ -40,7 +41,7 @@ class GuiPanelDialog {
      * until present() with a parent and setContent() child.
      *
      * Parameters:
-     *   panelTitle — TransientWindow title (tab name).
+     *   panelTitle — TransientWindow title (menu / dialog name).
      *   w — default width in pixels.
      *   h — default height in pixels.
      *
@@ -52,6 +53,7 @@ class GuiPanelDialog {
         width = w
         height = h
         content = null
+        applyAction = null
         closeAction = null
         closeRequestAction = null
     }
@@ -60,7 +62,7 @@ class GuiPanelDialog {
      * Attach the page widget tree before first present.
      *
      * Purpose: page.buildPage() runs once; the returned widget
-     * becomes this dialog's body (above the Close button).
+     * becomes this dialog's body (above Apply / Close).
      *
      * Parameters:
      *   child — vertical page Box from a Gui*Page builder.
@@ -75,8 +77,8 @@ class GuiPanelDialog {
      * Ensure the TransientWindow shell exists for parent.
      *
      * Purpose: create once; recreate only when the native widget
-     * was disposed underneath us. Wire Close + close-request so
-     * both paths hide instead of destroy.
+     * was disposed underneath us. Wire Apply (optional) + Close +
+     * close-request so both close paths hide instead of destroy.
      *
      * Parameters:
      *   parent — main client window (transient parent).
@@ -98,11 +100,20 @@ class GuiPanelDialog {
         if (content != null) {
             layout.append(content)
         }
+        Gtk.Box footer = Gtk.Box(Gtk.Box.HORIZONTAL, 6)
+        if (applyAction != null) {
+            Gtk.Button apply = Gtk.Button("Apply")
+            apply.setTooltip("Apply the dialog action.")
+            apply.onClicked(applyAction)
+            footer.append(apply)
+        }
         Gtk.Button close = Gtk.Button("Close")
+        close.setTooltip("Hide this dialog without destroying it.")
         if (closeAction != null) {
             close.onClicked(closeAction)
         }
-        layout.append(close)
+        footer.append(close)
+        layout.append(footer)
         if (closeRequestAction != null) {
             window.onCloseRequest(closeRequestAction)
         }
@@ -111,8 +122,8 @@ class GuiPanelDialog {
     /*
      * Present (or raise) the panel dialog.
      *
-     * Purpose: top-level menubar root clicks and map ContextMenu
-     * bridges that formerly switched Notebook pages.
+     * Purpose: menubar submenu items, root openers, and map
+     * ContextMenu bridges.
      *
      * Parameters:
      *   parent — main client window (transient parent).

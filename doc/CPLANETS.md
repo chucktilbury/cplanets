@@ -248,30 +248,26 @@ move without File→Refresh; timed-pull failures stay quiet.
 
 **Tuning-loop chrome (workstream B + ship create + map):** Pause
 CheckButton (sensitive only with exactly one human; `PUT /pause`).
-Open former Notebook surfaces from **top-level menubar** root
-clicks (non-modal dialogs; no nested Open). **Fleets** Entries +
-Dispatch / Recall (`PUT /order`, `PUT /recall`) for explore / take /
-trade / move / ambush / recall — in-flight fleets show `LOCKED` and
-Dispatch is disabled until Recall. **Fleet id** defaults to the
-lowest sitting owned stack (never `0`; create+assign from unassigned
-stock before dispatch — Refresh if the list looks stale). **Hulls to
-send** (`0` = whole sitting stack) peels a subset from an assigned
-multi-hull fleet, so you can send 2 of 4 to planet 1 and the rest
-elsewhere. Rejected dispatch shows a
-clear reason (missing fleet, not sitting, …). **Ships** (design /
-yard): inspect the published design catalog and owned yards; **Start
-develop** (`PUT /design`) queues timed design development (wealth;
-`design_develop_ticks`); **Queue build** (`PUT /build`) queues a
-hull at a productive owned shipyard (resources; `yard_build_ticks`);
-**Reclaim hulls** (`PUT /reclaim-hulls`) starts yard reclaim for a
-sitting fleet. Develop/build **ProgressBars** live in the Fleets
-and Ships dialogs. **Policy** Scales + Apply. **Planets**
-allocation **Scale** → `PUT /budget` stores `allocationPct`; each
-production tick credits empire wealth/resources from that productive
-rock × `allocationPct/100` (no yard logistics). Explored-planet
-dialog auto-presents when quality becomes known or
-productive/populated flips; Planets dialog still has “Show first
-explored”.
+Open former Notebook surfaces as **non-modal menubar dialogs**.
+**Planets / Digest / Policy** are root-click openers. **Fleets** and
+**Ships** are MenuBar submenus of smaller Apply+Close dialogs:
+Fleets → Create / Assign / Deploy / Inventory; Ships → Develop /
+Build / Reclaim / Inventory. **Fleets→Deploy** Apply / Recall
+(`PUT /order`, `PUT /recall`) for explore / take / trade / move /
+ambush / recall — in-flight fleets show a lock hint until Recall.
+**Fleet** defaults to the lowest sitting owned stack (never `0`;
+create+assign from unassigned stock before deploy — Refresh if the
+list looks stale). **Hulls to send** (`0` = whole sitting stack)
+peels a subset from an assigned multi-hull fleet. Rejected deploy
+shows a clear reason. **Ships→Develop** Apply (`PUT /design`) queues
+timed design development; **Ships→Build** Apply (`PUT /build`)
+queues a hull at a productive owned shipyard; **Ships→Reclaim**
+Apply / fleet button (`PUT /reclaim-stock`, `PUT /reclaim-hulls`).
+Develop/build/reclaim **ProgressBars** live in those Ships dialogs;
+Deploy has a **travel** bar. **Policy** Scales + Apply. **Planets**
+allocation **Scale** → `PUT /budget`. Explored-planet dialog
+auto-presents when quality becomes known or productive/populated
+flips; Planets dialog still has “Show first explored”.
 
 ### `cplanets-ai`
 
@@ -386,25 +382,25 @@ open its status menu anytime with stdin `m` (decisions pause until
 `q`). For automated harnesses, add `--injectable` on the server so
 tests can advance ticks without waiting on wall time.
 
-**Ship create / design / yard (Ships root click):**
+**Ship create / design / yard (Ships submenu):**
 
-1. Open **Ships** (menubar root click). After handshake, confirm home
-   yard (planet 0 for seat 0) and ready designs (seeded scout/colony
-   are ready immediately). Homes are created when the client
-   connects, not when the server starts.
-2. **Start develop** — set name / speed / hop / size / cargo / kind
-   (`scout` / `colony` / `defense` / `war`). Cost ≈ `size * 50 *
-   design_speed_cost_coeff * design_range_cost_coeff` wealth. The
-   design appears in the list as developing until
+1. After handshake, confirm home yard and ready designs via
+   **Ships → Inventory** (seeded scout/colony are ready immediately).
+   Homes are created when the client connects, not when the server
+   starts.
+2. **Ships → Develop** — set name / speed / hop / size / cargo /
+   kind (`scout` / `colony` / `defense` / `war`); Apply. Cost ≈
+   `size * 50 * design_speed_cost_coeff * design_range_cost_coeff`
+   wealth. The design appears as developing until
    `design_develop_ticks` elapse (wall ticks or `--injectable`
    advance).
-3. **Queue build** — enter a productive owned yard planet id and a
-   **ready** design id. Cost ≈ `size * 10` resources. When
-   `yard_build_ticks` complete, a sitting hull appears at the yard
-   (then use Fleets → Dispatch).
-4. **Reclaim hulls** — sitting fleet at a yard; reclaim returns a
-   setup percent of production resources after the same yard
-   duration (development wealth is never refunded).
+3. **Ships → Build** — pick a productive owned yard and a **ready**
+   type; Apply. Cost ≈ `size * 10` resources. When
+   `yard_build_ticks` complete, unassigned stock appears at the yard
+   (then Fleets → Create / Assign / Deploy).
+4. **Ships → Reclaim** — Apply reclaims unassigned stock; fleet
+   button reclaims sitting assigned hulls at a yard (setup percent
+   of production resources; development wealth is never refunded).
 
 ### Tuning session harness (workstream C)
 

@@ -748,10 +748,11 @@ for dumb legal orders. Human client uses Cwhip `DrawingArea`, pointer,
 adoption for policy knobs is still open. No Cwhip GTK subclass
 framework.
 
-**No Inventory screen.** Ships / Fleets panels show type inventory
-(specs + unassigned hull counts), named fleets with assigned ships, and
-a separate **unassigned** line — that is the ship inventory chrome
-(§2 / §5). Do not add a new Inventory tab or dialog.
+**No standalone Inventory product tab.** Ships→Inventory and
+Fleets→Inventory submenu dialogs show type inventory (specs +
+unassigned hull counts), named fleets with assigned ships, and a
+separate **unassigned** line — that is the ship inventory chrome
+(§2 / §5 / CPL-110). Do not add a top-level Inventory product tab.
 
 **Explored planet dialog (human client):** when a planet has been
 **explored** for that human, **pop up a dialog** showing quality /

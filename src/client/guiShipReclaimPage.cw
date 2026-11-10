@@ -1,27 +1,15 @@
 /*
- * src/client/guiYardPage.cw — Ships panel design / yard chrome.
+ * src/client/guiShipReclaimPage.cw — Ships→Reclaim dialog page.
  *
- * Design develop + yard build / reclaim (DIALOGS §6). Kind / yard /
- * design / reclaim-fleet use GuiChoiceRow (DropDown); reclaim hulls
- * use a SpinButton. Float fields stay Entries. Progress
- * footer uses Gtk.ProgressBar. Hosted in Ships menubar panel dialog.
+ * Unassigned stock reclaim (preferred) plus sitting-fleet reclaim
+ * at a yard. Dialog Apply reclaims stock; fleet reclaim keeps a
+ * page button. ProgressBar tracks reclaim ticks (CPL-110).
  *
- * Created: 2026-11-07
+ * Created: 2026-11-10
  * Author: Auto
  *
  * Changelog:
- *   2026-11-07  Initial Ships notebook page.
- *   2026-11-07  Refresh keeps Yard planet id on first owned yard
- *               (home 0) when the Entry is empty or stale.
- *   2026-11-08  GuiProgressChrome ProgressBars for develop/build.
- *   2026-11-09  Examine design button → GuiShipDialog.
- *   2026-11-09  Hosted in View→Ships panel dialog.
- *   2026-11-09  Menubar opener is root Ships click (no Open submenu).
- *   2026-11-09  Choice rows + reclaim Scale + tooltips (usable).
- *   2026-11-09  Safe Scale range via GuiScaleRange (empty/1 hull).
- *   2026-11-10  CPL-101: inventory by type+specs+available;
- *               reclaim-stock chrome (design+planet+qty).
- *   2026-11-10  Yard/design/fleet DropDowns by name not index.
+ *   2026-11-10  Initial Reclaim dialog page (split from yard page).
  */
 
 include "appCore.cw"
@@ -34,86 +22,51 @@ include "planetRow.cw"
 include "stockRow.cw"
 
 /*
- * GuiYardPage owns the Ships panel dialog widgets.
+ * GuiShipReclaimPage owns Ships→Reclaim dialog widgets.
  *
- * Start develop → PUT /design; Queue build → PUT /build;
- * Reclaim stock → PUT /reclaim-stock (preferred for unassigned);
- * Reclaim hulls → PUT /reclaim-hulls for sitting fleets. Lists show
- * inventory by type, owned yards, and active progress.
+ * Apply → PUT /reclaim-stock. Reclaim hulls button → PUT
+ * /reclaim-hulls for sitting assigned fleets at a yard.
  */
-class GuiYardPage {
+class GuiShipReclaimPage {
     AppCore core
     GuiProgressChrome progressChrome
-    Gtk.Label designList
-    Gtk.Label yardHint
-    Gtk.Entry nameEntry
-    Gtk.Entry speedEntry
-    Gtk.Entry hopEntry
-    Gtk.Entry sizeEntry
-    Gtk.Entry cargoEntry
-    GuiChoiceRow kindChoice
     GuiChoiceRow planetChoice
-    GuiChoiceRow designChoice
     GuiChoiceRow reclaimStockDesignChoice
     Gtk.SpinButton reclaimStockHullsSpin
     Gtk.Label reclaimStockHullsLabel
-    Gtk.Button reclaimStockBtn
     GuiChoiceRow reclaimFleetChoice
     Gtk.SpinButton reclaimHullsSpin
     Gtk.Label reclaimHullsLabel
-    Gtk.Button developBtn
-    Gtk.Button buildBtn
-    Gtk.Button reclaimBtn
-    Gtk.Button examineBtn
-    void<> developAction
-    void<> buildAction
-    void<> reclaimStockAction
-    void<> reclaimAction
-    void<> examineAction
+    Gtk.Button reclaimFleetBtn
+    void<> reclaimFleetAction
     void<fp64> reclaimHullsChangedAction
     void<fp64> reclaimStockHullsChangedAction
     bool suppressHulls
     bool suppressStockHulls
 
     /*
-     * Construct a Ships page bound to an AppCore.
+     * Construct a Reclaim page bound to an AppCore.
      *
      * Purpose: delay widget build until buildPage().
      *
      * Parameters:
      *   appCore — shared headless coordinator.
      *
-     * Returns: GuiYardPage ready for buildPage.
+     * Returns: GuiShipReclaimPage ready for buildPage.
      */
-    GuiYardPage(AppCore appCore) {
+    GuiShipReclaimPage(AppCore appCore) {
         core = appCore
         progressChrome = GuiProgressChrome(appCore)
-        designList = null
-        yardHint = null
-        nameEntry = null
-        speedEntry = null
-        hopEntry = null
-        sizeEntry = null
-        cargoEntry = null
-        kindChoice = GuiChoiceRow()
+        progressChrome.setKindMask(GuiProgressChrome.KIND_RECLAIM)
         planetChoice = GuiChoiceRow()
-        designChoice = GuiChoiceRow()
         reclaimStockDesignChoice = GuiChoiceRow()
         reclaimStockHullsSpin = null
         reclaimStockHullsLabel = null
-        reclaimStockBtn = null
         reclaimFleetChoice = GuiChoiceRow()
         reclaimHullsSpin = null
         reclaimHullsLabel = null
-        developBtn = null
-        buildBtn = null
-        reclaimBtn = null
-        examineBtn = null
-        developAction = null
-        buildAction = null
-        reclaimStockAction = null
-        reclaimAction = null
-        examineAction = null
+        reclaimFleetBtn = null
+        reclaimFleetAction = null
         reclaimHullsChangedAction = null
         reclaimStockHullsChangedAction = null
         suppressHulls = false
@@ -121,9 +74,9 @@ class GuiYardPage {
     }
 
     /*
-     * Build the Ships panel dialog widget tree.
+     * Build the Reclaim dialog widget tree.
      *
-     * Purpose: design list + editor + yard/reclaim + ProgressBars.
+     * Purpose: stock + fleet reclaim controls + ProgressBar.
      *
      * Parameters: none.
      *
@@ -133,86 +86,17 @@ class GuiYardPage {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
         page.setHExpand(true)
         page.setVExpand(true)
-        designList = Gtk.Label("(no ship types)")
-        designList.setHExpand(true)
-        designList.setVExpand(true)
-        designList.setTooltip(
-            "Ship inventory: type name, specs, unassigned available.")
-        Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
-        scroll.setChild(designList)
-        scroll.setHExpand(true)
-        scroll.setVExpand(true)
-        page.append(Gtk.Label(
-            "Ship inventory (type + specs + available)"))
-        page.append(scroll)
-        examineBtn = Gtk.Button("Examine design")
-        examineBtn.setTooltip(
-            "Open TransientWindow inspect for the selected design.")
-        if (examineAction != null) {
-            examineBtn.onClicked(examineAction)
-        }
-        page.append(examineBtn)
-        yardHint = Gtk.Label("(yards)")
-        yardHint.setHExpand(true)
-        yardHint.setTooltip("Owned shipyard planets.")
-        page.append(yardHint)
-        page.append(Gtk.Label(
-            "Start design develop (wealth; timed)"))
-        nameEntry = Gtk.Entry("custom")
-        nameEntry.setTooltip("New design name.")
-        speedEntry = Gtk.Entry("1.0")
-        speedEntry.setTooltip("Design speed (float).")
-        hopEntry = Gtk.Entry("5.0")
-        hopEntry.setTooltip("Hop reach distance (float).")
-        sizeEntry = Gtk.Entry("1.0")
-        sizeEntry.setTooltip("Size / cost basis (float).")
-        cargoEntry = Gtk.Entry("0.0")
-        cargoEntry.setTooltip("Cargo hold capacity (float).")
-        kindChoice.setChoices(kindChoices())
-        kindChoice.setValue("war")
-        page.append(Gtk.Label("Name"))
-        page.append(nameEntry)
-        page.append(Gtk.Label("Speed"))
-        page.append(speedEntry)
-        page.append(Gtk.Label("Hop reach"))
-        page.append(hopEntry)
-        page.append(Gtk.Label("Size (cost basis)"))
-        page.append(sizeEntry)
-        page.append(Gtk.Label("Cargo hold"))
-        page.append(cargoEntry)
-        page.append(Gtk.Label("Kind (scout/colony/defense/war)"))
-        page.append(kindChoice.buildWidget(
-            "Design kind: scout, colony, defense, or war."))
-        developBtn = Gtk.Button("Start develop")
-        developBtn.setTooltip(
-            "PUT /design — queue timed wealth development.")
-        if (developAction != null) {
-            developBtn.onClicked(developAction)
-        }
-        page.append(developBtn)
-        page.append(Gtk.Label(
-            "Yard build (resources; timed; productive yard)"))
-        page.append(Gtk.Label("Yard planet"))
+        page.append(Gtk.Label("Yard planet (stock + fleet reclaim)"))
         page.append(planetChoice.buildWidget(
-            "Owned shipyard planets by name for Queue build."))
-        page.append(Gtk.Label("Ship type"))
-        page.append(designChoice.buildWidget(
-            "Catalog ship types by name for build / examine."))
-        buildBtn = Gtk.Button("Queue build")
-        buildBtn.setTooltip(
-            "PUT /build — queue timed yard hull production.")
-        if (buildAction != null) {
-            buildBtn.onClicked(buildAction)
-        }
-        page.append(buildBtn)
+            "Owned shipyard planet for reclaim-stock."))
         page.append(Gtk.Label(
-            "Reclaim unassigned stock (design + yard + qty)"))
+            "Reclaim unassigned stock (Apply in footer)"))
         page.append(Gtk.Label("Stock ship type"))
         page.append(reclaimStockDesignChoice.buildWidget(
-            "Ship types by name that have unassigned stock to reclaim."))
+            "Ship types by name that have unassigned stock."))
         reclaimStockHullsLabel = Gtk.Label("Stock hulls (1)")
         reclaimStockHullsLabel.setTooltip(
-            "How many unassigned hulls to reclaim at the yard planet.")
+            "How many unassigned hulls to reclaim at the yard.")
         page.append(reclaimStockHullsLabel)
         reclaimStockHullsSpin = Gtk.SpinButton()
         GuiScaleRange initStockHulls = GuiScaleRange()
@@ -227,13 +111,6 @@ class GuiYardPage {
                 reclaimStockHullsChangedAction)
         }
         page.append(reclaimStockHullsSpin)
-        reclaimStockBtn = Gtk.Button("Reclaim stock")
-        reclaimStockBtn.setTooltip(
-            "PUT /reclaim-stock for unassigned hulls at the yard.")
-        if (reclaimStockAction != null) {
-            reclaimStockBtn.onClicked(reclaimStockAction)
-        }
-        page.append(reclaimStockBtn)
         page.append(Gtk.Label(
             "Reclaim assigned hulls (sitting fleet at yard)"))
         page.append(Gtk.Label("Fleet"))
@@ -255,37 +132,19 @@ class GuiYardPage {
             reclaimHullsSpin.onValueChanged(reclaimHullsChangedAction)
         }
         page.append(reclaimHullsSpin)
-        reclaimBtn = Gtk.Button("Reclaim hulls")
-        reclaimBtn.setTooltip(
+        reclaimFleetBtn = Gtk.Button("Reclaim fleet hulls")
+        reclaimFleetBtn.setTooltip(
             "PUT /reclaim-hulls at a productive shipyard.")
-        if (reclaimAction != null) {
-            reclaimBtn.onClicked(reclaimAction)
+        if (reclaimFleetAction != null) {
+            reclaimFleetBtn.onClicked(reclaimFleetAction)
         }
-        page.append(reclaimBtn)
+        page.append(reclaimFleetBtn)
         page.append(progressChrome.buildWidget())
         return(page)
     }
 
     /*
-     * Fixed design kind list.
-     *
-     * Purpose: kindChoice seed.
-     *
-     * Parameters: none.
-     *
-     * Returns: list of kind strings.
-     */
-    list kindChoices() {
-        list out = []
-        out.append("scout")
-        out.append("colony")
-        out.append("defense")
-        out.append("war")
-        return(out)
-    }
-
-    /*
-     * Refresh design list / yards / choices / progress.
+     * Refresh choices / spins / reclaim ProgressBar.
      *
      * Purpose: after pull or offline redraw.
      *
@@ -294,17 +153,10 @@ class GuiYardPage {
      * Returns: nothing.
      */
     void refresh() {
-        if (designList != null) {
-            designList.setText(core.view.inventoryByTypeText())
-        }
-        if (yardHint != null) {
-            yardHint.setText(core.view.yardPlanetsText())
-        }
         if (progressChrome != null) {
             progressChrome.refresh()
         }
         syncYardPlanetChoices()
-        syncDesignChoices()
         syncReclaimStockDesignChoices()
         syncReclaimStockHullsSpin()
         syncReclaimFleetChoices()
@@ -312,9 +164,26 @@ class GuiYardPage {
     }
 
     /*
+     * Bind DropDown / Spin handlers.
+     *
+     * Purpose: GuiMain activate wiring.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void bindChoices() {
+        planetChoice.bindSelected(planetChoice.onSelected)
+        reclaimStockDesignChoice.bindSelected(
+            reclaimStockDesignChoice.onSelected)
+        reclaimFleetChoice.bindSelected(
+            reclaimFleetChoice.onSelected)
+    }
+
+    /*
      * Rebuild yard planet choices from owned shipyards.
      *
-     * Purpose: Combo stand-in; prefer first owned yard.
+     * Purpose: stock reclaim needs a yard planet.
      *
      * Parameters: none.
      *
@@ -345,32 +214,9 @@ class GuiYardPage {
     }
 
     /*
-     * Rebuild design name choices from the catalog.
-     *
-     * Purpose: DropDown by ship type name for Examine / Queue build.
-     *
-     * Parameters: none.
-     *
-     * Returns: nothing.
-     */
-    void syncDesignChoices() {
-        list names = []
-        int64 index = 0
-        while (index < core.view.designs.length) {
-            DesignRow row = core.view.designs[index]
-            if (row.id >= 0) {
-                names.append(row.choiceLabel())
-            }
-            index = index + 1
-        }
-        designChoice.setChoices(names)
-    }
-
-    /*
      * Rebuild reclaim-stock design choices from catalog.
      *
-     * Purpose: prefer designs that currently have unassigned stock;
-     * list by type name.
+     * Purpose: prefer designs that currently have unassigned stock.
      *
      * Parameters: none.
      *
@@ -493,7 +339,7 @@ class GuiYardPage {
     /*
      * Rebuild reclaim fleet choices from owned fleets.
      *
-     * Purpose: Combo stand-in for reclaim fleet id.
+     * Purpose: fleet reclaim DropDown.
      *
      * Parameters: none.
      *
@@ -535,10 +381,6 @@ class GuiYardPage {
         fp64 cur = reclaimHullsSpin.value()
         GuiScaleRange hullRange = GuiScaleRange()
         hullRange.normalize(cur, 1.0, fp64(maxHulls), 1.0)
-        /*
-         * normalize may widen upper when maxHulls == 1 so GTK
-         * accepts the range; keep the thumb on a real hull count.
-         */
         if (hullRange.value > fp64(maxHulls)) {
             hullRange.value = fp64(maxHulls)
         }
@@ -554,7 +396,7 @@ class GuiYardPage {
     }
 
     /*
-     * Reclaim fleet choice stepped — refresh hulls Scale.
+     * Reclaim fleet choice stepped — refresh hulls Spin.
      *
      * Purpose: GuiChoiceRow.changedAction.
      *
@@ -601,91 +443,9 @@ class GuiYardPage {
     }
 
     /*
-     * Read the name Entry text.
-     *
-     * Purpose: PUT /design name field.
-     *
-     * Parameters: none.
-     *
-     * Returns: Entry text.
-     */
-    String nameValue() {
-        return(nameEntry.text())
-    }
-
-    /*
-     * Read the speed Entry text.
-     *
-     * Purpose: PUT /design speed field.
-     *
-     * Parameters: none.
-     *
-     * Returns: Entry text.
-     */
-    String speedValue() {
-        return(speedEntry.text())
-    }
-
-    /*
-     * Read the hop Entry text.
-     *
-     * Purpose: PUT /design hop field.
-     *
-     * Parameters: none.
-     *
-     * Returns: Entry text.
-     */
-    String hopValue() {
-        return(hopEntry.text())
-    }
-
-    /*
-     * Read the size Entry text.
-     *
-     * Purpose: PUT /design size field (cost basis).
-     *
-     * Parameters: none.
-     *
-     * Returns: Entry text.
-     */
-    String sizeValue() {
-        return(sizeEntry.text())
-    }
-
-    /*
-     * Read the cargo Entry text.
-     *
-     * Purpose: PUT /design cargo field.
-     *
-     * Parameters: none.
-     *
-     * Returns: Entry text.
-     */
-    String cargoValue() {
-        return(cargoEntry.text())
-    }
-
-    /*
-     * Read the selected design kind.
-     *
-     * Purpose: PUT /design kind field.
-     *
-     * Parameters: none.
-     *
-     * Returns: kind string (scout/colony/defense/war).
-     */
-    String kindValue() {
-        String kind = kindChoice.value()
-        if (kind.length < 1) {
-            return("war")
-        }
-        return(kind)
-    }
-
-    /*
      * Read the yard planet choice.
      *
-     * Purpose: PUT /build planet id (resolve name → id).
+     * Purpose: PUT /reclaim-stock planet id.
      *
      * Parameters: none.
      *
@@ -696,22 +456,9 @@ class GuiYardPage {
     }
 
     /*
-     * Read the design id choice.
-     *
-     * Purpose: PUT /build / Examine design id (resolve name → id).
-     *
-     * Parameters: none.
-     *
-     * Returns: design id, or -1 when unresolved.
-     */
-    int64 designIdValue() {
-        return(core.view.resolveDesignChoice(designChoice.value()))
-    }
-
-    /*
      * Read the reclaim-stock design id choice.
      *
-     * Purpose: PUT /reclaim-stock design field (resolve name → id).
+     * Purpose: PUT /reclaim-stock design field.
      *
      * Parameters: none.
      *
@@ -745,7 +492,7 @@ class GuiYardPage {
     /*
      * Read the reclaim fleet choice.
      *
-     * Purpose: PUT /reclaim-hulls fleet id (resolve name → id).
+     * Purpose: PUT /reclaim-hulls fleet id.
      *
      * Parameters: none.
      *

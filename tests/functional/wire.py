@@ -131,6 +131,45 @@ def _string(text: str) -> bytes:
     return _u16(len(raw)) + raw
 
 
+def u32_at(buf: bytes, off: int) -> int:
+    """Little-endian u32 at off; raises if truncated."""
+    if off + 4 > len(buf):
+        raise ValueError(f"truncated u32 at {off} len={len(buf)}")
+    return int.from_bytes(buf[off : off + 4], "little")
+
+
+def u16_at(buf: bytes, off: int) -> int:
+    """Little-endian u16 at off; raises if truncated."""
+    if off + 2 > len(buf):
+        raise ValueError(f"truncated u16 at {off} len={len(buf)}")
+    return int.from_bytes(buf[off : off + 2], "little")
+
+
+def skip_wire_string(buf: bytes, off: int) -> int:
+    """Skip a WireBytes string (u16 length + bytes); return new offset."""
+    length = u16_at(buf, off)
+    off += 2
+    if off + length > len(buf):
+        raise ValueError(
+            f"truncated string at {off - 2}: need {length} have "
+            f"{len(buf) - off}"
+        )
+    return off + length
+
+
+def skip_player_row(buf: bytes, off: int) -> int:
+    """Skip one published player row including displayName (CPL-106).
+
+    Layout: id u32, wealth milli u32, quit/drop/human u8x3, name string.
+    """
+    if off + 11 > len(buf):
+        raise ValueError(f"truncated player row at {off}")
+    off += 4  # id
+    off += 4  # wealth milli
+    off += 3  # quit, drop, human
+    return skip_wire_string(buf, off)
+
+
 def put_design(
     player_id: int,
     name: str,

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **CTest: functional harness state parse:** `functional_setup_path`
+  and `functional_session_harness` skipped the CPL-106 seat
+  `displayName` string on published player rows, mis-read
+  `policy_count` as huge, and burned CPU until the CMake TIMEOUT
+  (~45s / ~90s) with empty output. Parsers now skip the wire
+  string and bound counts so misalignment fails fast. Note:
+  `spawn_ai_*` children are only reaped via `AiSpawnBook.closeAll`
+  on a normal serve return — SIGTERM/SIGKILL of the server (common
+  in harness teardown) can leave `cplanets-ai` orphans.
 - **CPL-108 last-human exit:** lobby `go` retire no longer clears
   `human` on abandoned seats (that made `allHumansGone` treat the
   session as a pure-AI fixture and blocked exit). `go()` refreshes

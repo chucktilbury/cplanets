@@ -47,8 +47,8 @@ remain separate TransientWindows.
 | Dialog | When shown | Status |
 | --- | --- | --- |
 | **Planets panel dialog** | Planets root click (or map budget ContextMenu) | **Exists** — former Planets notebook page in `GuiPanelDialog` (list + explored button + budget Scale) |
-| **Fleets panel dialog** | Fleets root click (or map dispatch ContextMenu) | **Exists** — choice rows + hulls Scale; Examine fleet; develop/build/**travel** **ProgressBars**; tooltips |
-| **Ships panel dialog** | Ships root click | **Exists** — kind/yard/design choice rows; reclaim Scale; Examine design; develop/build **ProgressBars**; tooltips |
+| **Fleets panel dialog** | Fleets root click (or map dispatch ContextMenu) | **Exists** — choice rows + hulls Scale; Examine fleet; develop/build/**travel** **ProgressBars**; tooltips. **CPL-101:** create named fleet; assign type+qty from unassigned at that planet; show fleets + **unassigned** line; over-assign → error dialog; split-dispatch of assigned fleets |
+| **Ships panel dialog** | Ships root click | **Exists** — kind/yard/design choice rows; reclaim Scale; Examine design; develop/build **ProgressBars**; tooltips. **CPL-101:** type inventory (specs + **unassigned available** count); develop noop when same params already exist (silent OK) |
 | **Digest panel dialog** | Digest root click | **Exists** — newspaper + known competitors + compose (recipient choice row); tooltips |
 | **Policy panel dialog** | Policy root click | **Exists** — role choice row + % Scales + Apply; tooltips |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |
@@ -138,8 +138,10 @@ Map panel pick/pan/zoom/scrollbars; primary pick fills Fleets dest
 Entry; ContextMenu status + zoom-to-known + “Dispatch fleet here” /
 “Budget this planet”; dotted hop paths when `outboundEta` published.
 Dispatch still uses Fleets fleet-id/order/dest/**hulls** Entries +
-`PUT /order` (no second order surface). Hulls peels a subset from a
-sitting multi-hull stack so remaining hulls can go elsewhere.
+`PUT /order` (no second order surface). Hulls peels a subset from an
+**assigned** sitting fleet so remaining assigned hulls can go
+elsewhere. Unassigned stock is not dispatched until create+assign
+puts it into a named fleet (CPL-101).
 
 ---
 
@@ -191,10 +193,11 @@ still **Intended playable**.
 
 | Surface | When | Contents / actions | Status |
 | --- | --- | --- | --- |
-| **Dispatch** | Map click destination or fleet action | Choose hulls/design mix from sender; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs | **Exists** — list Entries (fleet id auto-pins to sitting stack — never `0` / order / dest / **hulls**, `0`=all) → `PUT /order` peels subset from sitting stack; map pick sets dest; ContextMenu dispatch reuses same chrome; reject reason on missing/locked fleet |
+| **Create / assign** | Before first send of new hulls | Create named empty fleet at owned planet; assign type name + qty from **unassigned** stock at that same planet | **CPL-101 (Intended)** — over-assign → **error dialog** (hard reject); unassigned line separate from named fleets |
+| **Dispatch** | Map click destination or fleet action | Choose hulls from an **assigned** sitting fleet; order (`explore` / `take` / trade cycle / `ambush` / … per RULES); confirm send without warning dialogs; travel rate = slowest hull in fleet | **Exists** — list Entries (fleet id / order / dest / **hulls**, `0`=all) → `PUT /order` peels subset from assigned sitting fleet; map pick sets dest; ContextMenu dispatch reuses same chrome; reject reason on missing/locked fleet |
 | **In-flight lock** | After dispatch | That fleet’s order not editable except **recall**; game keeps running; other policy editable | Rules locked; list shows `LOCKED` + Dispatch disabled (**TUNING B**) |
 | **Recall** | Player recalls | Same-tick cancel if not departed; else return to **sender** (ETA outbound spent, or 0 if tech teleports) | **Exists (TUNING B)** Recall → `PUT /recall` |
-| **Fleet list** | Always | Read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list |
+| **Fleet list** | Always | Named fleets (assigned ships) + **unassigned** inventory line; read-only progress (ETA, loc, dest, order) | **Exists (Phase G)** list; unassigned presentation **CPL-101** |
 
 Do **not** freeze the UI on send. Do **not** allow mid-hop rewrite of
 that fleet without recall.
@@ -208,8 +211,9 @@ ticks) — not instant.
 
 | Surface | Contents | Status |
 | --- | --- | --- |
-| **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks | **Exists** Ships panel Entries → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in) |
-| **Yard / build queue** | Produce hulls (resources) at productive shipyard; show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships panel → `PUT /build` / `PUT /reclaim-hulls` |
+| **Design editor** | Name, speed, hop reach, size, cargo, kind (scout/colony/defense/war); pay development (wealth); show remaining develop ticks; develop is **noop** if same parameters already exist for that seat (silent OK) | **Exists** Ships panel Entries → `PUT /design` (weapons/shields wait on Design fields; size is cost stand-in); noop feedback **CPL-101** |
+| **Type inventory** | Rows by type name + specs + **unassigned available** hull count | **CPL-101** — Ships panel presentation (not a new Inventory tab) |
+| **Yard / build queue** | Produce hulls (resources) at productive shipyard → **unassigned** stock at that yard (not auto-fleet); show build duration remaining; reclaim path at shipyard worlds | **Exists** Ships panel → `PUT /build` / `PUT /reclaim-hulls`; build→unassigned **CPL-101** |
 | **Progress chrome** | Non-modal progress (label / bar) preferred over modal “wait” dialogs — keeps flow | **Exists** Ships + Fleets panel-dialog `Gtk.ProgressBar` footer (develop/build from ticksLeft / setup total; Fleets also has **travel** bar from eta/outboundEta; pulse if indeterminate) + detail Label from chrome trailer |
 
 Enum/id picks use `GuiChoiceRow` (thin `Gtk.DropDown` wrapper);
@@ -326,7 +330,7 @@ v1. File/scenario edit remains the v1 path.
 - Pause CheckButton → `PUT /pause` (one-human sensitive) (**B**)
 - Fleet Dispatch / Recall choice rows → `PUT /order` / `PUT /recall`
   with in-flight lock labels (**B**); hulls Scale peel for split-
-  dispatch of sitting stacks; map pick-to-dispatch
+  dispatch of assigned sitting fleets; map pick-to-dispatch
 - Design/build **ProgressBars** + Fleets **travel** ProgressBar +
   reclaim detail from chrome trailer (**B** + **CPL-72**) inside
   Fleets / Ships panel dialogs
@@ -335,6 +339,9 @@ v1. File/scenario edit remains the v1 path.
 
 ### Remaining for intended playable human UI
 
+- **CPL-101 chrome:** create fleet; assign type+qty; type inventory +
+  unassigned line on Ships/Fleets; over-assign error dialog; develop
+  noop silent OK (RULES §5 / §5.3 / §16)
 - Richer planet budget knobs once RULES names them (beyond
   allocationPct production fraction)
 - Richer design editor (weapons/shields fields) beyond Entries
@@ -350,6 +357,8 @@ v1. File/scenario edit remains the v1 path.
 ### Explicit non-goals
 
 - Warning dialogs for legal-but-stupid orders
+- A new **Inventory** product tab/dialog (Ships/Fleets cover
+  unassigned + fleets — CPL-101 / RULES §16)
 - Specializing Cwhip GTK for Cplanets-only widgets (use generic gaps
   list instead)
 

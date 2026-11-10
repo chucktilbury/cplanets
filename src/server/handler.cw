@@ -5,13 +5,15 @@
  * against a GameDriver. Paths: GET /state, PUT /policy, GET
  * /digest|/events, PUT /handshake, PUT /suspended, PUT /quit,
  * PUT /pause, PUT /order, PUT /recall, PUT /design, PUT /build,
- * PUT /reclaim-hulls, PUT /budget, PUT /message,
- * PUT /admin/advance. No ready-barrier verb (PLAN §4.F).
+ * PUT /reclaim-hulls, PUT /fleet, PUT /assign, PUT /reclaim-stock,
+ * PUT /budget, PUT /message, PUT /admin/advance. No ready-barrier
+ * verb (PLAN §4.F).
  *
  * Created: 2026-11-05
  * Author: Auto
  *
  * Changelog:
+ *   2026-11-10  CPL-101: PUT /fleet, /assign, /reclaim-stock.
  *   2026-11-05  Initial server message handler.
  *   2026-11-05  Phase G: GET /state uses seat-scoped list view.
  *   2026-11-06  TUNING B: PUT /order, PUT /recall; pause in state.
@@ -131,6 +133,18 @@ class ServerHandler {
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/reclaim-hulls")) {
             return(handleReclaimHulls(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/fleet")) {
+            return(handleFleetCreate(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/assign")) {
+            return(handleAssign(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/reclaim-stock")) {
+            return(handleReclaimStock(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/budget")) {
@@ -476,7 +490,8 @@ class ServerHandler {
         draft.colony = kind.equals("colony")
         draft.defense = kind.equals("defense")
         int64 id = driver.queueOwnedDesign(player, draft)
-        return(flagAck("/design", id >= 0))
+        return(flagAckReason(
+            "/design", id >= 0, driver.game.lastInventoryError))
     }
 
     /*
@@ -522,7 +537,87 @@ class ServerHandler {
             return(errorFrame("bad_reclaim_hulls"))
         }
         bool ok = driver.queueOwnedReclaim(player, fleet, hulls)
-        return(flagAck("/reclaim-hulls", ok))
+        return(flagAckReason(
+            "/reclaim-hulls", ok, driver.game.lastInventoryError))
+    }
+
+    /*
+     * Serve PUT /fleet body (player, planet, name).
+     *
+     * Purpose: CPL-101 named fleet create — empty sitting container
+     * at an owned planet; assign fills it later.
+     *
+     * Parameters:
+     *   body — playerId u32, planetId u32, name string.
+     *
+     * Returns: ack with optional reject reason.
+     */
+    buffer handleFleetCreate(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 planet = r.readU32()
+        String name = r.readString()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_fleet"))
+        }
+        int64 id = driver.createOwnedFleet(player, name, planet)
+        return(flagAckReason(
+            "/fleet", id >= 0, driver.game.lastInventoryError))
+    }
+
+    /*
+     * Serve PUT /assign body (player, fleet, typeName, qty).
+     *
+     * Purpose: CPL-101 assign type+qty from unassigned stock at the
+     * fleet location. Over-assign → reject with reason (error
+     * dialog on the human client).
+     *
+     * Parameters:
+     *   body — playerId u32, fleetId u32, typeName string, qty u32.
+     *
+     * Returns: ack with optional reject reason.
+     */
+    buffer handleAssign(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 fleet = r.readU32()
+        String typeName = r.readString()
+        int64 qty = r.readU32()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_assign"))
+        }
+        bool ok = driver.assignOwnedHulls(
+            player, fleet, typeName, qty)
+        return(flagAckReason(
+            "/assign", ok, driver.game.lastInventoryError))
+    }
+
+    /*
+     * Serve PUT /reclaim-stock body (player, planet, design, hulls).
+     *
+     * Purpose: reclaim unassigned staged hulls at a shipyard.
+     *
+     * Parameters:
+     *   body — playerId u32, planetId u32, designId u32, hulls u32.
+     *
+     * Returns: ack with optional reject reason.
+     */
+    buffer handleReclaimStock(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 planet = r.readU32()
+        int64 design = r.readU32()
+        int64 hulls = r.readU32()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_reclaim_stock"))
+        }
+        bool ok = driver.queueOwnedReclaimStock(
+            player, planet, design, hulls)
+        return(flagAckReason(
+            "/reclaim-stock", ok, driver.game.lastInventoryError))
     }
 
     /*

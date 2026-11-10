@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **CPL-101 ship-build / fleet-dispatch model:** develop is a noop when
+  the same parameters already exist for that seat (silent OK);
+  type names unique per player and freed when all hulls of that name
+  are reclaimed (count→0, design closed). Builds add to **unassigned**
+  hull stock at the yard planet (owner + design + planet) — not into a
+  fleet. Fleet create parks a named empty container at an owned
+  planet; assign moves type+qty from unassigned stock at that same
+  planet into the fleet (over-assign → error dialog). Dispatch leaves
+  from the fleet’s sitting location (range-from-occupied-world intact);
+  travel rate = slowest hull in the fleet. No abstract no-location
+  hangar; empire pool only; no Inventory screen — Ships/Fleets show
+  type inventory + fleets + unassigned line. Docs: [RULES.md](RULES.md)
+  §2 / §5 / §5.3 / §16, [DIALOGS.md](DIALOGS.md).
 - **Human GUI periodic refresh (`refresh_ms`):** live `--gui` polls
   `GET /state` + `GET /digest` on a settable period so develop/build
   ProgressBars and list chrome update without File→Refresh. Config
@@ -29,12 +42,12 @@
   (Planets / Fleets / Ships / Digest / Policy) moved off View onto
   top-level menubar chrome. Hide-on-close `GuiPanelDialog`
   TransientWindows. Map canvas remains the main panel.
-- **Inventory model locked in RULES:** empire inventory = seat stocks
-  + designs (empire pool only); planet inventory = location-scoped
-  presence (sitting fleets, defenses, yard jobs, flags, allocation)
-  — not a second bank. No Inventory screen; sitting fleets +
-  split-dispatch are the ship assign/send loop. Docs:
-  [RULES.md](RULES.md) §2 / §5 / §16.
+- **Inventory model locked in RULES (superseded by CPL-101 above for
+  ship assign path):** empire inventory = seat stocks + designs
+  (empire pool only); planet inventory = location-scoped presence
+  (defenses, yard jobs, flags, allocation) — not a second bank. No
+  Inventory screen. Ship assign/send is now unassigned stocks + named
+  fleets (see CPL-101). Docs: [RULES.md](RULES.md) §2 / §5 / §16.
 - **Unified server config:** process/network and former §14 scenario
   knobs live in one `--config` file (`config/server-*.cfg`). Legacy
   `setup = PATH` is rejected with a migration hint; CLI `--setup` is

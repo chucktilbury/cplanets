@@ -19,6 +19,8 @@
  *   2026-11-09  Menubar opener is root Ships click (no Open submenu).
  *   2026-11-09  Choice rows + reclaim Scale + tooltips (usable).
  *   2026-11-09  Safe Scale range via GuiScaleRange (empty/1 hull).
+ *   2026-11-10  CPL-101: inventory by type+specs+available;
+ *               reclaim-stock chrome (design+planet+qty).
  */
 
 include "appCore.cw"
@@ -28,13 +30,15 @@ include "guiChoiceRow.cw"
 include "guiProgressChrome.cw"
 include "guiScaleRange.cw"
 include "planetRow.cw"
+include "stockRow.cw"
 
 /*
  * GuiYardPage owns the Ships panel dialog widgets.
  *
  * Start develop → PUT /design; Queue build → PUT /build;
- * Reclaim hulls → PUT /reclaim-hulls. Lists show catalog,
- * owned yards, and active progress.
+ * Reclaim stock → PUT /reclaim-stock (preferred for unassigned);
+ * Reclaim hulls → PUT /reclaim-hulls for sitting fleets. Lists show
+ * inventory by type, owned yards, and active progress.
  */
 class GuiYardPage {
     AppCore core
@@ -49,6 +53,10 @@ class GuiYardPage {
     GuiChoiceRow kindChoice
     GuiChoiceRow planetChoice
     GuiChoiceRow designChoice
+    GuiChoiceRow reclaimStockDesignChoice
+    Gtk.SpinButton reclaimStockHullsSpin
+    Gtk.Label reclaimStockHullsLabel
+    Gtk.Button reclaimStockBtn
     GuiChoiceRow reclaimFleetChoice
     Gtk.SpinButton reclaimHullsSpin
     Gtk.Label reclaimHullsLabel
@@ -58,10 +66,13 @@ class GuiYardPage {
     Gtk.Button examineBtn
     void<> developAction
     void<> buildAction
+    void<> reclaimStockAction
     void<> reclaimAction
     void<> examineAction
     void<fp64> reclaimHullsChangedAction
+    void<fp64> reclaimStockHullsChangedAction
     bool suppressHulls
+    bool suppressStockHulls
 
     /*
      * Construct a Ships page bound to an AppCore.
@@ -86,6 +97,10 @@ class GuiYardPage {
         kindChoice = GuiChoiceRow()
         planetChoice = GuiChoiceRow()
         designChoice = GuiChoiceRow()
+        reclaimStockDesignChoice = GuiChoiceRow()
+        reclaimStockHullsSpin = null
+        reclaimStockHullsLabel = null
+        reclaimStockBtn = null
         reclaimFleetChoice = GuiChoiceRow()
         reclaimHullsSpin = null
         reclaimHullsLabel = null
@@ -95,10 +110,13 @@ class GuiYardPage {
         examineBtn = null
         developAction = null
         buildAction = null
+        reclaimStockAction = null
         reclaimAction = null
         examineAction = null
         reclaimHullsChangedAction = null
+        reclaimStockHullsChangedAction = null
         suppressHulls = false
+        suppressStockHulls = false
     }
 
     /*
@@ -114,15 +132,17 @@ class GuiYardPage {
         Gtk.Box page = Gtk.Box(Gtk.Box.VERTICAL, 6)
         page.setHExpand(true)
         page.setVExpand(true)
-        designList = Gtk.Label("(no designs)")
+        designList = Gtk.Label("(no ship types)")
         designList.setHExpand(true)
         designList.setVExpand(true)
-        designList.setTooltip("Published design catalog for this seat.")
+        designList.setTooltip(
+            "Ship inventory: type name, specs, unassigned available.")
         Gtk.ScrolledWindow scroll = Gtk.ScrolledWindow()
         scroll.setChild(designList)
         scroll.setHExpand(true)
         scroll.setVExpand(true)
-        page.append(Gtk.Label("Designs (inspect)"))
+        page.append(Gtk.Label(
+            "Ship inventory (type + specs + available)"))
         page.append(scroll)
         examineBtn = Gtk.Button("Examine design")
         examineBtn.setTooltip(
@@ -185,7 +205,36 @@ class GuiYardPage {
         }
         page.append(buildBtn)
         page.append(Gtk.Label(
-            "Reclaim hulls (sitting fleet at yard)"))
+            "Reclaim unassigned stock (design + yard + qty)"))
+        page.append(Gtk.Label("Stock design id"))
+        page.append(reclaimStockDesignChoice.buildWidget(
+            "Cycle designs that have unassigned stock to reclaim."))
+        reclaimStockHullsLabel = Gtk.Label("Stock hulls (1)")
+        reclaimStockHullsLabel.setTooltip(
+            "How many unassigned hulls to reclaim at the yard planet.")
+        page.append(reclaimStockHullsLabel)
+        reclaimStockHullsSpin = Gtk.SpinButton()
+        GuiScaleRange initStockHulls = GuiScaleRange()
+        initStockHulls.normalize(1.0, 1.0, 1.0, 1.0)
+        reclaimStockHullsSpin.configure(
+            initStockHulls.value, initStockHulls.lower,
+            initStockHulls.upper, initStockHulls.step)
+        reclaimStockHullsSpin.setTooltip(
+            "Reclaim-stock hull count — SpinButton.")
+        if (reclaimStockHullsChangedAction != null) {
+            reclaimStockHullsSpin.onValueChanged(
+                reclaimStockHullsChangedAction)
+        }
+        page.append(reclaimStockHullsSpin)
+        reclaimStockBtn = Gtk.Button("Reclaim stock")
+        reclaimStockBtn.setTooltip(
+            "PUT /reclaim-stock for unassigned hulls at the yard.")
+        if (reclaimStockAction != null) {
+            reclaimStockBtn.onClicked(reclaimStockAction)
+        }
+        page.append(reclaimStockBtn)
+        page.append(Gtk.Label(
+            "Reclaim assigned hulls (sitting fleet at yard)"))
         page.append(Gtk.Label("Fleet id"))
         page.append(reclaimFleetChoice.buildWidget(
             "Cycle owned fleets eligible for reclaim."))
@@ -245,7 +294,7 @@ class GuiYardPage {
      */
     void refresh() {
         if (designList != null) {
-            designList.setText(core.view.designsText())
+            designList.setText(core.view.inventoryByTypeText())
         }
         if (yardHint != null) {
             yardHint.setText(core.view.yardPlanetsText())
@@ -255,6 +304,8 @@ class GuiYardPage {
         }
         syncYardPlanetChoices()
         syncDesignChoices()
+        syncReclaimStockDesignChoices()
+        syncReclaimStockHullsSpin()
         syncReclaimFleetChoices()
         syncReclaimHullsSpin()
     }
@@ -311,6 +362,129 @@ class GuiYardPage {
             index = index + 1
         }
         designChoice.setChoices(ids)
+    }
+
+    /*
+     * Rebuild reclaim-stock design choices from catalog.
+     *
+     * Purpose: prefer designs that currently have unassigned stock.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncReclaimStockDesignChoices() {
+        list ids = []
+        int64 index = 0
+        while (index < core.view.designs.length) {
+            DesignRow row = core.view.designs[index]
+            if (row.id >= 0
+                and not row.closed
+                and core.view.stockCountForDesign(row.id) > 0) {
+                ids.append(format("{}", row.id))
+            }
+            index = index + 1
+        }
+        if (ids.length < 1) {
+            index = 0
+            while (index < core.view.designs.length) {
+                DesignRow row = core.view.designs[index]
+                if (row.id >= 0) {
+                    ids.append(format("{}", row.id))
+                }
+                index = index + 1
+            }
+        }
+        reclaimStockDesignChoice.setChoices(ids)
+    }
+
+    /*
+     * Reconfigure reclaim-stock hulls SpinButton from stock count.
+     *
+     * Purpose: clamp to available unassigned at the selected yard.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void syncReclaimStockHullsSpin() {
+        if (reclaimStockHullsSpin == null) {
+            return()
+        }
+        int64 designId = reclaimStockDesignValue()
+        int64 planetId = planetValue()
+        StockRow stock = core.view.findStock(designId, planetId)
+        int64 maxHulls = 1
+        if (stock.count > 0) {
+            maxHulls = stock.count
+        } else {
+            int64 any = core.view.stockCountForDesign(designId)
+            if (any > 0) {
+                maxHulls = any
+            }
+        }
+        fp64 cur = reclaimStockHullsSpin.value()
+        GuiScaleRange hullRange = GuiScaleRange()
+        hullRange.normalize(cur, 1.0, fp64(maxHulls), 1.0)
+        if (hullRange.value > fp64(maxHulls)) {
+            hullRange.value = fp64(maxHulls)
+        }
+        if (hullRange.value < 1.0) {
+            hullRange.value = 1.0
+        }
+        suppressStockHulls = true
+        reclaimStockHullsSpin.configure(
+            hullRange.value, hullRange.lower, hullRange.upper,
+            hullRange.step)
+        suppressStockHulls = false
+        refreshReclaimStockHullsLabel()
+    }
+
+    /*
+     * Reclaim-stock design choice stepped — refresh qty Spin.
+     *
+     * Purpose: GuiChoiceRow.changedAction.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onReclaimStockDesignChanged() {
+        syncReclaimStockHullsSpin()
+    }
+
+    /*
+     * Reclaim-stock hulls SpinButton moved — refresh caption.
+     *
+     * Purpose: Gtk.SpinButton.onValueChanged.
+     *
+     * Parameters:
+     *   value — new thumb value.
+     *
+     * Returns: nothing.
+     */
+    void onReclaimStockHullsChanged(fp64 value) {
+        if (suppressStockHulls) {
+            return()
+        }
+        refreshReclaimStockHullsLabel()
+    }
+
+    /*
+     * Refresh reclaim-stock hulls caption from the SpinButton.
+     *
+     * Purpose: live label next to the slider.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void refreshReclaimStockHullsLabel() {
+        if (reclaimStockHullsLabel == null) {
+            return()
+        }
+        reclaimStockHullsLabel.setText(format(
+            "Stock hulls ({})", reclaimStockHullsValue()))
     }
 
     /*
@@ -529,6 +703,39 @@ class GuiYardPage {
      */
     int64 designIdValue() {
         return(designChoice.intValue())
+    }
+
+    /*
+     * Read the reclaim-stock design id choice.
+     *
+     * Purpose: PUT /reclaim-stock design field.
+     *
+     * Parameters: none.
+     *
+     * Returns: design id.
+     */
+    int64 reclaimStockDesignValue() {
+        return(reclaimStockDesignChoice.intValue())
+    }
+
+    /*
+     * Read reclaim-stock hulls from the SpinButton.
+     *
+     * Purpose: PUT /reclaim-stock hull count.
+     *
+     * Parameters: none.
+     *
+     * Returns: hull count (>= 1 when SpinButton exists).
+     */
+    int64 reclaimStockHullsValue() {
+        if (reclaimStockHullsSpin == null) {
+            return(1)
+        }
+        int64 hulls = int64(reclaimStockHullsSpin.value() + 0.5)
+        if (hulls < 1) {
+            hulls = 1
+        }
+        return(hulls)
     }
 
     /*

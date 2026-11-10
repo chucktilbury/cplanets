@@ -19,6 +19,7 @@
  *   2026-11-07  Initial AiVerboseLog (seat / policy / cycle).
  *   2026-11-07  Remap to 0–10 scale; clamp; provisional thresholds.
  *   2026-11-09  logOrder / logBuild for explore and yard verbs.
+ *   2026-11-10  logFleet / logAssign for CPL-101 create+assign.
  */
 
 include "policyShape.cw"
@@ -346,6 +347,77 @@ class AiVerboseLog {
             playerId,
             planetId,
             designId,
+            status))
+    }
+
+    /*
+     * Log a PUT /fleet create attempt.
+     *
+     * Purpose: decisionsAt+ trail when the AI creates a named empty
+     * fleet to receive unassigned stock (CPL-101).
+     *
+     * Parameters:
+     *   playerId — AI seat id.
+     *   planetId — park planet.
+     *   fleetName — unique per-seat label.
+     *   ok — true when the server created the fleet.
+     *
+     * Returns: nothing.
+     */
+    void logFleet(
+        int64 playerId,
+        int64 planetId,
+        String fleetName,
+        bool ok) {
+        if (not decisionsEnabled()) {
+            return()
+        }
+        String status = "ok"
+        if (not ok) {
+            status = "fail"
+        }
+        emit(format(
+            "verbosity: fleet player={} planet={} name={} status={}\n",
+            playerId,
+            planetId,
+            fleetName,
+            status))
+    }
+
+    /*
+     * Log a PUT /assign attempt.
+     *
+     * Purpose: decisionsAt+ trail when the AI moves stock into a
+     * named fleet before dispatch (CPL-101).
+     *
+     * Parameters:
+     *   playerId — AI seat id.
+     *   fleetId — sitting fleet filled.
+     *   typeName — design name assigned.
+     *   qty — hulls moved.
+     *   ok — true when the server accepted assign.
+     *
+     * Returns: nothing.
+     */
+    void logAssign(
+        int64 playerId,
+        int64 fleetId,
+        String typeName,
+        int64 qty,
+        bool ok) {
+        if (not decisionsEnabled()) {
+            return()
+        }
+        String status = "ok"
+        if (not ok) {
+            status = "fail"
+        }
+        emit(format(
+            "verbosity: assign player={} fleet={} type={} qty={} status={}\n",
+            playerId,
+            fleetId,
+            typeName,
+            qty,
             status))
     }
 }

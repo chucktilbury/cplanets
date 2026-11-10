@@ -16,6 +16,8 @@
  *   2026-11-05  Phase D4: combatStrength; frigate/destroyer;
  *               ReclaimJob; develop countdown helper.
  *   2026-11-07  make* take speed/size/hold from callers (Scenario).
+ *   2026-11-10  ownerId + sameParameters for CPL-101 develop
+ *               noop / per-seat name uniqueness.
  */
 
 /*
@@ -27,6 +29,9 @@
  */
 class Design {
     int64 id
+    # Empire that developed this type; < 0 means shared system
+    # template (seeded scout/colony defaults).
+    int64 ownerId
     String name
     fp64 speed
     fp64 hopReach
@@ -51,6 +56,7 @@ class Design {
      */
     Design(int64 designId) {
         id = designId
+        ownerId = -1
         name = ""
         speed = 1.0
         hopReach = 1.0
@@ -61,6 +67,44 @@ class Design {
         defense = false
         developTicksLeft = 0
         closed = false
+    }
+
+    /*
+     * True when design knobs match another draft (CPL-101 noop).
+     *
+     * Purpose: develop is a no-op when the seat already has an open
+     * type with the same parameters. Equality covers every knob
+     * that affects the type: speed, hopReach, size, cargoHold, and
+     * scout/colony/defense flags. Name is not part of equality.
+     *
+     * Parameters:
+     *   other — draft or existing design to compare.
+     *
+     * Returns: true when all type-affecting knobs match.
+     */
+    bool sameParameters(Design other) {
+        if (speed != other.speed) {
+            return(false)
+        }
+        if (hopReach != other.hopReach) {
+            return(false)
+        }
+        if (size != other.size) {
+            return(false)
+        }
+        if (cargoHold != other.cargoHold) {
+            return(false)
+        }
+        if (scout != other.scout) {
+            return(false)
+        }
+        if (colony != other.colony) {
+            return(false)
+        }
+        if (defense != other.defense) {
+            return(false)
+        }
+        return(true)
     }
 
     /*
@@ -337,7 +381,7 @@ class Design {
  * BuildJob is one in-progress yard hull production.
  *
  * Completes after yardBuildTicks (scenario) unless cancelled.
- * Phase C credits one hull into a sitting fleet at the yard.
+ * CPL-101 credits one hull into unassigned stock at the yard.
  */
 class BuildJob {
     int64 id

@@ -16,6 +16,7 @@
  *   2026-11-05  Phase D4: reclaim list, confiscation, capture rng.
  *   2026-11-07  Pass players into take for attack_bump credits.
  *   2026-11-05  Phase D5: contact couple + end-game checks.
+ *   2026-11-10  Pass unassigned hull stocks into production (CPL-101).
  */
 
 include "confiscate.cw"
@@ -98,13 +99,14 @@ class TickDriver {
      *   designs — hull templates.
      *   builds — yard BuildJob list.
      *   reclaims — yard ReclaimJob list.
+     *   stocks — unassigned HullStock list (yard staging).
      *   fleets — fleet list.
      *   engagements — open combat list.
      *   agreements — player–player trade pacts.
      *   arms — confiscation arms.
      *   events — empty list to fill.
      *   rng — seeded stream for identify / capture-use.
-     *   nextFleetId — fleet id counter before yard completions.
+     *   nextFleetId — fleet id counter (capture/peel paths).
      *   nextEngagementId — engagement id counter.
      *   alreadyEnded — skip end checks when game already over.
      *
@@ -117,6 +119,7 @@ class TickDriver {
         list designs,
         list builds,
         list reclaims,
+        list stocks,
         list fleets,
         list engagements,
         list agreements,
@@ -136,7 +139,7 @@ class TickDriver {
             designs,
             builds,
             reclaims,
-            fleets,
+            stocks,
             events,
             nextFleetId)
         recall.cancelPending(fleets, events)

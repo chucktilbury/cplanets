@@ -16,6 +16,7 @@
  *   2026-11-05  Phase D2: trade cycle fields + escorts.
  *   2026-11-05  Phase D3: ambush position, idle, loot cargo.
  *   2026-11-05  Phase D4: engagementId for recall-into-fight.
+ *   2026-11-10  Unique per-seat fleet name (CPL-101 create).
  */
 
 /*
@@ -29,6 +30,8 @@
 class Fleet {
     int64 id
     int64 ownerId
+    # Unique per-seat label for inventory / UI (CPL-101).
+    String name
     int64 senderPlanetId
     int64 destPlanetId
     int64 locationPlanetId
@@ -66,13 +69,15 @@ class Fleet {
      * Construct a sitting fleet at a planet.
      *
      * Purpose: park hulls on a possession before an order is
-     * issued (home yard stock, post-arrival sit).
+     * issued (home yard stock, post-arrival sit). Empty fleets
+     * (hulls 0, design -1) are valid after fleet-create until
+     * assign fills them.
      *
      * Parameters:
      *   fleetId — stable id in the state fleet list.
      *   owner — empire id.
      *   planet — current location / sender.
-     *   design — hull design id.
+     *   design — hull design id (-1 when empty).
      *   hulls — number of hulls in this fleet.
      *
      * Returns: Fleet with order "sit" and no transit flags.
@@ -85,6 +90,7 @@ class Fleet {
         int64 hulls) {
         id = fleetId
         ownerId = owner
+        name = ""
         senderPlanetId = planet
         destPlanetId = planet
         locationPlanetId = planet

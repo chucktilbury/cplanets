@@ -2,21 +2,25 @@
  * tests/unit/unit_orderReject.cw — PUT /order reject reasons + yard.
  *
  * Fleet id 0 never exists (GUI Entry used to default there). Yard
- * builds still complete into a sitting fleet that can be dispatched
- * (merge or spawn). Driver.lastOrderError must name the miss.
+ * builds stage unassigned stock; create+assign yields a sitting
+ * fleet that can be dispatched. Driver.lastOrderError must name
+ * the miss.
  *
  * Created: 2026-11-07
  * Author: Auto
  *
  * Changelog:
  *   2026-11-07  Initial missing-fleet + post-build dispatch unit.
+ *   2026-11-10  CPL-101: build→stock + create/assign, not merge.
  */
 
+include "lib/shipInventory.cw"
 include "lib/state.cw"
 include "server/driver.cw"
 
 start {
     bool ok = true
+    ShipInventory book = ShipInventory()
 
     State game = State()
     game.startClosed(47u, 1)
@@ -34,7 +38,7 @@ start {
         ok = false
     }
 
-    # Send the home stack away, then build a new sit fleet at home.
+    # Send the home stack away, then build stock and assign a new fleet.
     Player seat = drv.game.players[0]
     seat.resources = seat.resources + 10000.0
     drv.game.players[0] = seat
@@ -53,19 +57,15 @@ start {
     if (ok and drv.game.builds.length != 0) {
         ok = false
     }
-    int64 sitId = -1
-    int64 index = 0
-    while (index < drv.game.fleets.length) {
-        Fleet f = drv.game.fleets[index]
-        if (f.sitting
-            and f.locationPlanetId == 0
-            and f.ownerId == 0
-            and f.hullCount > 0) {
-            sitId = f.id
-        }
-        index = index + 1
+    if (ok and book.available(drv.game.stocks, 0, 0, 0) < 1) {
+        ok = false
     }
+    int64 sitId = drv.game.createNamedFleet(0, "post-build", 0)
     if (ok and sitId < 1) {
+        ok = false
+    }
+    if (ok and not drv.game.assignHullsToFleet(
+        0, sitId, "scout", 1)) {
         ok = false
     }
     if (ok and not drv.issueOwnedOrder(0, sitId, "move", 2, 0)) {
@@ -75,7 +75,7 @@ start {
         ok = false
     }
 
-    # Merge path: build adds hulls to existing sit stack id 1.
+    # Stock path: build adds to unassigned, not fleet 1 hullCount.
     State stacked = State()
     stacked.startClosed(49u, 1)
     stacked.ensureAllSeatHomes()
@@ -87,12 +87,17 @@ start {
     s2.resources = s2.resources + 10000.0
     d2.game.players[0] = s2
     int64 before = d2.game.findFleet(1).hullCount
+    int64 stock0 = book.available(d2.game.stocks, 0, 0, 0)
     if (ok and not d2.queueOwnedBuild(0, 0, 0)) {
         ok = false
     }
     d2.advanceTicks(10)
     int64 after = d2.game.findFleet(1).hullCount
-    if (ok and after != before + 1) {
+    int64 stock1 = book.available(d2.game.stocks, 0, 0, 0)
+    if (ok and after != before) {
+        ok = false
+    }
+    if (ok and stock1 != stock0 + 1) {
         ok = false
     }
     if (ok and d2.game.fleets.length != 1) {

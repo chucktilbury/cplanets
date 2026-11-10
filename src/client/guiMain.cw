@@ -35,6 +35,8 @@
  *               idle GUI does not miss-drop the human seat before go.
  *   2026-11-09  Periodic GET /state+/digest poll (refresh_ms);
  *               keep-alive handshake stays a separate timer.
+ *   2026-11-10  CPL-101: create fleet / assign / reclaim-stock
+ *               handlers; over-assign error dialog via lastError.
  */
 
 include "appCore.cw"
@@ -96,10 +98,13 @@ class GuiMain {
     void<> showMapExploredAction
     void<> examineFleetAction
     void<> examineShipAction
+    void<> createFleetAction
+    void<> assignAction
     void<> dispatchAction
     void<> recallAction
     void<> developAction
     void<> buildAction
+    void<> reclaimStockAction
     void<> reclaimAction
     void<> budgetAction
     void<> sendAction
@@ -171,10 +176,13 @@ class GuiMain {
         showMapExploredAction = null
         examineFleetAction = null
         examineShipAction = null
+        createFleetAction = null
+        assignAction = null
         dispatchAction = null
         recallAction = null
         developAction = null
         buildAction = null
+        reclaimStockAction = null
         reclaimAction = null
         budgetAction = null
         sendAction = null
@@ -326,10 +334,17 @@ class GuiMain {
         planetPage.planetChoice.bindSelected(
             planetPage.planetChoice.onSelected)
         planetPage.planetChoice.changedAction = planetPage.onPlanetChoiceChanged
+        fleetPage.createFleetAction = createFleetAction
+        fleetPage.assignAction = assignAction
         fleetPage.dispatchAction = dispatchAction
         fleetPage.recallAction = recallAction
         fleetPage.examineAction = examineFleetAction
         fleetPage.hullsChangedAction = fleetPage.onHullsChanged
+        fleetPage.assignQtyChangedAction = fleetPage.onAssignQtyChanged
+        fleetPage.createPlanetChoice.bindSelected(
+            fleetPage.createPlanetChoice.onSelected)
+        fleetPage.assignFleetChoice.bindSelected(
+            fleetPage.assignFleetChoice.onSelected)
         fleetPage.fleetChoice.bindSelected(
             fleetPage.fleetChoice.onSelected)
         fleetPage.fleetChoice.changedAction = fleetPage.onFleetChoiceChanged
@@ -339,15 +354,24 @@ class GuiMain {
             fleetPage.destChoice.onSelected)
         yardPage.developAction = developAction
         yardPage.buildAction = buildAction
+        yardPage.reclaimStockAction = reclaimStockAction
         yardPage.reclaimAction = reclaimAction
         yardPage.examineAction = examineShipAction
         yardPage.reclaimHullsChangedAction = yardPage.onReclaimHullsChanged
+        yardPage.reclaimStockHullsChangedAction = (
+            yardPage.onReclaimStockHullsChanged)
         yardPage.kindChoice.bindSelected(
             yardPage.kindChoice.onSelected)
         yardPage.planetChoice.bindSelected(
             yardPage.planetChoice.onSelected)
+        yardPage.planetChoice.changedAction = (
+            yardPage.syncReclaimStockHullsSpin)
         yardPage.designChoice.bindSelected(
             yardPage.designChoice.onSelected)
+        yardPage.reclaimStockDesignChoice.bindSelected(
+            yardPage.reclaimStockDesignChoice.onSelected)
+        yardPage.reclaimStockDesignChoice.changedAction = (
+            yardPage.onReclaimStockDesignChanged)
         yardPage.reclaimFleetChoice.bindSelected(
             yardPage.reclaimFleetChoice.onSelected)
         yardPage.reclaimFleetChoice.changedAction = yardPage.onReclaimFleetChanged
@@ -999,7 +1023,7 @@ class GuiMain {
         FleetRow row = core.view.findFleet(fleetId)
         if (row.id < 0) {
             String missing = format(
-                "fleet {} does not exist in this snapshot — Refresh, or pick a sitting fleet id from the list (yard builds merge into same-design sit stacks; fleets never use id 0)",
+                "fleet {} does not exist in this snapshot — Refresh, or pick a sitting fleet id from the list (create+assign from unassigned stock; fleets never use id 0)",
                 fleetId)
             reportFailure("Dispatch failed", missing)
             return()
@@ -1049,6 +1073,73 @@ class GuiMain {
                     fleetId, order, dest, hulls)
             }
             reportFailure("Dispatch failed", detail)
+        }
+    }
+
+    /*
+     * Create fleet: PUT /fleet from Fleets panel Entries.
+     *
+     * Purpose: CPL-101 named empty sitting fleet at an owned planet.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onCreateFleet() {
+        if (core.config.port < 1) {
+            status.setText("create fleet needs live server")
+            return()
+        }
+        String name = fleetPage.createNameValue()
+        int64 planetId = fleetPage.createPlanetValue()
+        if (core.putFleetCreateRemote(planetId, name)) {
+            core.pullRemote()
+            refreshLists()
+            status.setText(format(
+                "fleet created name={} planet={}", name, planetId))
+        } else {
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = format(
+                    "create fleet rejected name={} planet={}",
+                    name, planetId)
+            }
+            reportFailure("Create fleet failed", detail)
+        }
+    }
+
+    /*
+     * Assign hulls: PUT /assign from Fleets panel Entries.
+     *
+     * Purpose: CPL-101 move type+qty from unassigned stock into a
+     * sitting fleet. Over-assign shows AlertDialog with lastError.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onAssign() {
+        if (core.config.port < 1) {
+            status.setText("assign needs live server")
+            return()
+        }
+        int64 fleetId = fleetPage.assignFleetValue()
+        String typeName = fleetPage.assignTypeValue()
+        int64 qty = fleetPage.assignQtyValue()
+        if (core.putAssignRemote(fleetId, typeName, qty)) {
+            core.pullRemote()
+            refreshLists()
+            status.setText(format(
+                "assigned type={} qty={} → fleet {}",
+                typeName, qty, fleetId))
+        } else {
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = format(
+                    "assign rejected fleet={} type={} qty={}",
+                    fleetId, typeName, qty)
+            }
+            reportFailure("Assign failed", detail)
         }
     }
 
@@ -1145,10 +1236,45 @@ class GuiMain {
     }
 
     /*
+     * Reclaim stock: PUT /reclaim-stock from Ships panel Entries.
+     *
+     * Purpose: preferred CPL-101 path for unassigned staged hulls
+     * (design + yard planet + qty). Status ack after refreshLists.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onReclaimStock() {
+        if (core.config.port < 1) {
+            status.setText("reclaim stock needs live server")
+            return()
+        }
+        int64 planetId = yardPage.planetValue()
+        int64 designId = yardPage.reclaimStockDesignValue()
+        int64 hulls = yardPage.reclaimStockHullsValue()
+        if (core.putReclaimStockRemote(planetId, designId, hulls)) {
+            core.pullRemote()
+            refreshLists()
+            status.setText(format(
+                "reclaim-stock queued planet={} design={} hulls={}",
+                planetId, designId, hulls))
+        } else {
+            String detail = core.lastError
+            if (detail.length < 1) {
+                detail = format(
+                    "reclaim-stock rejected planet={} design={} hulls={}",
+                    planetId, designId, hulls)
+            }
+            reportFailure("Reclaim stock failed", detail)
+        }
+    }
+
+    /*
      * Reclaim hulls: PUT /reclaim-hulls from Ships panel Entries.
      *
-     * Purpose: yard reclaim path for sitting hulls (RULES §5.2).
-     * Status ack is applied after refreshLists.
+     * Purpose: yard reclaim path for sitting assigned hulls
+     * (RULES §5.2). Status ack is applied after refreshLists.
      *
      * Parameters: none.
      *

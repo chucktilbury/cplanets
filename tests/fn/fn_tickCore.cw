@@ -11,8 +11,10 @@
  * Changelog:
  *   2026-11-05  Initial Phase C function program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-10  Yard build asserts unassigned stock (CPL-101).
  */
 
+include "lib/shipInventory.cw"
 include "lib/state.cw"
 
 /*
@@ -210,11 +212,13 @@ start {
         ok = false
     }
 
-    # --- yard build completes after yardBuildTicks ---
+    # --- yard build completes into unassigned stock (CPL-101) ---
     State yard = State()
     yard.startClosed(47u, 1)
     yard.ensureAllSeatHomes()
+    ShipInventory book = ShipInventory()
     int64 hull0 = yard.findFleet(1).hullCount
+    int64 stock0 = book.available(yard.stocks, 0, 0, 0)
     if (not yard.queueYardBuild(0, 0, 0)) {
         ok = false
     }
@@ -224,7 +228,11 @@ start {
         t = t + 1
     }
     int64 hull1 = yard.findFleet(1).hullCount
-    if (hull1 != hull0 + 1) {
+    int64 stock1 = book.available(yard.stocks, 0, 0, 0)
+    if (hull1 != hull0) {
+        ok = false
+    }
+    if (stock1 != stock0 + 1) {
         ok = false
     }
 

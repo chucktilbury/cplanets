@@ -16,6 +16,9 @@
  *   2026-11-07  firstSittingOwnedFleetId for Fleets Entry sync.
  *   2026-11-08  developJobs / buildJobs / reclaimJobs for bars.
  *   2026-11-08  ownedPlanetCount for AI eliminate-stop.
+ *   2026-11-10  stocks list for unassigned inventory (CPL-101).
+ *   2026-11-10  stocksListText / inventoryByTypeText helpers;
+ *               progress hint no longer says builds merge fleets.
  */
 
 include "designRow.cw"
@@ -24,6 +27,7 @@ include "fleetRow.cw"
 include "planetRow.cw"
 include "policyShape.cw"
 include "progressJob.cw"
+include "stockRow.cw"
 
 /*
  * ClientStateView is the human debugger's working snapshot.
@@ -45,6 +49,7 @@ class ClientStateView {
     list planets
     list fleets
     list designs
+    list stocks
     list digest
     list progressLines
     list developJobs
@@ -77,6 +82,7 @@ class ClientStateView {
         planets = []
         fleets = []
         designs = []
+        stocks = []
         digest = []
         progressLines = []
         developJobs = []
@@ -266,8 +272,8 @@ class ClientStateView {
      *
      * Purpose: Fleets-tab Fleet id Entry default. Seed home fleet
      * is id 1; Entry must not stay on 0 (no fleet ever has id 0).
-     * Prefers sitting unlocked stacks so Dispatch works after a
-     * yard build merges into / spawns a sit fleet.
+     * Prefers sitting unlocked stacks with hulls (assigned) so
+     * Dispatch works after create+assign from unassigned stock.
      *
      * Parameters: none.
      *
@@ -379,6 +385,131 @@ class ClientStateView {
     }
 
     /*
+     * Join unassigned stock rows for Fleets / Ships chrome.
+     *
+     * Purpose: CPL-101 — show staged type counts separately from
+     * named fleets (one line per owner+design+planet stock).
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line stock text, or a stub when empty.
+     */
+    String stocksListText() {
+        if (stocks.length < 1) {
+            return("(no unassigned hulls)\n")
+        }
+        String text = ""
+        int64 index = 0
+        int64 shown = 0
+        while (index < stocks.length) {
+            StockRow row = stocks[index]
+            if (row.count > 0 and row.designId >= 0) {
+                DesignRow design = findDesign(row.designId)
+                if (design.id >= 0 and design.name.length > 0) {
+                    text.append(format(
+                        "unassigned '{}' @ planet {} — {} available\n",
+                        design.name, row.planetId, row.count))
+                } else {
+                    text.append(row.listLabel())
+                    text.append("\n")
+                }
+                shown = shown + 1
+            }
+            index = index + 1
+        }
+        if (shown < 1) {
+            return("(no unassigned hulls)\n")
+        }
+        return(text)
+    }
+
+    /*
+     * Join designs with summed unassigned available counts.
+     *
+     * Purpose: Ships panel inventory — type name + specs + available
+     * hull count across stage planets (CPL-101).
+     *
+     * Parameters: none.
+     *
+     * Returns: multi-line inventory text, or a stub.
+     */
+    String inventoryByTypeText() {
+        if (designs.length < 1) {
+            return("(no ship types)\n")
+        }
+        String text = ""
+        int64 index = 0
+        int64 shown = 0
+        while (index < designs.length) {
+            DesignRow design = designs[index]
+            if (design.id >= 0 and not design.closed) {
+                int64 available = stockCountForDesign(design.id)
+                text.append(format(
+                    "{} — speedMilli={} hopMilli={} sizeMilli={} cargoMilli={} available={}\n",
+                    design.listLabel(),
+                    design.speedMilli,
+                    design.hopMilli,
+                    design.sizeMilli,
+                    design.cargoMilli,
+                    available))
+                shown = shown + 1
+            }
+            index = index + 1
+        }
+        if (shown < 1) {
+            return("(no ship types)\n")
+        }
+        return(text)
+    }
+
+    /*
+     * Sum unassigned stock counts for one design id.
+     *
+     * Purpose: inventoryByTypeText and Ships reclaim defaults.
+     *
+     * Parameters:
+     *   designId — design to total.
+     *
+     * Returns: total unassigned hulls across all stage planets.
+     */
+    int64 stockCountForDesign(int64 designId) {
+        int64 total = 0
+        int64 index = 0
+        while (index < stocks.length) {
+            StockRow row = stocks[index]
+            if (row.designId == designId and row.count > 0) {
+                total = total + row.count
+            }
+            index = index + 1
+        }
+        return(total)
+    }
+
+    /*
+     * Find a stock row for design + planet.
+     *
+     * Purpose: Ships reclaim-stock chrome lookup.
+     *
+     * Parameters:
+     *   designId — type id.
+     *   planetId — stage planet.
+     *
+     * Returns: StockRow, or empty (count 0) when missing.
+     */
+    StockRow findStock(int64 designId, int64 planetId) {
+        int64 index = 0
+        while (index < stocks.length) {
+            StockRow row = stocks[index]
+            if (row.designId == designId
+                and row.planetId == planetId) {
+                return(row)
+            }
+            index = index + 1
+        }
+        return(StockRow())
+    }
+
+    /*
      * Join owned shipyard planet ids for the yard Entries hint.
      *
      * Purpose: show which rocks accept Queue build / reclaim.
@@ -430,7 +561,7 @@ class ClientStateView {
             "setup designDevelopTicks={} yardBuildTicks={}\n",
             designDevelopTicks, yardBuildTicks)
         text.append(
-            "yard builds merge into same-design sitting fleets — dispatch that id (hulls peel splits)\n")
+            "yard builds stage unassigned stock — create fleet, assign type+qty, then dispatch\n")
         if (progressLines.length < 1) {
             text.append("(no active design/build/reclaim)\n")
             return(text)

@@ -718,14 +718,15 @@ class GameDriver {
      *
      * Purpose: wire PUT /build for list-client yard chrome
      * (RULES §5.3). Spends resources; completes after
-     * yardBuildTicks into a sit fleet.
+     * yardBuildTicks into unassigned stock (CPL-101).
      *
      * Parameters:
      *   playerId — empire paying resources (must own the yard).
      *   planetId — productive shipyard planet.
      *   designId — ready design to produce.
      *
-     * Returns: true when the BuildJob was queued.
+     * Returns: true when the BuildJob was queued. Completed hulls
+     * stage as unassigned stock at the yard (CPL-101), not a fleet.
      */
     bool queueOwnedBuild(
         int64 playerId, int64 planetId, int64 designId) {
@@ -785,6 +786,100 @@ class GameDriver {
         }
         bool ok = game.queueReclaim(fleetId, hulls)
         verbose.logReclaimHulls(playerId, fleetId, hulls, ok)
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
+    }
+
+    /*
+     * Create a named empty sitting fleet for a seat.
+     *
+     * Purpose: wire PUT /fleet (CPL-101). Name unique per seat;
+     * fleet sits at an owned planet until assign + dispatch.
+     *
+     * Parameters:
+     *   playerId — owning seat.
+     *   fleetName — unique per-seat label.
+     *   planetId — owned planet for the empty fleet.
+     *
+     * Returns: new fleet id, or −1 on failure.
+     */
+    int64 createOwnedFleet(
+        int64 playerId, String fleetName, int64 planetId) {
+        if (game.ended or not requireGo()) {
+            return(-1)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(-1)
+        }
+        int64 id = game.createNamedFleet(
+            playerId, fleetName, planetId)
+        if (id >= 0) {
+            republishWithoutTick()
+        }
+        return(id)
+    }
+
+    /*
+     * Assign type name + qty from unassigned stock into a fleet.
+     *
+     * Purpose: wire PUT /assign (CPL-101). Over-assign rejects with
+     * lastInventoryError for the human error dialog.
+     *
+     * Parameters:
+     *   playerId — owning seat.
+     *   fleetId — sitting fleet at a planet.
+     *   typeName — design name.
+     *   qty — hulls to move.
+     *
+     * Returns: true when assigned.
+     */
+    bool assignOwnedHulls(
+        int64 playerId,
+        int64 fleetId,
+        String typeName,
+        int64 qty) {
+        if (game.ended or not requireGo()) {
+            return(false)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(false)
+        }
+        bool ok = game.assignHullsToFleet(
+            playerId, fleetId, typeName, qty)
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
+    }
+
+    /*
+     * Queue reclaim of unassigned stock at an owned shipyard.
+     *
+     * Purpose: wire PUT /reclaim-stock (CPL-101 Ships inventory).
+     *
+     * Parameters:
+     *   playerId — owning seat.
+     *   planetId — owned shipyard.
+     *   designId — type to reclaim.
+     *   hulls — count.
+     *
+     * Returns: true when a ReclaimJob was queued.
+     */
+    bool queueOwnedReclaimStock(
+        int64 playerId,
+        int64 planetId,
+        int64 designId,
+        int64 hulls) {
+        if (game.ended or not requireGo()) {
+            return(false)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(false)
+        }
+        bool ok = game.queueReclaimStock(
+            playerId, planetId, designId, hulls)
         if (ok) {
             republishWithoutTick()
         }

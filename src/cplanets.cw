@@ -35,6 +35,7 @@
  *   2026-11-09  Panel openers → top-level menubar (not View).
  *   2026-11-09  Wire GUI presence keep-alive action.
  *   2026-11-09  refresh_ms / --refresh-ms GUI state+digest poll.
+ *   2026-11-10  Wire CPL-101 create fleet / assign / reclaim-stock.
  */
 
 import cli as Cli
@@ -375,10 +376,13 @@ class HumanMain {
         gui.showMapExploredAction = gui.showMapExplored
         gui.examineFleetAction = gui.showFleetExamine
         gui.examineShipAction = gui.showShipExamine
+        gui.createFleetAction = gui.onCreateFleet
+        gui.assignAction = gui.onAssign
         gui.dispatchAction = gui.onDispatch
         gui.recallAction = gui.onRecall
         gui.developAction = gui.onDevelop
         gui.buildAction = gui.onBuild
+        gui.reclaimStockAction = gui.onReclaimStock
         gui.reclaimAction = gui.onReclaimHulls
         gui.budgetAction = gui.onBudget
         gui.sendAction = gui.onSendMessage

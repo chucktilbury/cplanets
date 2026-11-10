@@ -11,6 +11,7 @@
  *
  * Changelog:
  *   2026-11-05  Initial contact / partition coupling for Phase D5.
+ *   2026-11-10  Mark explorer seat exploredPlanetIds (CPL-107).
  */
 
 include "event.cw"
@@ -90,6 +91,12 @@ class Contact {
                     Planet rock = planets[fleet.locationPlanetId]
                     rock.qualityKnown = true
                     planets[fleet.locationPlanetId] = rock
+                    if (fleet.ownerId >= 0
+                        and fleet.ownerId < players.length) {
+                        Player explorer = players[fleet.ownerId]
+                        explorer.markExploredPlanet(rock.id)
+                        players[fleet.ownerId] = explorer
+                    }
                     events.append(
                         TickEvent(
                             "explore",

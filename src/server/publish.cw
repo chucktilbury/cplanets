@@ -22,6 +22,9 @@
  *   2026-11-10  Planet display name on each planet row.
  *   2026-11-10  Player displayName string on each seat row
  *               (CPL-106).
+ *   2026-11-10  CPL-107: foreign rocks visible only in-range or
+ *               seat-explored; qualityKnown seat-scoped; redact
+ *               hidden rows on the wire.
  */
 
 include "../lib/event.cw"
@@ -166,10 +169,11 @@ class PublishCodec {
      * Append planet list rows for a seat view.
      *
      * Purpose: list debugger + map canvas (PLAN §4.G / §4.I).
-     * Each row carries driver-set visible / qualityKnown /
-     * productive / populated flags, 1–10 livability when quality
-     * is known, continuous x/y as milli-units, and a display
-     * name (seat home → "Home", else stored unique label).
+     * Each row carries driver-set visible / seat-scoped
+     * qualityKnown / productive / populated flags, 1–10
+     * livability when known to the viewer, continuous x/y as
+     * milli-units, and a display name (seat home → "Home").
+     * Fog-hidden rows redact owner, coords, flags, and name.
      *
      * Parameters:
      *   w — WireBytes writer already past the list marker.
@@ -185,50 +189,61 @@ class PublishCodec {
         while (index < planets.length) {
             Planet rock = planets[index]
             bool visible = planetVisible(game, rock, viewerId)
+            bool known = planetQualityKnown(game, rock, viewerId)
             bool populated = rock.population > 0.0
             int64 flags = 0
-            if (visible) {
-                flags = flags + 1
-            }
-            if (rock.qualityKnown) {
-                flags = flags + 2
-            }
-            if (rock.productive) {
-                flags = flags + 4
-            }
-            if (populated) {
-                flags = flags + 8
-            }
-            if (rock.shipyard) {
-                flags = flags + 16
-            }
-            if (rock.useful) {
-                flags = flags + 32
-            }
-            w.writeU32(rock.id)
-            w.writeU8(flags)
-            w.writeU32(rock.ownerId + 1)
+            int64 ownerWire = rock.ownerId + 1
             int64 liv = 0
             int64 res = 0
-            if (rock.qualityKnown) {
-                liv = game.scenario.displayLivability(rock.livability)
-                res = game.scenario.displayLivability(rock.resources)
-            }
-            w.writeU8(liv)
-            w.writeU8(res)
             int64 xMilli = int64(rock.x * 1000.0)
             int64 yMilli = int64(rock.y * 1000.0)
-            w.writeI32(xMilli)
-            w.writeI32(yMilli)
             int64 alloc = rock.allocationPct
+            String name = planetPublishName(game, rock, viewerId)
+            if (visible) {
+                flags = flags + 1
+                if (known) {
+                    flags = flags + 2
+                    liv = game.scenario.displayLivability(
+                        rock.livability)
+                    res = game.scenario.displayLivability(
+                        rock.resources)
+                }
+                if (rock.productive) {
+                    flags = flags + 4
+                }
+                if (populated) {
+                    flags = flags + 8
+                }
+                if (rock.shipyard) {
+                    flags = flags + 16
+                }
+                if (rock.useful) {
+                    flags = flags + 32
+                }
+            } else {
+                # Redact fog-hidden rocks so a client cannot map
+                # foreign homes from wire payload alone (CPL-107).
+                ownerWire = 0
+                xMilli = 0
+                yMilli = 0
+                alloc = 0
+                name = ""
+            }
             if (alloc < 0) {
                 alloc = 0
             }
             if (alloc > 100) {
                 alloc = 100
             }
+            w.writeU32(rock.id)
+            w.writeU8(flags)
+            w.writeU32(ownerWire)
+            w.writeU8(liv)
+            w.writeU8(res)
+            w.writeI32(xMilli)
+            w.writeI32(yMilli)
             w.writeU8(alloc)
-            w.writeString(planetPublishName(game, rock, viewerId))
+            w.writeString(name)
             index = index + 1
         }
     }
@@ -559,9 +574,10 @@ class PublishCodec {
     /*
      * True when a planet should appear in a seat's list.
      *
-     * Purpose: set the visible flag from existing ownership,
-     * qualityKnown, and detection-range membership — not a
-     * client fog engine (PLAN §4.G).
+     * Purpose: seat-scoped fog (RULES §13 / CPL-107). Own rocks
+     * always; foreign/unowned when in detection range of an owned
+     * world or previously discovered (explored/taken) by this seat.
+     * Global Planet.qualityKnown must not leak visibility.
      *
      * Parameters:
      *   game — current State.
@@ -577,12 +593,12 @@ class PublishCodec {
         if (rock.ownerId == viewerId) {
             return(true)
         }
-        if (rock.qualityKnown) {
-            return(true)
-        }
         Player viewer = findPlayer(game, viewerId)
         if (viewer.id < 0) {
             return(false)
+        }
+        if (viewer.hasExploredPlanet(rock.id)) {
+            return(true)
         }
         fp64 reach = viewer.detectionRange
         list planets = game.galaxy.planets
@@ -595,6 +611,67 @@ class PublishCodec {
                 }
             }
             index = index + 1
+        }
+        return(false)
+    }
+
+    /*
+     * True when quality is known to this seat.
+     *
+     * Purpose: explored is per-player (RULES §3). Own or seat-
+     * explored rocks publish livability; in-range strangers stay
+     * quality-unknown until explore/take.
+     *
+     * Parameters:
+     *   game — current State.
+     *   rock — planet row.
+     *   viewerId — seat, or -1 for global qualityKnown.
+     *
+     * Returns: true when the seat may see quality fields.
+     */
+    bool planetQualityKnown(
+        State game, Planet rock, int64 viewerId) {
+        if (viewerId < 0) {
+            return(rock.qualityKnown)
+        }
+        if (rock.ownerId == viewerId) {
+            return(true)
+        }
+        Player viewer = findPlayer(game, viewerId)
+        if (viewer.id < 0) {
+            return(false)
+        }
+        return(viewer.hasExploredPlanet(rock.id))
+    }
+
+    /*
+     * True when a digest TickEvent may reach a seat.
+     *
+     * Purpose: newspaper must not name fog-hidden foreign rocks
+     * or other seats' private actions (CPL-107).
+     *
+     * Parameters:
+     *   game — current State.
+     *   ev — tick / compose event.
+     *   viewerId — requesting seat, or -1 for all.
+     *
+     * Returns: true when the event belongs on that digest.
+     */
+    bool eventVisibleToSeat(
+        State game, TickEvent ev, int64 viewerId) {
+        if (viewerId < 0) {
+            return(true)
+        }
+        if (ev.playerId == viewerId) {
+            return(true)
+        }
+        if (ev.planetId >= 0
+            and ev.planetId < game.galaxy.planets.length) {
+            Planet rock = game.galaxy.planets[ev.planetId]
+            return(planetVisible(game, rock, viewerId))
+        }
+        if (ev.playerId < 0) {
+            return(true)
         }
         return(false)
     }

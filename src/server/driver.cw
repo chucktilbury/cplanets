@@ -47,6 +47,7 @@
  *               token cleared) so operator g does not trip
  *               all_humans_quit while AI/live humans remain.
  *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
+ *   2026-11-10  Seat digest filters fog-hidden tick events (CPL-107).
  */
 
 include "clock.cw"
@@ -456,7 +457,10 @@ class GameDriver {
         list events = []
         int64 index = 0
         while (index < lastEvents.length) {
-            events.append(lastEvents[index])
+            TickEvent tickEv = lastEvents[index]
+            if (publisher.eventVisibleToSeat(game, tickEv, playerId)) {
+                events.append(tickEv)
+            }
             index = index + 1
         }
         index = 0

@@ -294,6 +294,7 @@ if(BUILD_TESTING)
         unit_clientPolicy
         unit_clientPublishDecode
         unit_displayName
+        unit_planetFog
         unit_fleetExamine
         unit_guiScaleRange
         unit_mapMath

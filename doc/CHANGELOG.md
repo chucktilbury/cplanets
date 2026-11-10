@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **CPL-107 hide undiscovered foreign planets:** seat fog no longer
+  treats global `Planet.qualityKnown` as visibility. Foreign-owned
+  rocks stay hidden until in detection range of an owned world or
+  discovered by that seat (explore/take/home → `exploredPlanetIds`).
+  Published `qualityKnown` is seat-scoped; fog-hidden rows redact
+  owner/coords/name on the wire. Digest events are filtered the same
+  way. Human/AI map, lists, and digest already honor `visible`. Docs:
+  [RULES.md](RULES.md) §13. Test: `unit_planetFog`.
 - **CPL-106 player names + server AI spawn:** every seat has a
   `displayName` (human `display_name` from human config via
   `PUT /name`; AI uses config `display_name` or a random proper

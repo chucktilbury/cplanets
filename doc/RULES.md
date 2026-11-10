@@ -652,22 +652,34 @@ until explore or take. Balance visibility as a real **limitation**,
 not so harsh that play is frustrating. Setup exposes knobs for
 range-from-tech (and related mappings / coefficients).
 
+**Foreign-owned rocks stay hidden** until they are **in detection
+range** of a world you own, or **discovered** by you (explore or
+take — per-player explored). Another seat’s home or colony is not
+globally visible just because its quality is known to its owner.
+Discovery persists: a rock you explored remains visible (and
+quality-known) to you even if it later leaves range. Map, planet
+lists, and seat digest are views of these driver-set flags — not a
+second client fog engine.
+
 **Planet quality display (livability and related):** once a rock is
-**explored** (or taken — quality becomes known), surface livability
-and related quality fields to the human on a **standard 1–10 scale**
-(enough granularity to be useful, not burdensome). Exact numeric
-mapping from internal values → 1–10 is setup-owned; do not invent
-magnitudes here. Whether livability / power / experience also **drive
-the tick** (vs display) remains open (§17). Human UI: explored rock
-**pops a dialog**; that dialog **may change** as the planet becomes
-**populated** and **productive** (§16).
+**explored** (or taken — quality becomes known **to that player**),
+surface livability and related quality fields to the human on a
+**standard 1–10 scale** (enough granularity to be useful, not
+burdensome). Exact numeric mapping from internal values → 1–10 is
+setup-owned; do not invent magnitudes here. Whether livability /
+power / experience also **drive the tick** (vs display) remains open
+(§17). Human UI: explored rock **pops a dialog**; that dialog **may
+change** as the planet becomes **populated** and **productive**
+(§16).
 
 **Contact** (explore and/or conquest of another partition) adds them
 to **known competitors**.
 
 The newspaper / **digest** carries **broadcasts** and the events
-published after each tick. To send a **private** message, pick from
-the **known competitors** list. No contact, no name on the list.
+published after each tick, **seat-scoped** so fog-hidden foreign
+rocks and other seats’ private actions do not appear. To send a
+**private** message, pick from the **known competitors** list. No
+contact, no name on the list.
 
 UI is a view of flags the driver already set.
 

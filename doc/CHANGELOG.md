@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **CTest: `unit_aiStatusMenu`:** fixture expects named planet-0
+  `"Home"` (and a named fleet) after DropDown/name chrome; stale
+  `planetDetail` assert looked for `"Planet"`.
 - **CTest: ship inventory / design yard:** stop auto-closing
   never-built player designs each tick (`maybeFreeDesign` now runs
   only after a reclaim completes). Fixes `fn_combatDesigns` and

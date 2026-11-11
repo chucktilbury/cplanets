@@ -176,6 +176,8 @@ class SetupParse {
             scenario.designDevelopTicks = val.toInt64()
         } else (key.equals("yard_build_ticks")) {
             scenario.yardBuildTicks = val.toInt64()
+        } else (key.equals("yard_build_extra_hull_time_frac")) {
+            scenario.yardBuildExtraHullTimeFrac = val.toFp64()
         } else (key.equals("design_speed_cost_coeff")) {
             scenario.designSpeedCostCoeff = val.toFp64()
         } else (key.equals("design_range_cost_coeff")) {

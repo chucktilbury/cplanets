@@ -234,10 +234,11 @@ class Production {
     }
 
     /*
-     * Deliver one completed hull into unassigned stock at the yard.
+     * Deliver completed hulls into unassigned stock at the yard.
      *
      * Purpose: builds do not auto-place into a fleet (CPL-101).
-     * Hulls stage at the yard planet until fleet assign.
+     * Hulls stage at the yard planet until fleet assign. CPL-111
+     * credits job.hullCount (batch qty) instead of a hard-coded 1.
      *
      * Parameters:
      *   job — completed BuildJob.
@@ -259,20 +260,24 @@ class Production {
         if (not design.isReady()) {
             return()
         }
+        int64 hulls = job.hullCount
+        if (hulls < 1) {
+            hulls = 1
+        }
         ShipInventory book = ShipInventory()
         book.credit(
             stocks,
             job.ownerId,
             job.designId,
             job.planetId,
-            1)
+            hulls)
         events.append(
             TickEvent(
                 "yard",
                 -1,
                 job.planetId,
                 job.ownerId,
-                1))
+                hulls))
     }
 
     /*

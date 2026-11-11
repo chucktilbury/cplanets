@@ -1,27 +1,32 @@
 /*
  * src/client/guiShipBuildPage.cw — Ships→Build dialog page.
  *
- * Yard planet + ship type DropDowns. Dialog Apply queues PUT
- * /build; ProgressBar tracks yard-build ticks (CPL-110).
+ * Yard planet + seat-developed ship type DropDowns + quantity
+ * SpinButton. Dialog Apply queues PUT /build; ProgressBar tracks
+ * yard-build ticks (CPL-110 / CPL-111).
  *
  * Created: 2026-11-10
  * Author: Auto
  *
  * Changelog:
  *   2026-11-10  Initial Build dialog page (split from yard page).
+ *   2026-11-11  Qty SpinButton; Build lists only seat-developed
+ *               ready types (no phantom scout/colony).
  */
 
 include "appCore.cw"
 include "designRow.cw"
 include "guiChoiceRow.cw"
 include "guiProgressChrome.cw"
+include "guiScaleRange.cw"
 include "planetRow.cw"
 
 /*
  * GuiShipBuildPage owns Ships→Build dialog widgets.
  *
  * Apply (dialog footer) → PUT /build at a productive owned yard.
- * Completed hulls stage as unassigned stock (CPL-101).
+ * Completed hulls stage as unassigned stock (CPL-101). Quantity
+ * scales server build cost and ticks (CPL-111).
  */
 class GuiShipBuildPage {
     AppCore core
@@ -29,6 +34,10 @@ class GuiShipBuildPage {
     Gtk.Label yardHint
     GuiChoiceRow planetChoice
     GuiChoiceRow designChoice
+    Gtk.SpinButton qtySpin
+    Gtk.Label qtyLabel
+    void<fp64> qtyChangedAction
+    bool suppressQty
 
     /*
      * Construct a Build page bound to an AppCore.
@@ -47,12 +56,16 @@ class GuiShipBuildPage {
         yardHint = null
         planetChoice = GuiChoiceRow()
         designChoice = GuiChoiceRow()
+        qtySpin = null
+        qtyLabel = null
+        qtyChangedAction = null
+        suppressQty = false
     }
 
     /*
      * Build the Build dialog widget tree.
      *
-     * Purpose: yard/type picks + build ProgressBar.
+     * Purpose: yard/type/qty picks + build ProgressBar.
      *
      * Parameters: none.
      *
@@ -71,15 +84,29 @@ class GuiShipBuildPage {
         page.append(Gtk.Label("Yard planet"))
         page.append(planetChoice.buildWidget(
             "Owned shipyard planets by name for Queue build."))
-        page.append(Gtk.Label("Ship type"))
+        page.append(Gtk.Label("Ship type (developed)"))
         page.append(designChoice.buildWidget(
-            "Catalog ship types by name for build."))
+            "Seat-developed ready ship types by name."))
+        qtyLabel = Gtk.Label("Qty (1)")
+        qtyLabel.setTooltip(
+            "Hulls in this build batch; extra hulls add settable time.")
+        page.append(qtyLabel)
+        qtySpin = Gtk.SpinButton()
+        GuiScaleRange initQty = GuiScaleRange()
+        initQty.normalize(1.0, 1.0, 99.0, 1.0)
+        qtySpin.configure(
+            initQty.value, initQty.lower, initQty.upper, initQty.step)
+        qtySpin.setTooltip("Build quantity (>= 1).")
+        if (qtyChangedAction != null) {
+            qtySpin.onValueChanged(qtyChangedAction)
+        }
+        page.append(qtySpin)
         page.append(progressChrome.buildWidget())
         return(page)
     }
 
     /*
-     * Refresh yards / choices / build ProgressBar.
+     * Refresh yards / choices / qty caption / build ProgressBar.
      *
      * Purpose: after pull or offline redraw.
      *
@@ -96,10 +123,11 @@ class GuiShipBuildPage {
         }
         syncYardPlanetChoices()
         syncDesignChoices()
+        refreshQtyLabel()
     }
 
     /*
-     * Bind DropDown selection handlers.
+     * Bind DropDown / Spin selection handlers.
      *
      * Purpose: GuiMain activate wiring.
      *
@@ -146,9 +174,11 @@ class GuiShipBuildPage {
     }
 
     /*
-     * Rebuild design name choices from the catalog.
+     * Rebuild design name choices from seat-developed ready types.
      *
-     * Purpose: DropDown by ship type name for Queue build.
+     * Purpose: CPL-111 — Build must not list shared phantom
+     * scout/colony templates unless this seat developed them
+     * (DesignRow.mine).
      *
      * Parameters: none.
      *
@@ -159,12 +189,48 @@ class GuiShipBuildPage {
         int64 index = 0
         while (index < core.view.designs.length) {
             DesignRow row = core.view.designs[index]
-            if (row.id >= 0) {
+            if (row.id >= 0
+                and row.mine
+                and row.ready
+                and not row.closed) {
                 names.append(row.choiceLabel())
             }
             index = index + 1
         }
         designChoice.setChoices(names)
+    }
+
+    /*
+     * Qty SpinButton moved — refresh caption.
+     *
+     * Purpose: Gtk.SpinButton.onValueChanged.
+     *
+     * Parameters:
+     *   value — new thumb value.
+     *
+     * Returns: nothing.
+     */
+    void onQtyChanged(fp64 value) {
+        if (suppressQty) {
+            return()
+        }
+        refreshQtyLabel()
+    }
+
+    /*
+     * Refresh qty caption from the SpinButton.
+     *
+     * Purpose: live label next to the spin.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void refreshQtyLabel() {
+        if (qtyLabel == null) {
+            return()
+        }
+        qtyLabel.setText(format("Qty ({})", qtyValue()))
     }
 
     /*
@@ -191,5 +257,25 @@ class GuiShipBuildPage {
      */
     int64 designIdValue() {
         return(core.view.resolveDesignChoice(designChoice.value()))
+    }
+
+    /*
+     * Read build quantity from the SpinButton.
+     *
+     * Purpose: PUT /build qty field.
+     *
+     * Parameters: none.
+     *
+     * Returns: hull count (>= 1).
+     */
+    int64 qtyValue() {
+        if (qtySpin == null) {
+            return(1)
+        }
+        int64 qty = int64(qtySpin.value() + 0.5)
+        if (qty < 1) {
+            return(1)
+        }
+        return(qty)
     }
 }

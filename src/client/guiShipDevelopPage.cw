@@ -9,6 +9,7 @@
  *
  * Changelog:
  *   2026-11-10  Initial Develop dialog page (split from yard page).
+ *   2026-11-11  Default kind DropDown to scout (top of list).
  */
 
 include "appCore.cw"
@@ -79,7 +80,7 @@ class GuiShipDevelopPage {
         cargoEntry = Gtk.Entry("0.0")
         cargoEntry.setTooltip("Cargo hold capacity (float).")
         kindChoice.setChoices(kindChoices())
-        kindChoice.setValue("war")
+        kindChoice.setValue("scout")
         page.append(Gtk.Label("Name"))
         page.append(nameEntry)
         page.append(Gtk.Label("Speed"))
@@ -220,7 +221,7 @@ class GuiShipDevelopPage {
     String kindValue() {
         String kind = kindChoice.value()
         if (kind.length < 1) {
-            return("war")
+            return("scout")
         }
         return(kind)
     }

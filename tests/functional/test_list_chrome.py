@@ -16,6 +16,8 @@ from wire import (
     admin_go,
     decode_envelope,
     handshake,
+    put_assign,
+    put_fleet,
     put_order,
     put_pause,
     put_recall,
@@ -127,11 +129,30 @@ def main() -> int:
             print(f"pause off failed path={path} body={body!r}")
             return 1
 
-        # Closed start seats a home scout as fleet id 1 typically.
+        # CPL-111: home grant is unassigned stock — create+assign first.
+        resp = exchange(
+            "127.0.0.1", port, put_fleet(0, 0, "alpha")
+        )
+        _, verb, path, body = decode_envelope(resp)
+        if path != "/fleet" or body[0] != 1:
+            print(f"fleet create failed path={path} body={body!r}")
+            return 1
+        # Fleet ids start at 1.
+        fleet_id = 1
         resp = exchange(
             "127.0.0.1",
             port,
-            put_order(0, 1, 1, "explore"),
+            put_assign(0, fleet_id, "scout", 1),
+        )
+        _, verb, path, body = decode_envelope(resp)
+        if path != "/assign" or body[0] != 1:
+            print(f"assign failed path={path} body={body!r}")
+            return 1
+
+        resp = exchange(
+            "127.0.0.1",
+            port,
+            put_order(0, fleet_id, 1, "explore"),
         )
         _, verb, path, body = decode_envelope(resp)
         if path != "/order" or body[0] != 1:
@@ -142,14 +163,16 @@ def main() -> int:
         resp = exchange(
             "127.0.0.1",
             port,
-            put_order(0, 1, 1, "take"),
+            put_order(0, fleet_id, 1, "take"),
         )
         _, verb, path, body = decode_envelope(resp)
         if path != "/order" or body[0] != 0:
             print(f"locked rewrite not rejected path={path} body={body!r}")
             return 1
 
-        resp = exchange("127.0.0.1", port, put_recall(0, 1))
+        resp = exchange(
+            "127.0.0.1", port, put_recall(0, fleet_id)
+        )
         _, verb, path, body = decode_envelope(resp)
         if path != "/recall" or body[0] != 1:
             print(f"recall failed path={path} body={body!r}")

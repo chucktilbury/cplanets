@@ -148,6 +148,10 @@ class ServerHandler {
             return(handleAssign(env.body))
         }
         if (env.verb == Envelope.VERB_PUT
+            and env.path.equals("/unassign")) {
+            return(handleUnassign(env.body))
+        }
+        if (env.verb == Envelope.VERB_PUT
             and env.path.equals("/reclaim-stock")) {
             return(handleReclaimStock(env.body))
         }
@@ -524,12 +528,13 @@ class ServerHandler {
     }
 
     /*
-     * Serve PUT /build body (player, planet, design).
+     * Serve PUT /build body (player, planet, design, qty).
      *
-     * Purpose: queue a yard hull at a productive shipyard.
+     * Purpose: queue a yard hull batch at a productive shipyard.
+     * CPL-111: qty scales cost and build ticks.
      *
      * Parameters:
-     *   body — playerId u32, planetId u32, designId u32.
+     *   body — playerId u32, planetId u32, designId u32, qty u32.
      *
      * Returns: ack envelope on /build.
      */
@@ -539,10 +544,15 @@ class ServerHandler {
         int64 player = r.readU32()
         int64 planet = r.readU32()
         int64 design = r.readU32()
+        int64 qty = r.readU32()
         if (not r.ok() or r.offset != body.length) {
             return(errorFrame("bad_build"))
         }
-        bool ok = driver.queueOwnedBuild(player, planet, design)
+        if (qty < 1) {
+            qty = 1
+        }
+        bool ok = driver.queueOwnedBuild(
+            player, planet, design, qty)
         return(flagAck("/build", ok))
     }
 
@@ -621,6 +631,33 @@ class ServerHandler {
             player, fleet, typeName, qty)
         return(flagAckReason(
             "/assign", ok, driver.game.lastInventoryError))
+    }
+
+    /*
+     * Serve PUT /unassign body (player, fleet, typeName, qty).
+     *
+     * Purpose: CPL-111 — move type+qty from a sitting fleet back
+     * into unassigned stock at the fleet's location planet.
+     *
+     * Parameters:
+     *   body — playerId u32, fleetId u32, typeName string, qty u32.
+     *
+     * Returns: ack with optional reject reason.
+     */
+    buffer handleUnassign(buffer body) {
+        WireBytes r = WireBytes()
+        r.setRead(body)
+        int64 player = r.readU32()
+        int64 fleet = r.readU32()
+        String typeName = r.readString()
+        int64 qty = r.readU32()
+        if (not r.ok() or r.offset != body.length) {
+            return(errorFrame("bad_unassign"))
+        }
+        bool ok = driver.unassignOwnedHulls(
+            player, fleet, typeName, qty)
+        return(flagAckReason(
+            "/unassign", ok, driver.game.lastInventoryError))
     }
 
     /*

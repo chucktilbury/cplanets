@@ -145,11 +145,11 @@ start {
         ok = false
     }
     # Not ready yet — yard build must refuse.
-    if (ok and drv.queueOwnedBuild(0, 0, did)) {
+    if (ok and drv.queueOwnedBuild(0, 0, did, 1)) {
         ok = false
     }
     # Ready scout (id 0) can queue at home yard.
-    if (ok and not drv.queueOwnedBuild(0, 0, 0)) {
+    if (ok and not drv.queueOwnedBuild(0, 0, 0, 1)) {
         ok = false
     }
     if (ok and drv.game.builds.length < 1) {

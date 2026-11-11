@@ -444,10 +444,26 @@ class PublishCodec {
         }
         w.writeU32(wealthMilli)
         w.writeU32(resourcesMilli)
-        w.writeU32(game.designs.length)
+        # CPL-111: publish shared templates + this seat's types only
+        # (hide other seats' designs). Flag bit 32 = seat-owned
+        # ("mine") so Build chrome can hide undeveloped phantoms.
+        int64 designCount = 0
         int64 index = 0
         while (index < game.designs.length) {
+            Design d = game.designs[index]
+            if (d.ownerId < 0 or d.ownerId == seatId) {
+                designCount = designCount + 1
+            }
+            index = index + 1
+        }
+        w.writeU32(designCount)
+        index = 0
+        while (index < game.designs.length) {
             Design design = game.designs[index]
+            if (design.ownerId >= 0 and design.ownerId != seatId) {
+                index = index + 1
+                continue
+            }
             w.writeU32(design.id)
             w.writeString(design.name)
             w.writeU32(design.developTicksLeft)
@@ -466,6 +482,9 @@ class PublishCodec {
             }
             if (design.isReady()) {
                 flags = flags + 16
+            }
+            if (design.ownerId == seatId) {
+                flags = flags + 32
             }
             w.writeU8(flags)
             w.writeU32(milliOf(design.speed))

@@ -97,7 +97,7 @@ start {
     yard.players[0] = rich
     int64 hullBefore = yard.findFleet(1).hullCount
     int64 stockBefore = book.available(yard.stocks, 0, 0, 0)
-    if (not yard.queueYardBuild(0, 0, 0)) {
+    if (not yard.queueYardBuild(0, 0, 0, 1)) {
         ok = false
     }
     int64 t = 0
@@ -207,7 +207,7 @@ start {
     Player payer = free.players[0]
     payer.resources = payer.resources + 10000.0
     free.players[0] = payer
-    if (ok and not free.queueYardBuild(0, 0, ownedId)) {
+    if (ok and not free.queueYardBuild(0, 0, ownedId, 1)) {
         ok = false
     }
     wait = 0

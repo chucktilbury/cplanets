@@ -199,7 +199,8 @@ path stays clean. Do **not** implement a save / rejoin API in v1.
 **All worlds exist when the game starts.** How many, and the mix of
 useful vs poor rocks, is setup. **Player home yards are not
 pre-seeded** at scenario start: a seat receives its home (productive
-yard + the minimal starter fleet the closed fixture grants today)
+yard + unassigned starter scout **stock** at that yard — not a
+phantom named fleet; create+assign is the player path)
 only when a client **connects and is seated** (handshake). Only
 **allocated** seats exist in the players list — soft-max expected
 slots that never connected do not count for eliminate-all. Allocated
@@ -752,7 +753,10 @@ framework.
 Fleets→Inventory submenu dialogs show type inventory (specs +
 unassigned hull counts), named fleets with assigned ships, and a
 separate **unassigned** line — that is the ship inventory chrome
-(§2 / §5 / CPL-110). Do not add a top-level Inventory product tab.
+(§2 / §5 / CPL-110 / CPL-111). Fleets→Inventory is **per planet**
+with multi-select Assign / Un-assign (no separate Fleets→Assign
+menu). **Empire** is a top-level dialog for empire-pool + presence
+overview. Do not add a top-level Inventory product tab.
 
 **Explored planet dialog (human client):** when a planet has been
 **explored** for that human, **pop up a dialog** showing quality /

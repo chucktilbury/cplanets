@@ -49,13 +49,13 @@ separate TransientWindows.
 | --- | --- | --- |
 | **Planets panel dialog** | Planets root click (or map budget ContextMenu) | **Exists** — former Planets notebook page in `GuiPanelDialog` (list + explored button + budget Scale) |
 | **Fleets→Create** | Fleets → Create | **Exists (CPL-110)** — name + park planet; Apply → `PUT /fleet` |
-| **Fleets→Assign** | Fleets → Assign | **Exists (CPL-110)** — fleet + type + qty; Apply → `PUT /assign`; over-assign → error dialog; stock list |
 | **Fleets→Deploy** | Fleets → Deploy (or map dispatch ContextMenu) | **Exists (CPL-110)** — fleet/order/dest/hulls; Apply → `PUT /order`; Recall button; **travel** ProgressBar; map pick fills dest |
-| **Fleets→Inventory** | Fleets → Inventory | **Exists (CPL-110)** — unassigned stock + named fleets; select fleet; Apply → Examine |
-| **Ships→Develop** | Ships → Develop | **Exists (CPL-110)** — design Entries + kind; Apply → `PUT /design`; develop **ProgressBar**; noop when same params exist |
-| **Ships→Build** | Ships → Build | **Exists (CPL-110)** — yard + type DropDowns; Apply → `PUT /build`; build **ProgressBar** |
+| **Fleets→Inventory** | Fleets → Inventory | **Exists (CPL-111)** — per-planet stock multi-select + fleets; Assign / Un-assign buttons (`PUT /assign` / `PUT /unassign`); Apply → Examine |
+| **Ships→Develop** | Ships → Develop | **Exists (CPL-110/111)** — design Entries + kind (default **scout**); Apply → `PUT /design`; develop **ProgressBar**; noop when same params exist |
+| **Ships→Build** | Ships → Build | **Exists (CPL-111)** — yard + seat-developed type + **qty**; Apply → `PUT /build`; build **ProgressBar**; no phantom scout/colony |
 | **Ships→Reclaim** | Ships → Reclaim | **Exists (CPL-110)** — stock reclaim Apply → `PUT /reclaim-stock`; fleet reclaim button → `PUT /reclaim-hulls`; reclaim **ProgressBar** |
 | **Ships→Inventory** | Ships → Inventory | **Exists (CPL-110)** — type inventory (specs + available); select type; Apply → Examine |
+| **Empire panel dialog** | Empire root click | **Exists (CPL-111)** — empire pool + planets + fleets + stock; Apply refreshes; Close |
 | **Digest panel dialog** | Digest root click | **Exists** — newspaper + known competitors + compose (recipient choice row); tooltips |
 | **Policy panel dialog** | Policy root click | **Exists** — role choice row + % Scales + Apply; tooltips |
 | Explored-planet dialog | On explore (quality known); may refresh when populated/productive | **Exists (Phase G)** + auto-present on quality/productive/populated flips (**TUNING B**); richer content still **Intended playable** |

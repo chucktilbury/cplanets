@@ -16,6 +16,8 @@
  *   2026-11-07  Verbosity 0–10 scale; clampVerbosity (clamp, not reject).
  *   2026-11-07  Externalize production/build/galaxy/design template
  *               knobs (same placeholder magnitudes as prior literals).
+ *   2026-11-11  yardBuildExtraHullTimeFrac — per-hull-over-1 build
+ *               time factor (CPL-111, default 0.10).
  */
 
 /*
@@ -51,6 +53,10 @@ class Scenario {
 
     int64 designDevelopTicks
     int64 yardBuildTicks
+    # Extra fraction of base yard_build_ticks charged per hull
+    # beyond the first in one PUT /build qty (CPL-111). 0.10 →
+    # qty 2 costs 110% of one-hull ticks (rounded up, min 1).
+    fp64 yardBuildExtraHullTimeFrac
     fp64 designSpeedCostCoeff
     fp64 designRangeCostCoeff
 
@@ -159,6 +165,7 @@ class Scenario {
 
         designDevelopTicks = 5
         yardBuildTicks = 3
+        yardBuildExtraHullTimeFrac = 0.10
         designSpeedCostCoeff = 1.0
         designRangeCostCoeff = 1.0
 

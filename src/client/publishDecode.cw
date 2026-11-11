@@ -304,6 +304,7 @@ class PublishDecode {
             row.colony = (((flags / 4) % 2) == 1)
             row.defense = (((flags / 8) % 2) == 1)
             row.ready = (((flags / 16) % 2) == 1)
+            row.mine = (((flags / 32) % 2) == 1)
             row.speedMilli = r.readU32()
             row.hopMilli = r.readU32()
             row.sizeMilli = r.readU32()

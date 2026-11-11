@@ -14,6 +14,8 @@
  *   2026-11-08  Soft max 2 for full-reject; grow covered elsewhere.
  *   2026-11-09  Reclaim/no-steal after go; lobby drop frees seat.
  *   2026-11-09  Sandbox seats also receive a starter scout fleet.
+ *   2026-11-11  CPL-111: home grant stages unassigned scout stock
+ *               (no phantom fleet named "starter").
  */
 
 include "lib/state.cw"
@@ -48,7 +50,7 @@ start {
         ok = false
     }
 
-    # --- seat 0 connect grants primary home + starter fleet ---
+    # --- seat 0 connect grants primary home + unassigned stock ---
     if (not bare.ensureHomeForSeat(0)) {
         ok = false
     }
@@ -60,20 +62,28 @@ start {
     if (not slot.productive or not slot.shipyard) {
         ok = false
     }
-    if (bare.fleets.length < 1) {
+    # CPL-111: no phantom "starter" fleet — stock only.
+    if (bare.fleets.length != 0) {
         ok = false
     }
-    # Idempotent: second grant does not duplicate fleet/home.
-    int64 fleetsAfter = bare.fleets.length
+    if (bare.inventory.available(bare.stocks, 0, 0, slot.id) < 1) {
+        ok = false
+    }
+    # Idempotent: second grant does not duplicate stock/home.
+    int64 stockAfter = bare.inventory.available(
+        bare.stocks, 0, 0, slot.id)
     if (not bare.ensureHomeForSeat(0)) {
         ok = false
     }
-    if (bare.fleets.length != fleetsAfter) {
+    if (bare.inventory.available(bare.stocks, 0, 0, slot.id)
+        != stockAfter) {
+        ok = false
+    }
+    if (bare.fleets.length != 0) {
         ok = false
     }
 
-    # --- seat 1 connect claims a sandbox home + starter fleet ---
-    int64 fleetsBeforeSandbox = bare.fleets.length
+    # --- seat 1 connect claims a sandbox home + stock ---
     if (not bare.ensureHomeForSeat(1)) {
         ok = false
     }
@@ -82,7 +92,6 @@ start {
         ok = false
     }
     int64 owned1 = 0
-    int64 ownedFleets1 = 0
     int64 index = 0
     while (index < bare.galaxy.planets.length) {
         Planet rock = bare.galaxy.planets[index]
@@ -94,18 +103,21 @@ start {
     if (owned1 != 1) {
         ok = false
     }
+    int64 home1 = -1
     index = 0
-    while (index < bare.fleets.length) {
-        Fleet ship = bare.fleets[index]
-        if (ship.ownerId == 1 and ship.hullCount > 0) {
-            ownedFleets1 = ownedFleets1 + 1
+    while (index < bare.galaxy.planets.length) {
+        Planet rock = bare.galaxy.planets[index]
+        if (rock.ownerId == 1 and rock.shipyard) {
+            home1 = rock.id
+            break
         }
         index = index + 1
     }
-    if (ownedFleets1 < 1) {
+    if (home1 < 0
+        or bare.inventory.available(bare.stocks, 1, 0, home1) < 1) {
         ok = false
     }
-    if (bare.fleets.length <= fleetsBeforeSandbox) {
+    if (bare.fleets.length != 0) {
         ok = false
     }
 
@@ -128,7 +140,12 @@ start {
     if (not seated.homeGranted or after.ownerId != 0) {
         ok = false
     }
-    if (drv.game.fleets.length < 1) {
+    # CPL-111: handshake stages unassigned stock, not a fleet.
+    if (drv.game.fleets.length != 0) {
+        ok = false
+    }
+    if (drv.game.inventory.available(
+        drv.game.stocks, 0, 0, after.id) < 1) {
         ok = false
     }
     # Second allocate takes the next free seat.

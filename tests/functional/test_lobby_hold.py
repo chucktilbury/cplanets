@@ -25,7 +25,9 @@ from wire import (
     get_state,
     handshake,
     parse_handshake_ack,
+    put_assign,
     put_build,
+    put_fleet,
     put_order,
 )
 
@@ -225,6 +227,25 @@ def run_case(
                 f"{label}: still published paused after go"
             )
 
+        # CPL-111: create+assign from home stock before dispatch.
+        resp = exchange(
+            "127.0.0.1", port, put_fleet(0, 0, "lobby-scout")
+        )
+        _, _, path, body = decode_envelope(resp)
+        if path != "/fleet" or body[0] != 1:
+            raise RuntimeError(
+                f"{label}: fleet create after go failed path={path} "
+                f"body={body!r}"
+            )
+        resp = exchange(
+            "127.0.0.1", port, put_assign(0, 1, "scout", 1)
+        )
+        _, _, path, body = decode_envelope(resp)
+        if path != "/assign" or body[0] != 1:
+            raise RuntimeError(
+                f"{label}: assign after go failed path={path} "
+                f"body={body!r}"
+            )
         resp = exchange(
             "127.0.0.1", port, put_order(0, 1, 1, "explore")
         )

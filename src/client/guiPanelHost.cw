@@ -1,10 +1,10 @@
 /*
  * src/client/guiPanelHost.cw — Menubar panel dialog host.
  *
- * Owns non-modal GuiPanelDialog shells: Planets / Digest / Policy
- * root openers plus Ships and Fleets submenu dialogs (CPL-110).
- * Page widgets still live on GuiMain; this host wraps, presents,
- * and hides them.
+ * Owns non-modal GuiPanelDialog shells: Planets / Digest / Policy /
+ * Empire root openers plus Ships and Fleets submenu dialogs
+ * (CPL-110 / CPL-111). Page widgets still live on GuiMain; this
+ * host wraps, presents, and hides them.
  *
  * Created: 2026-11-09
  * Author: Auto
@@ -14,10 +14,12 @@
  *   2026-11-09  Openers are top-level menubar menus (not View).
  *   2026-11-09  Openers are root click Buttons (no Open submenu).
  *   2026-11-10  CPL-110: Ships/Fleets submenu dialogs.
+ *   2026-11-11  CPL-111: Empire panel; Fleets→Assign removed from
+ *               menu (assign lives in Inventory).
  */
 
 include "guiDigestPage.cw"
-include "guiFleetAssignPage.cw"
+include "guiEmpirePage.cw"
 include "guiFleetCreatePage.cw"
 include "guiFleetDeployPage.cw"
 include "guiFleetInventoryPage.cw"
@@ -34,30 +36,31 @@ include "guiShipReclaimPage.cw"
  *
  * Each panel is a hide-on-close TransientWindow. Ships and Fleets
  * are submenu dialogs with Apply + Close; Planets / Digest / Policy
- * keep Close-only footers (Apply lives in page content).
+ * keep Close-only footers (Apply lives in page content). Empire
+ * uses Apply+Close (Apply refreshes the snapshot).
  */
 class GuiPanelHost {
     Gtk.Window parent
     GuiPanelDialog planetsPanel
     GuiPanelDialog digestPanel
     GuiPanelDialog policyPanel
+    GuiPanelDialog empirePanel
     GuiPanelDialog shipDevelopPanel
     GuiPanelDialog shipBuildPanel
     GuiPanelDialog shipReclaimPanel
     GuiPanelDialog shipInventoryPanel
     GuiPanelDialog fleetCreatePanel
-    GuiPanelDialog fleetAssignPanel
     GuiPanelDialog fleetDeployPanel
     GuiPanelDialog fleetInventoryPanel
     void<> showPlanetsAction
     void<> showDigestAction
     void<> showPolicyAction
+    void<> showEmpireAction
     void<> showShipDevelopAction
     void<> showShipBuildAction
     void<> showShipReclaimAction
     void<> showShipInventoryAction
     void<> showFleetCreateAction
-    void<> showFleetAssignAction
     void<> showFleetDeployAction
     void<> showFleetInventoryAction
 
@@ -77,25 +80,25 @@ class GuiPanelHost {
         planetsPanel = GuiPanelDialog("Planets", 420, 520)
         digestPanel = GuiPanelDialog("Digest", 420, 520)
         policyPanel = GuiPanelDialog("Policy", 400, 420)
+        empirePanel = GuiPanelDialog("Empire", 440, 560)
         shipDevelopPanel = GuiPanelDialog("Ships — Develop", 420, 520)
-        shipBuildPanel = GuiPanelDialog("Ships — Build", 400, 420)
+        shipBuildPanel = GuiPanelDialog("Ships — Build", 400, 480)
         shipReclaimPanel = GuiPanelDialog("Ships — Reclaim", 420, 560)
         shipInventoryPanel = GuiPanelDialog(
             "Ships — Inventory", 440, 520)
         fleetCreatePanel = GuiPanelDialog("Fleets — Create", 400, 320)
-        fleetAssignPanel = GuiPanelDialog("Fleets — Assign", 400, 420)
         fleetDeployPanel = GuiPanelDialog("Fleets — Deploy", 420, 560)
         fleetInventoryPanel = GuiPanelDialog(
-            "Fleets — Inventory", 420, 520)
+            "Fleets — Inventory", 460, 640)
         showPlanetsAction = null
         showDigestAction = null
         showPolicyAction = null
+        showEmpireAction = null
         showShipDevelopAction = null
         showShipBuildAction = null
         showShipReclaimAction = null
         showShipInventoryAction = null
         showFleetCreateAction = null
-        showFleetAssignAction = null
         showFleetDeployAction = null
         showFleetInventoryAction = null
     }
@@ -126,12 +129,12 @@ class GuiPanelHost {
      *   planetPage — Planets list + budget page.
      *   digestPage — newspaper + compose.
      *   policyPage — standing policy Scales.
+     *   empirePage — Empire inventory overview.
      *   shipDevelop — Ships→Develop page.
      *   shipBuild — Ships→Build page.
      *   shipReclaim — Ships→Reclaim page.
      *   shipInventory — Ships→Inventory page.
      *   fleetCreate — Fleets→Create page.
-     *   fleetAssign — Fleets→Assign page.
      *   fleetDeploy — Fleets→Deploy page.
      *   fleetInventory — Fleets→Inventory page.
      *
@@ -141,23 +144,23 @@ class GuiPanelHost {
         GuiPlanetPage planetPage,
         GuiDigestPage digestPage,
         GuiPolicyPage policyPage,
+        GuiEmpirePage empirePage,
         GuiShipDevelopPage shipDevelop,
         GuiShipBuildPage shipBuild,
         GuiShipReclaimPage shipReclaim,
         GuiShipInventoryPage shipInventory,
         GuiFleetCreatePage fleetCreate,
-        GuiFleetAssignPage fleetAssign,
         GuiFleetDeployPage fleetDeploy,
         GuiFleetInventoryPage fleetInventory) {
         wireShell(planetsPanel, planetPage.buildPage())
         wireShell(digestPanel, digestPage.buildPage())
         wireShell(policyPanel, policyPage.buildPage())
+        wireShell(empirePanel, empirePage.buildPage())
         wireShell(shipDevelopPanel, shipDevelop.buildPage())
         wireShell(shipBuildPanel, shipBuild.buildPage())
         wireShell(shipReclaimPanel, shipReclaim.buildPage())
         wireShell(shipInventoryPanel, shipInventory.buildPage())
         wireShell(fleetCreatePanel, fleetCreate.buildPage())
-        wireShell(fleetAssignPanel, fleetAssign.buildPage())
         wireShell(fleetDeployPanel, fleetDeploy.buildPage())
         wireShell(fleetInventoryPanel, fleetInventory.buildPage())
     }
@@ -217,6 +220,19 @@ class GuiPanelHost {
      */
     void showPolicy() {
         present(policyPanel)
+    }
+
+    /*
+     * Raise the Empire panel dialog.
+     *
+     * Purpose: Empire root click opener (CPL-111).
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void showEmpire() {
+        present(empirePanel)
     }
 
     /*
@@ -285,19 +301,6 @@ class GuiPanelHost {
     }
 
     /*
-     * Raise Fleets→Assign.
-     *
-     * Purpose: Fleets menu Assign item.
-     *
-     * Parameters: none.
-     *
-     * Returns: nothing.
-     */
-    void showFleetAssign() {
-        present(fleetAssignPanel)
-    }
-
-    /*
      * Raise Fleets→Deploy.
      *
      * Purpose: Fleets menu Deploy item and map dispatch bridge.
@@ -353,12 +356,12 @@ class GuiPanelHost {
         planetsPanel.close()
         digestPanel.close()
         policyPanel.close()
+        empirePanel.close()
         shipDevelopPanel.close()
         shipBuildPanel.close()
         shipReclaimPanel.close()
         shipInventoryPanel.close()
         fleetCreatePanel.close()
-        fleetAssignPanel.close()
         fleetDeployPanel.close()
         fleetInventoryPanel.close()
     }

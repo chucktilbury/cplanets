@@ -627,8 +627,8 @@ class AiClient {
     /*
      * PUT /build to queue a yard hull.
      *
-     * Purpose: recreate fleets when the starter stack is gone /
-     * locked, matching HumanSession.putBuild.
+     * Purpose: recreate fleets when home stock is gone / locked,
+     * matching HumanSession.putBuild (qty 1).
      *
      * Parameters:
      *   planetId — owned productive shipyard.
@@ -641,6 +641,7 @@ class AiClient {
         w.writeU32(config.playerId)
         w.writeU32(planetId)
         w.writeU32(designId)
+        w.writeU32(1)
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/build", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))

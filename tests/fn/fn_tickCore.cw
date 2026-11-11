@@ -219,7 +219,7 @@ start {
     ShipInventory book = ShipInventory()
     int64 hull0 = yard.findFleet(1).hullCount
     int64 stock0 = book.available(yard.stocks, 0, 0, 0)
-    if (not yard.queueYardBuild(0, 0, 0)) {
+    if (not yard.queueYardBuild(0, 0, 0, 1)) {
         ok = false
     }
     int64 t = 0

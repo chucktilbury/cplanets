@@ -18,6 +18,8 @@
  *   2026-11-07  make* take speed/size/hold from callers (Scenario).
  *   2026-11-10  ownerId + sameParameters for CPL-101 develop
  *               noop / per-seat name uniqueness.
+ *   2026-11-11  BuildJob.hullCount for multi-hull yard batches
+ *               (CPL-111).
  */
 
 /*
@@ -380,8 +382,9 @@ class Design {
 /*
  * BuildJob is one in-progress yard hull production.
  *
- * Completes after yardBuildTicks (scenario) unless cancelled.
- * CPL-101 credits one hull into unassigned stock at the yard.
+ * Completes after scenario-scaled ticks unless cancelled.
+ * CPL-101 / CPL-111 credits hullCount into unassigned stock at
+ * the yard when the job finishes.
  */
 class BuildJob {
     int64 id
@@ -390,6 +393,8 @@ class BuildJob {
     int64 designId
     int64 ticksLeft
     fp64 resourceCost
+    # Hulls delivered on complete (PUT /build qty; default 1).
+    int64 hullCount
 
     /*
      * Construct a yard build order.
@@ -402,7 +407,8 @@ class BuildJob {
      *   planet — shipyard planet id.
      *   design — design id being built.
      *   ticks — remaining production ticks.
-     *   cost — resources already sunk for this hull.
+     *   cost — resources already sunk for this batch.
+     *   hulls — hulls to credit on complete (>= 1).
      *
      * Returns: BuildJob ready for the production phase.
      */
@@ -412,13 +418,18 @@ class BuildJob {
         int64 planet,
         int64 design,
         int64 ticks,
-        fp64 cost) {
+        fp64 cost,
+        int64 hulls) {
         id = jobId
         ownerId = owner
         planetId = planet
         designId = design
         ticksLeft = ticks
         resourceCost = cost
+        hullCount = hulls
+        if (hullCount < 1) {
+            hullCount = 1
+        }
     }
 }
 

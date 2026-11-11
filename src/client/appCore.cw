@@ -372,7 +372,7 @@ class AppCore {
      *
      * Returns: true when accepted.
      */
-    bool putBuildRemote(int64 planetId, int64 designId) {
+    bool putBuildRemote(int64 planetId, int64 designId, int64 qty) {
         lastError = ""
         HumanSession session = HumanSession(config)
         if (not session.dial()) {
@@ -382,12 +382,50 @@ class AppCore {
         }
         session.close()
         session.handshake()
-        bool ok = session.putBuild(planetId, designId)
+        bool ok = session.putBuild(planetId, designId, qty)
         session.close()
         if (not ok) {
             lastError = format(
-                "PUT /build rejected by {} (planet={} design={})",
-                endpointLabel(), planetId, designId)
+                "PUT /build rejected by {} (planet={} design={} qty={})",
+                endpointLabel(), planetId, designId, qty)
+        }
+        return(ok)
+    }
+
+    /*
+     * PUT /unassign over TCP.
+     *
+     * Purpose: Fleets→Inventory Un-assign — type name + qty from a
+     * sitting fleet back into unassigned stock at its location.
+     *
+     * Parameters:
+     *   fleetId — sitting owned fleet.
+     *   typeName — design name to free.
+     *   qty — hulls to move.
+     *
+     * Returns: true when accepted. Sets lastError on dial/reject.
+     */
+    bool putUnassignRemote(
+        int64 fleetId, String typeName, int64 qty) {
+        lastError = ""
+        HumanSession session = HumanSession(config)
+        if (not session.dial()) {
+            lastError = format(
+                "cannot connect to {}", endpointLabel())
+            return(false)
+        }
+        session.handshake()
+        bool ok = session.putUnassign(fleetId, typeName, qty)
+        String reject = session.lastRejectReason
+        session.close()
+        if (not ok) {
+            if (reject.length > 0) {
+                lastError = reject
+            } else {
+                lastError = format(
+                    "PUT /unassign rejected by {} (fleet={} type={} qty={})",
+                    endpointLabel(), fleetId, typeName, qty)
+            }
         }
         return(ok)
     }

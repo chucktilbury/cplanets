@@ -191,9 +191,36 @@ def put_design(
     return encode_envelope(2, "/design", body)
 
 
-def put_build(player_id: int, planet_id: int, design_id: int) -> bytes:
-    body = _u32(player_id) + _u32(planet_id) + _u32(design_id)
+def put_build(
+    player_id: int, planet_id: int, design_id: int, qty: int = 1
+) -> bytes:
+    """PUT /build: player, planet, design, qty (CPL-111)."""
+    body = (
+        _u32(player_id)
+        + _u32(planet_id)
+        + _u32(design_id)
+        + _u32(qty)
+    )
     return encode_envelope(2, "/build", body)
+
+
+def put_fleet(player_id: int, planet_id: int, name: str) -> bytes:
+    """PUT /fleet: create named empty sitting fleet at planet."""
+    body = _u32(player_id) + _u32(planet_id) + _string(name)
+    return encode_envelope(2, "/fleet", body)
+
+
+def put_assign(
+    player_id: int, fleet_id: int, type_name: str, qty: int
+) -> bytes:
+    """PUT /assign: type+qty from unassigned stock into fleet."""
+    body = (
+        _u32(player_id)
+        + _u32(fleet_id)
+        + _string(type_name)
+        + _u32(qty)
+    )
+    return encode_envelope(2, "/assign", body)
 
 
 def put_reclaim_hulls(

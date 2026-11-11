@@ -66,7 +66,7 @@ start {
     if (ok and lobby.lastOrderError.find("lobby") < 0) {
         ok = false
     }
-    if (ok and lobby.queueOwnedBuild(0, 0, 0)) {
+    if (ok and lobby.queueOwnedBuild(0, 0, 0, 1)) {
         ok = false
     }
     if (ok and lobby.game.builds.length != 0) {

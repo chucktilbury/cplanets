@@ -67,24 +67,33 @@ still surfaces host:port errors.
 | --- | --- | --- | --- | --- | --- |
 | `once` | bool | `false` | `false` | `true`/`false`/`1`/`0` | One-shot headless summary / smoke. CLI `--once`. |
 | `pull` | bool | `false` | `false` | bool | Headless TCP pull (state + digest). CLI `--pull`. |
-| `gui` | bool | `false` (ctor) / `true` (sample) | `true` | bool | Open GTK UI. CLI `--gui`. CTest uses `gui = false`. |
-| `test` | bool | `false` | `false` | bool | Offline test / in-process path. CLI `--test`. |
+| `gui` | bool | `true` | `true` | bool | Open GTK UI (operator default). CLI `--gui`. **CTest / harness must set `gui = false`** — omitting the key no longer falls into headless smoke. |
+| `test` | bool | `false` | `false` | bool | GTK path that auto-quits after a short schedule (Xvfb / CI). CLI `--test`. Not the default operator path. |
 
 Typical combinations:
 
 | Intent | Keys |
 | --- | --- |
-| Live GTK play | `gui = true`, `port = 7700` (or CLI `--port`) |
+| Live GTK play (default) | `gui = true` (or omit `gui`), `port = 7700` (or CLI `--port`) |
 | Headless pull smoke | `pull = true`, `gui = false`, matching server port |
-| Offline once | `once = true`, `port = 0` |
+| Offline once | `once = true`, `gui = false`, `port = 0` |
 | CTest smoke identity | `gui = false`, no once/pull (prints name) |
+| Auto-quit GTK smoke | `test = true` (or CLI `--test`) |
 
 ---
 
 ## Notes
 
 - Mode FLAGs: file `true`/`false`; argv presence of `--gui` / `--pull`
-  / `--once` / `--test` forces the switch **on**.
+  / `--once` / `--test` forces the switch **on**. Dispatch
+  precedence: `--test` → `--once` → `--pull` → `gui` → smoke.
+  Explicit once/pull stay headless even when the file has
+  `gui = true` (XDG operator default).
+- Sparse configs that omit `gui` still open GTK (ctor default
+  `true`). XDG `ensureDefaults` writes `gui = true` / `test = false`
+  and never overwrites an existing `human.cfg` — edit a leftover
+  `gui = false` by hand if an old harness file is still in
+  `~/.config/cplanets/`.
 - UI prefs (sliders, dialog layout) are not textfile keys yet —
   near-term chrome direction is in project preferences / DIALOGS.
 - For operator play, keep human `host`/`port` aligned with

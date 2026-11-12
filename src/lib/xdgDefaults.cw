@@ -515,8 +515,9 @@ class XdgDefaults {
     /*
      * Builtin default human.cfg body.
      *
-     * Purpose: seed the GUI client dial + display_name. No server
-     * config dialog yet — file only (CPL-115).
+     * Purpose: seed the GUI client dial + display_name with
+     * gui=true / test=false (operator GTK path; not harness
+     * smoke). No server config dialog yet — file only (CPL-115).
      *
      * Parameters: none.
      *

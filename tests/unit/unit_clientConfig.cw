@@ -11,6 +11,7 @@
  *   2026-11-08  Default playerId -1 (server assigns on handshake).
  *   2026-11-09  Assert refresh_ms default / parse / clamp.
  *   2026-11-10  Assert display_name (CPL-106).
+ *   2026-11-12  Assert ctor / sparse-parse gui=true (operator default).
  */
 
 include "client/configParse.cw"
@@ -19,6 +20,12 @@ start {
     bool ok = true
     HumanConfig baseline = HumanConfig()
     if (baseline.playerId != -1) {
+        ok = false
+    }
+    if (ok and not baseline.gui) {
+        ok = false
+    }
+    if (ok and baseline.test) {
         ok = false
     }
     if (ok and baseline.refreshMs != 1000) {
@@ -34,6 +41,16 @@ start {
     }
     baseline.ensureOfflineSeat()
     if (ok and baseline.playerId != 0) {
+        ok = false
+    }
+    # Sparse file (no gui key) must keep ctor gui=true — not smoke.
+    HumanConfigParse sparseParser = HumanConfigParse()
+    HumanConfig sparse = sparseParser.parseText(
+        "host = 127.0.0.1\nport = 0\n")
+    if (ok and not sparse.gui) {
+        ok = false
+    }
+    if (ok and sparse.test) {
         ok = false
     }
     String text = ""

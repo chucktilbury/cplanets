@@ -346,8 +346,16 @@ def test_xdg_defaults_when_config_omitted(
 
         # Human: XDG human.cfg has gui=true — do not launch GTK.
         # Confirm the file exists and help still documents --config.
-        if not (home / ".config" / "cplanets" / "human.cfg").is_file():
+        human_cfg = home / ".config" / "cplanets" / "human.cfg"
+        if not human_cfg.is_file():
             print("human.cfg missing after XDG ensure")
+            return 1
+        human_text = human_cfg.read_text(encoding="utf-8")
+        if "gui = true" not in human_text:
+            print(f"XDG human.cfg missing gui=true: {human_text!r}")
+            return 1
+        if "test = false" not in human_text:
+            print(f"XDG human.cfg missing test=false: {human_text!r}")
             return 1
         help_proc = run_bin(client, ["-h"], env=env)
         if help_proc.returncode != 0:
@@ -355,6 +363,46 @@ def test_xdg_defaults_when_config_omitted(
             return 1
         if not help_mentions_config(help_proc.stdout + help_proc.stderr):
             print("human -h missing --config text")
+            return 1
+
+        # Sparse human.cfg (no gui key): ctor gui=true must not
+        # printSmoke. Use --once so once beats gui (headless lists).
+        sparse = Path(tmp) / "human-sparse.cfg"
+        sparse.write_text(
+            "host = 127.0.0.1\nport = 0\nonce = true\n",
+            encoding="utf-8",
+        )
+        sparse_proc = run_bin(client, ["--config", str(sparse)], env=env)
+        if sparse_proc.returncode != 0:
+            print(
+                f"sparse+once exit {sparse_proc.returncode}: "
+                f"{sparse_proc.stderr!r}"
+            )
+            return 1
+        if "tick=" not in sparse_proc.stdout:
+            print(
+                f"sparse+once missing once summary "
+                f"(gui default must not force smoke): "
+                f"{sparse_proc.stdout!r}"
+            )
+            return 1
+        # Explicit gui=false + no modes → smoke identity (harness).
+        smoke_path = Path(tmp) / "human-smoke-explicit.cfg"
+        smoke_path.write_text(
+            "host = 127.0.0.1\nport = 0\ngui = false\n",
+            encoding="utf-8",
+        )
+        smoke_proc = run_bin(
+            client, ["--config", str(smoke_path)], env=env
+        )
+        if smoke_proc.returncode != 0:
+            print(f"explicit gui=false smoke exit {smoke_proc.returncode}")
+            return 1
+        if "cplanets-lib" not in smoke_proc.stdout:
+            print(
+                f"explicit gui=false missing smoke identity: "
+                f"{smoke_proc.stdout!r}"
+            )
             return 1
     return 0
 

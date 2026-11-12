@@ -253,13 +253,15 @@ extra hoops.
 ## 8. Pause (one human)
 
 **Locked:** pause offered only with **exactly one human**; not with
-two or more humans.
+two or more humans. Lobby publishes paused; **unchecking Pause** is
+the normal human start control (leaves lobby via shared `go()` —
+CPL-118). No separate human “Go” button.
 
 | Layer | Status |
 | --- | --- |
-| Server `PUT /pause` + `pauseAllowed` gate | **Exists** (Phase F) |
-| Human client Pause control (button/check; sensitive only when offered) | **Exists (TUNING B)** CheckButton → `PUT /pause` |
-| Who may unpause / AI-only games | **Open** (design-decisions §11: not locked) |
+| Server `PUT /pause` + `pauseAllowed` gate | **Exists** (Phase F); unpause in lobby → `go()` |
+| Human client Pause control (button/check; sensitive only when offered) | **Exists (TUNING B)** CheckButton → `PUT /pause` (also starts game from lobby) |
+| Who may unpause / AI-only games | Console / status-menu / `/admin/go` fallback for AI-only |
 
 When multi-human: hide or disable pause — do not show a dead control
 that errors as the primary UX.

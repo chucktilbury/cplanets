@@ -29,6 +29,7 @@ from wire import (
     put_build,
     put_fleet,
     put_order,
+    put_pause,
 )
 
 
@@ -265,6 +266,63 @@ def run_case(
         cfg.unlink(missing_ok=True)
 
 
+def run_pause_start(server: Path) -> None:
+    """CPL-118: human PUT /pause 0 leaves lobby (Pause uncheck)."""
+    cfg = write_config(None)
+    proc: subprocess.Popen[str] | None = None
+    try:
+        proc, port, phase = start_server(
+            server, cfg, ["--injectable", "--cycles", "800"]
+        )
+        if phase != "lobby":
+            raise RuntimeError(f"pause-start: banner PHASE={phase!r}")
+
+        resp = exchange("127.0.0.1", port, handshake())
+        _, _, path, body = decode_envelope(resp)
+        accepted, tick0, ended, seat, token = parse_handshake_ack(body)
+        if (
+            path != "/handshake"
+            or not accepted
+            or seat != 0
+            or tick0 != 0
+            or ended
+            or len(token) != 16
+        ):
+            raise RuntimeError(
+                f"pause-start: bad handshake path={path} body={body!r}"
+            )
+        if not state_paused(port, 0):
+            raise RuntimeError("pause-start: lobby not published paused")
+
+        resp = exchange("127.0.0.1", port, put_pause(False))
+        _, _, path, body = decode_envelope(resp)
+        if path != "/pause" or body[0] != 1:
+            raise RuntimeError(
+                f"pause-start: pause off failed path={path} body={body!r}"
+            )
+        if state_paused(port, 0):
+            raise RuntimeError(
+                "pause-start: still published paused after Pause off"
+            )
+        resp = exchange(
+            "127.0.0.1", port, put_fleet(0, 0, "pause-scout")
+        )
+        _, _, path, body = decode_envelope(resp)
+        if path != "/fleet" or body[0] != 1:
+            raise RuntimeError(
+                f"pause-start: fleet after Pause start failed "
+                f"path={path} body={body!r}"
+            )
+    finally:
+        if proc is not None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        cfg.unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", required=True)
@@ -298,6 +356,7 @@ def main() -> int:
             ],
             "with-scenario-overlays",
         )
+        run_pause_start(server)
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 1

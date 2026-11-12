@@ -24,10 +24,12 @@
  *   2026-11-09  Menu gate drains stray stdin; lobby Go closes menu.
  *   2026-11-09  recvBufferBytes from server config (was 65536).
  *   2026-11-12  CPL-117: FD_CLOEXEC on listen fd (AI spawn inherit).
+ *   2026-11-12  CPL-118: poll deferred AiSpawnBook (human / go).
  */
 
 import networking as Networking
 
+include "aiSpawn.cw"
 include "handler.cw"
 include "serveMenuGate.cw"
 include "socketCloexec.cw"
@@ -39,6 +41,8 @@ include "socketCloexec.cw"
  * SO_RCVTIMEO (ServerSocket has no setTimeout). One writer: all
  * mutations go through ServerHandler → GameDriver. menuGate stays
  * disabled unless the server calls enable() before serve().
+ * Optional aiSpawns (armDeferred) fires after a human connects or
+ * lobby go — not at listen.
  */
 class ServerListen {
     Networking.Runtime net
@@ -51,6 +55,7 @@ class ServerListen {
     int64 cycles
     int64 recvBufferBytes
     ServeMenuGate menuGate
+    AiSpawnBook aiSpawns
 
     /*
      * Construct a listener bound to a handler/driver.
@@ -87,6 +92,22 @@ class ServerListen {
             recvBufferBytes = 1024
         }
         menuGate = ServeMenuGate()
+        aiSpawns = null
+    }
+
+    /*
+     * Attach a deferred AI spawn book for the serve loop.
+     *
+     * Purpose: cplanets-server arms AiSpawnBook after listen; serve
+     * polls maybeSpawn so children launch after a human (or go).
+     *
+     * Parameters:
+     *   book — armed AiSpawnBook (or null to disable).
+     *
+     * Returns: nothing.
+     */
+    void enableAiSpawn(AiSpawnBook book) {
+        aiSpawns = book
     }
 
     /*
@@ -137,7 +158,9 @@ class ServerListen {
      * Purpose: sole server loop. On accept timeout, still calls
      * maybeTick so wall cadence advances without a client. When the
      * menu gate is enabled, a non-blocking stdin poll may open the
-     * status console (ticks paused while open).
+     * status console (ticks paused while open). When aiSpawns is
+     * armed, maybeSpawn runs each cycle after accept handling so a
+     * just-seated human (or console/admin go) can launch AI.
      *
      * Parameters: none.
      *
@@ -151,6 +174,7 @@ class ServerListen {
             }
             cycles = cycles + 1
             menuGate.pollOnce()
+            pollDeferredAiSpawn()
             driver.maybeTick()
             if (driver.game.ended) {
                 return(handled)
@@ -171,8 +195,36 @@ class ServerListen {
                 handled = handled + 1
             }
             net.socketClose(client)
+            # Handshake may have seated a human on this frame —
+            # try spawn before the next accept timeout wait.
+            pollDeferredAiSpawn()
         }
         return(handled)
+    }
+
+    /*
+     * Fire deferred AI spawn when a human is live or lobby left.
+     *
+     * Purpose: keep serve() free of spawn details; log once on
+     * failure without aborting an already-connected human session.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void pollDeferredAiSpawn() {
+        if (aiSpawns == null) {
+            return()
+        }
+        bool humanHere = (
+            driver.presence.countLiveHumans(driver.game.players)
+            >= 1)
+        if (not aiSpawns.maybeSpawn(humanHere, driver.running)) {
+            print(format(
+                "cplanets-server: AI spawn failed: {}\n",
+                aiSpawns.lastError))
+            Sys.StandardIO().flush()
+        }
     }
 
     /*

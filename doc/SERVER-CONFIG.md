@@ -66,11 +66,11 @@ See also: [CPLANETS.md](CPLANETS.md), [KNOB-COVERAGE.md](KNOB-COVERAGE.md),
 | `recv_buffer_bytes` | int | `65536` | `≥ 1024` (practical: 8KiB–1MiB) | Max bytes per accepted client recv. |
 | `seat_hard_cap` | int | `256` | `≥ 1` (practical: 8–1024) | Absolute seat bound when soft max is `0`. |
 | `verbose_capture_lines` | int | `64` | `≥ 1` (practical: 16–1024) | `ServerVerboseLog` ring size. |
-| `ai-client` | string pair | *(none)* | repeatable | Explicit AI seat: `ai-client = "FriendlyName", level`. Friendly name is the in-game `display_name` (contact/chrome). Level is optional (default **soft**) and selects `ai-<level>.cfg` beside the server config, then under `~/.config/cplanets/`, then `config/`. Example: `ai-client = "Alex", soft`. Omit all lines to spawn none. |
+| `ai-client` | string pair | *(none)* | repeatable | Explicit AI seat: `ai-client = "FriendlyName", level`. Friendly name is the in-game `display_name` (contact/chrome). Level is optional (default **soft**) and selects `ai-<level>.cfg` beside the server config, then under `~/.config/cplanets/`, then `config/`. Example: `ai-client = "Alex", soft`. Omit all lines to spawn none. Children spawn **after the first live human connects** (or on lobby go for AI-only / console fallback) — not at listen. |
 | `spawn_ai_dir` | string | `""` | writable directory | Where generated per-AI configs are written. Empty → system temp (`…/cplanets-ai-spawn`). |
 | `spawn_ai_bin` | string | `""` | path to `cplanets-ai` | AI executable. Empty → sibling of `cplanets-server` argv[0]. |
 
-Spawned children dial the live listen `host`/`port` (loopback when bind is `0.0.0.0`). Banner lines: `SPAWN_AI=… name=… level=…`, `SPAWN_AI_COUNT=N`. Children are cancelled when the server listen loop ends.
+Spawned children dial the live listen `host`/`port` (loopback when bind is `0.0.0.0`). Spawn is deferred until a human seat is live (or until go). Banner lines when spawn fires: `SPAWN_AI=… name=… level=…`, `SPAWN_AI_COUNT=N`. Children are cancelled when the server listen loop ends.
 
 **Rejected legacy keys:**
 - `setup` → `setup path removed; fold §14 keys into this server config…`

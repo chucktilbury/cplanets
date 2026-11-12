@@ -136,31 +136,34 @@ bin/cplanets-server [--config config/server-default.cfg] [flags…]
 (`PHASE=lobby`) after loading the unified config.
 TCP accept, seat allocate (grow-on-connect), reconnect tokens, and
 the status menu work, but **wall ticks do not advance** (and the
-game clock stays at tick 0) until the operator starts the game —
-the first client connect does **not** leave lobby, does **not**
-accept explore/build/design play verbs, and publishes chrome
-`paused=true` so clients see the hold. End-of-game checks
-(all-humans-quit / eliminate-all) also wait until go — connecting
-an AI in lobby must not end the server. Later clients may still
-connect and get seats while in lobby. Lobby miss-drop clears
+game clock stays at tick 0) until start — the first client connect
+does **not** leave lobby, does **not** accept explore/build/design
+play verbs, and publishes chrome `paused=true` so clients see the
+hold. **Normal start:** the human Pause CheckButton (exactly one
+human) starts checked in lobby; **unchecking Pause** sends
+`PUT /pause` 0 and leaves lobby via the shared `go()` path. Console
+**`g`+Enter** / status-menu **Go** / harness `PUT /admin/go` remain
+as the same path (AI-only / dev / CI). Configured **`ai-client`
+children spawn after the first live human connects** (or on go when
+no human yet); they are **not** launched at listen/start. End-of-game
+checks (all-humans-quit / eliminate-all) also wait until go —
+connecting an AI in lobby must not end the server. Later clients may
+still connect and get seats while in lobby. Lobby miss-drop clears
 the reconnect token so a restarted client reuses the seat (no ghost
-seats); after go, drop keeps the token for reclaim. Type **`g` then
-Enter** on the server console (banner prints `GO_KEY=g`) — or choose
-**Go** in the status menu — to leave lobby (`PHASE=running`). Go
-**retires lobby-abandoned seats** (miss-dropped, token cleared;
-mark quit, keep `human`) and refreshes end-status: if another live
-human remains, play continues; if the last human is already gone,
-the server ends with `all_humans_quit` (AI seats alone do not keep
-the session alive). Go starts with **whatever seats are already
-allocated**; it does not wait for `--players` / soft max. Harnesses
-may `PUT /admin/go` (same path). Later “all humans ready” can share
-that path; v1 is operator go only. Injectable `/admin/advance` is
-also blocked until go. AI clients allocate with handshake kind=`1`
-(marked non-human); human allocate restores `human=true` on seat
-reuse. The human GTK client keep-alives presence (~2s handshake)
-while the window is open so idle UI does not miss-drop its seat
-before go, and File→Quit sends `PUT /quit` so the last human leave
-can end the server without waiting for handshake_miss.
+seats); after go, drop keeps the token for reclaim. Go **retires
+lobby-abandoned seats** (miss-dropped, token cleared; mark quit,
+keep `human`) and refreshes end-status: if another live human
+remains, play continues; if the last human is already gone, the
+server ends with `all_humans_quit` (AI seats alone do not keep the
+session alive). Go starts with **whatever seats are already
+allocated**; it does not wait for `--players` / soft max. Injectable
+`/admin/advance` is also blocked until go. AI clients allocate with
+handshake kind=`1` (marked non-human); human allocate restores
+`human=true` on seat reuse. The human GTK client keep-alives
+presence (~2s handshake) while the window is open so idle UI does
+not miss-drop its seat before go, and File→Quit sends `PUT /quit`
+so the last human leave can end the server without waiting for
+handshake_miss.
 
 **Seats / `players`:** live serve starts with **zero** seats and
 **grows** a seat on empty-body handshake when needed. `players` /
@@ -175,14 +178,15 @@ console (banner prints `MENU_KEY=m`). Opens a read-only in-process
 console over the live State — phase / tick / pause / seated vs soft
 max summary, players (wealth, owned planets/fleets/ships), planet and
 fleet detail, designs / yard jobs, and a dump of loaded server +
-scenario knobs. In lobby the menu also offers **Go**. Config
-create/save is out of scope. **Ticks pause while the menu is open**
-and the prior pause flag is restored on `q` (clients can wait). From
-lobby, menu **`g` leaves lobby, closes the menu, and restores pause**
-so wall ticks may advance — it must not stay in a non-lobby menu with
-clients still held. The serve loop polls stdin non-blocking between
-accepts and **drains stray / blank console lines** each cycle so a
-junk keystroke (or bare Enter) then `m` still opens the menu
+scenario knobs. In lobby the menu also offers **Go** as a fallback
+(normal start is human Pause uncheck). Config create/save is out of
+scope. **Ticks pause while the menu is open** and the prior pause
+flag is restored on `q` (clients can wait). From lobby, menu **`g`
+leaves lobby, closes the menu, and restores pause** so wall ticks
+may advance — it must not stay in a non-lobby menu with clients
+still held. The serve loop polls stdin non-blocking between accepts
+and **drains stray / blank console lines** each cycle so a junk
+keystroke (or bare Enter) then `m` still opens the menu
 (`StdinPoll.pending` also sees bytes already buffered by stdio after
 a prior read). TCP accept is not blocked forever waiting for menu
 input.
@@ -254,7 +258,8 @@ re-pulls state+digest on `refresh_ms` so ProgressBars and lists
 move without File→Refresh; timed-pull failures stay quiet.
 
 **Tuning-loop chrome (workstream B + ship create + map):** Pause
-CheckButton (sensitive only with exactly one human; `PUT /pause`).
+CheckButton (sensitive only with exactly one human; `PUT /pause`;
+in lobby, unchecking Pause starts the game).
 Open former Notebook surfaces as **non-modal menubar dialogs**.
 **Planets / Digest / Policy** are root-click openers. **Fleets** and
 **Ships** are MenuBar submenus of smaller Apply+Close dialogs:

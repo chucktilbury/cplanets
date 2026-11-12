@@ -18,6 +18,7 @@
  *   2026-11-07  Drop process-key asserts; reject them as unknown.
  *   2026-11-07  Assert production/galaxy/design template overlays.
  *   2026-11-11  Assert CPL-113 upkeep tick rate overlays.
+ *   2026-11-11  Assert CPL-114 productive_rate overlay.
  */
 
 include "lib/setupParse.cw"
@@ -34,6 +35,7 @@ start {
     text.append("production_tick_rate = 0.02\n")
     text.append("wealth_upkeep_tick_rate = 0.004\n")
     text.append("resources_upkeep_tick_rate = 0.005\n")
+    text.append("productive_rate = 2.5\n")
     text.append("yard_build_cost_per_size = 12.0\n")
     text.append("design_develop_cost_per_size = 55.0\n")
     text.append("colony_hop_fraction = 0.4\n")
@@ -76,6 +78,9 @@ start {
         ok = false
     }
     if (s.resourcesUpkeepTickRate != 0.005f64) {
+        ok = false
+    }
+    if (s.productiveRate != 2.5f64) {
         ok = false
     }
     if (s.yardBuildCostPerSize != 12.0f64) {

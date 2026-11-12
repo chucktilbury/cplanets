@@ -17,6 +17,8 @@
  *   2026-11-10  Mark taker exploredPlanetIds on occupy (CPL-107).
  *   2026-11-11  CPL-112: colony starts habit countdown scaled by
  *               air/water accessibility; charge habit wealth.
+ *   2026-11-11  CPL-114: time-to-productive via qty×access /
+ *               productive_rate; productive iff structural net > 0.
  */
 
 include "combat.cw"
@@ -305,14 +307,14 @@ class Take {
      * Populate when a surviving colony hull is present.
      *
      * Purpose: colony required to populate; dead colony does not
-     * (RULES §11.3). Sitting alone never populates. CPL-112: starts
-     * a habitability countdown scaled by air/water accessibility
-     * (low access → more wealth cost and longer); productive flips
-     * when habitTicksLeft reaches 0 in production. Already-
-     * productive rocks stay productive.
+     * (RULES §11.3). Sitting alone never populates. CPL-112/114:
+     * charges habit wealth × air/water difficulty; starts a
+     * time-to-productive countdown from qty×accessibility gated by
+     * productive_rate. Productive is structural net > 0 (not merely
+     * habit-complete). Already-productive rocks stay productive.
      *
      * Parameters:
-     *   scenario — habit base ticks / wealth + access floor.
+     *   scenario — habit wealth, productive_rate, access floor.
      *   rock — occupied planet.
      *   fleet — fleet that may carry colony hulls.
      *   design — that fleet's design.
@@ -359,16 +361,12 @@ class Take {
                 players[fleet.ownerId] = seat
             }
         }
-        int64 ticks = scenario.habitBaseTicks
-        if (ticks < 0) {
-            ticks = 0
-        }
-        fp64 scaled = fp64(ticks) * difficulty
-        ticks = int64(scaled + 0.999)
+        int64 ticks = scenario.timeToProductiveTicks(rock)
         if (ticks < 1) {
-            # Instant habit when base is 0 or access is perfect.
+            # Instant when habit_base_ticks is 0 or effort/rate
+            # rounds to zero; productive only if structural net > 0.
             rock.habitTicksLeft = 0
-            rock.productive = true
+            rock.productive = scenario.isStructurallyProductive(rock)
             return()
         }
         rock.habitTicksLeft = ticks

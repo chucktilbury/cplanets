@@ -14,6 +14,7 @@
  *   2026-11-05  Fix colony hop reach; waitArrive checks dest.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-11  CPL-112: wait for habit ticks after colony populate.
+ *   2026-11-11  CPL-114: force positive-net rock; productive_rate wait.
  */
 
 include "lib/state.cw"
@@ -192,10 +193,24 @@ start {
     if (colonized.population <= 0.0) {
         ok = false
     }
-    # CPL-112: air/water accessibility delays productive until
-    # habitTicksLeft completes in the production phase.
+    # CPL-114: force qty/access that yields positive structural net
+    # after time-to-productive (productive_rate × qty×access).
+    colonized.air = 60.0
+    colonized.water = 60.0
+    colonized.commonMinerals = 60.0
+    colonized.rareMinerals = 20.0
+    colonized.airAccess = 1.0
+    colonized.waterAccess = 1.0
+    colonized.commonMineralsAccess = 1.0
+    colonized.rareMineralsAccess = 1.0
+    colonized.refreshComposites(colGame.scenario.rareMineralWeight)
+    # Recompute countdown with the patched rock so wait is bounded.
+    colonized.habitTicksLeft = colGame.scenario.timeToProductiveTicks(
+        colonized)
+    colonized.productive = false
+    colGame.galaxy.planets[1] = colonized
     int64 habitWait = 0
-    while (habitWait < 20 and not colonized.productive) {
+    while (habitWait < 40 and not colonized.productive) {
         colGame.tick()
         colonized = colGame.galaxy.planets[1]
         habitWait = habitWait + 1

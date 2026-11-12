@@ -14,6 +14,7 @@
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-07  Prove allocationPct scales empire-pool credit.
  *   2026-11-11  CPL-113: negative net under low access; clamp.
+ *   2026-11-11  CPL-114: productive iff structural net > 0.
  */
 
 include "lib/state.cw"
@@ -121,7 +122,7 @@ start {
         ok = false
     }
 
-    # --- CPL-113: low access → negative net into empire pools ---
+    # --- CPL-113/114: low access → negative net; not productive ---
     State hard = State()
     hard.startClosed(13u, 1)
     hard.ensureAllSeatHomes()
@@ -141,6 +142,35 @@ start {
         ok = false
     }
     if (afterHard.resources >= rHard0) {
+        ok = false
+    }
+    Planet hardAfter = hard.galaxy.planets[0]
+    if (hardAfter.productive) {
+        ok = false
+    }
+
+    # --- CPL-114: industry-rich low-habit rock can still be productive ---
+    State industry = State()
+    industry.startClosed(13u, 1)
+    industry.ensureAllSeatHomes()
+    Planet indRock = industry.galaxy.planets[0]
+    indRock.air = 5.0
+    indRock.water = 5.0
+    indRock.commonMinerals = 80.0
+    indRock.rareMinerals = 40.0
+    indRock.airAccess = 0.25
+    indRock.waterAccess = 0.25
+    indRock.commonMineralsAccess = 1.0
+    indRock.rareMineralsAccess = 1.0
+    indRock.refreshComposites(industry.scenario.rareMineralWeight)
+    indRock.allocationPct = 100
+    industry.galaxy.planets[0] = indRock
+    industry.tick()
+    Planet indAfter = industry.galaxy.planets[0]
+    if (not indAfter.productive) {
+        ok = false
+    }
+    if (not industry.scenario.isStructurallyProductive(indAfter)) {
         ok = false
     }
 
@@ -174,6 +204,39 @@ start {
     }
     if (afterBroke.resources > 0.01) {
         ok = false
+    }
+
+    # --- CPL-114: productive_rate scales time-to-productive ---
+    Scenario rateSc = Scenario()
+    Planet probe = Planet(9)
+    probe.air = 50.0
+    probe.water = 50.0
+    probe.commonMinerals = 50.0
+    probe.rareMinerals = 10.0
+    probe.airAccess = 0.5
+    probe.waterAccess = 0.5
+    probe.commonMineralsAccess = 0.5
+    probe.rareMineralsAccess = 0.5
+    probe.refreshComposites(rateSc.rareMineralWeight)
+    rateSc.productiveRate = 1.0
+    int64 slowTicks = rateSc.timeToProductiveTicks(probe)
+    rateSc.productiveRate = 2.0
+    int64 fastTicks = rateSc.timeToProductiveTicks(probe)
+    if (slowTicks < 1) {
+        ok = false
+    }
+    if (fastTicks >= slowTicks) {
+        ok = false
+    }
+    if (not rateSc.isStructurallyProductive(probe)) {
+        # access 0.5 is near break-even; force easy rock check
+        probe.airAccess = 1.0
+        probe.waterAccess = 1.0
+        probe.commonMineralsAccess = 1.0
+        probe.rareMineralsAccess = 1.0
+        if (not rateSc.isStructurallyProductive(probe)) {
+            ok = false
+        }
     }
 
     if (ok) {

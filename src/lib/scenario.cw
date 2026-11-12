@@ -21,7 +21,11 @@
  *   2026-11-11  CPL-112: rare mineral weight, access spawn band /
  *               floor, habitability base ticks + wealth cost.
  *   2026-11-11  CPL-113: planet upkeep tick rates (net income).
+ *   2026-11-11  CPL-114: productive_rate fairness knob;
+ *               structural net helpers for productive-iff-positive.
  */
+
+include "planet.cw"
 
 /*
  * Scenario is the setup snapshot for one game instance.
@@ -111,6 +115,10 @@ class Scenario {
     # negative). 0 disables upkeep (credit-only, CPL-112 shape).
     fp64 wealthUpkeepTickRate
     fp64 resourcesUpkeepTickRate
+    # CPL-114: global fairness knob for colony time-to-productive.
+    # Higher → faster. Ticks = habit_base_ticks × effort /
+    # productive_rate, where effort uses qty × accessibility.
+    fp64 productiveRate
 
     # Default hull template magnitudes (former design.cw make* literals).
     fp64 designScoutSpeed
@@ -229,6 +237,8 @@ class Scenario {
         # and hard (low-access) rocks can debit the empire pool.
         wealthUpkeepTickRate = 0.003
         resourcesUpkeepTickRate = 0.003
+        # 1.0 keeps closed-default colony delays near CPL-112 scale.
+        productiveRate = 1.0
 
         designScoutSpeed = 2.0
         designScoutSize = 0.5
@@ -344,6 +354,168 @@ class Scenario {
             a = floor
         }
         return(1.0 / a)
+    }
+
+    /*
+     * Floor accessibility the same way production / difficulty do.
+     *
+     * Purpose: shared clamp for credit and structural-net helpers
+     * so productive classification matches applied income (CPL-114).
+     *
+     * Parameters:
+     *   access — raw accessibility (may be below floor).
+     *
+     * Returns: max(access, accessFloor), never below 0.
+     */
+    fp64 clampAccess(fp64 access) {
+        fp64 a = access
+        if (a < 0.0) {
+            a = 0.0
+        }
+        fp64 floor = accessFloor
+        if (floor < 0.01) {
+            floor = 0.01
+        }
+        if (a < floor) {
+            a = floor
+        }
+        return(a)
+    }
+
+    /*
+     * Structural farming (wealth) net rate for one rock.
+     *
+     * Purpose: CPL-114 — productive iff combined structural net is
+     * positive. Ignores allocationPct and AFK so throttling a rock
+     * does not strip inherent defense / yard eligibility.
+     *
+     * Parameters:
+     *   rock — planet with livability / habit access filled.
+     *
+     * Returns: wealth_credit − wealth_upkeep at alloc=1, afk=1.
+     */
+    fp64 structuralWealthNet(Planet rock) {
+        fp64 rate = productionTickRate
+        if (rate < 0.0) {
+            rate = 0.0
+        }
+        fp64 upkeep = wealthUpkeepTickRate
+        if (upkeep < 0.0) {
+            upkeep = 0.0
+        }
+        fp64 access = clampAccess(rock.habitAccess())
+        fp64 diff = accessDifficulty(access)
+        fp64 credit = rock.livability * access * coverFactor * rate
+        fp64 debit = rock.livability * diff * upkeep * coverFactor
+        return(credit - debit)
+    }
+
+    /*
+     * Structural industry (resources) net rate for one rock.
+     *
+     * Purpose: CPL-114 — industry axis of productive-iff-positive.
+     * Low-habit / high-mineral rocks can still qualify via this
+     * axis alone ("may need industry before productive").
+     *
+     * Parameters:
+     *   rock — planet with mineral composite / access filled.
+     *
+     * Returns: resources_credit − resources_upkeep at alloc=1, afk=1.
+     */
+    fp64 structuralResourcesNet(Planet rock) {
+        fp64 rate = productionTickRate
+        if (rate < 0.0) {
+            rate = 0.0
+        }
+        fp64 upkeep = resourcesUpkeepTickRate
+        if (upkeep < 0.0) {
+            upkeep = 0.0
+        }
+        fp64 access = clampAccess(rock.mineralAccess())
+        fp64 diff = accessDifficulty(access)
+        fp64 credit = rock.resources * access * coverFactor * rate
+        fp64 debit = rock.resources * diff * upkeep * coverFactor
+        return(credit - debit)
+    }
+
+    /*
+     * True when the rock's structural combined net is positive.
+     *
+     * Purpose: CPL-114 lock — productive iff positive net income.
+     *
+     * Parameters:
+     *   rock — planet under evaluation.
+     *
+     * Returns: true when wealth_net + resources_net > 0.
+     */
+    bool isStructurallyProductive(Planet rock) {
+        return(
+            structuralWealthNet(rock) + structuralResourcesNet(rock)
+            > 0.0)
+    }
+
+    /*
+     * Colony ticks until a rock may become productive.
+     *
+     * Purpose: CPL-114 time-to-productive. Effort rises when
+     * quantity×accessibility is low (hard/poor rocks) and falls
+     * when qty×access is high. Global productive_rate is the
+     * fairness knob (higher → faster for every rock). Uses both
+     * farming and industry strength so mineral-rich low-habit
+     * rocks are not stuck on the air/water axis alone.
+     *
+     * Parameters:
+     *   rock — colonized planet (composites + access set).
+     *
+     * Returns: non-negative tick count (0 → instant / same-tick).
+     */
+    int64 timeToProductiveTicks(Planet rock) {
+        fp64 rate = productiveRate
+        if (rate <= 0.0) {
+            # Non-positive rate → never auto-complete; caller may
+            # still treat 0 habit_base_ticks as instant.
+            rate = 0.0
+        }
+        int64 base = habitBaseTicks
+        if (base < 0) {
+            base = 0
+        }
+        if (base == 0) {
+            return(0)
+        }
+        if (rate <= 0.0) {
+            # Effectively infinite delay; clamp to a large finite
+            # so tests and UI do not hang forever.
+            return(1000000)
+        }
+        fp64 farmAccess = clampAccess(rock.habitAccess())
+        fp64 mineAccess = clampAccess(rock.mineralAccess())
+        fp64 peak = livabilityInternalMax
+        if (peak < 1.0) {
+            peak = 1.0
+        }
+        # Combined qty×access strength; both axes so industry-only
+        # rocks still develop. Peak scale ≈ 2×livabilityInternalMax
+        # when both composites sit at max with access 1.
+        fp64 strength = (
+            rock.livability * farmAccess
+            + rock.resources * mineAccess)
+        fp64 qtyFactor = strength / (peak + peak)
+        fp64 floor = accessFloor
+        if (floor < 0.01) {
+            floor = 0.01
+        }
+        if (qtyFactor < floor) {
+            qtyFactor = floor
+        }
+        fp64 meanAccess = (farmAccess + mineAccess) * 0.5
+        fp64 effort = accessDifficulty(meanAccess) / qtyFactor
+        fp64 scaled = fp64(base) * effort / rate
+        int64 ticks = int64(scaled + 0.999)
+        if (ticks < 0) {
+            ticks = 0
+        }
+        return(ticks)
     }
 
     /*

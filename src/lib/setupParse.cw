@@ -24,6 +24,7 @@
  *   2026-11-09  Shared §14 helper for unified ServerConfigParse.
  *   2026-11-11  CPL-112: rare_mineral_weight, access_*, habit_*.
  *   2026-11-11  CPL-113: wealth_/resources_upkeep_tick_rate.
+ *   2026-11-11  CPL-114: productive_rate.
  */
 
 include "scenario.cw"
@@ -256,6 +257,8 @@ class SetupParse {
             scenario.wealthUpkeepTickRate = val.toFp64()
         } else (key.equals("resources_upkeep_tick_rate")) {
             scenario.resourcesUpkeepTickRate = val.toFp64()
+        } else (key.equals("productive_rate")) {
+            scenario.productiveRate = val.toFp64()
         } else (key.equals("design_scout_speed")) {
             scenario.designScoutSpeed = val.toFp64()
         } else (key.equals("design_scout_size")) {

@@ -213,7 +213,8 @@ path). CLI flags present on argv overlay process keys silently.
 An explicit unopenable `--config` is a hard error (no silent builtin).
 Omit `--config` to create/use the XDG pack under `~/.config/cplanets/`;
 the generated `server.cfg` lists every server key with defaults (not a
-partial pack).
+partial pack). Incomplete generated stubs are rewritten on the next
+omit-config start; see [SERVER-CONFIG.md](SERVER-CONFIG.md).
 
 On start it prints `HOST=<addr>`, `PORT=<n>`, `CONFIG=<path>`,
 `SCENARIO_MODE=<mode>`, `SEED=<n>`, `PLAYERS=<n>`, `CYCLES=<n>`,

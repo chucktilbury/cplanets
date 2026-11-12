@@ -41,6 +41,7 @@
  *   2026-11-09  Hard error on unopenable config; new process knobs.
  *   2026-11-10  Optional spawn_ai_* AI client launch (CPL-106).
  *   2026-11-11  CPL-115: XDG default --config; ai-client spawn.
+ *   2026-11-12  CPL-117: bind failure prints host:port (+ lastError).
  */
 
 import cli as Cli
@@ -442,7 +443,16 @@ class ServerMain {
         StatusViews views = StatusViews(driver, cfg)
         listener.menuGate.enable(views, driver)
         if (not listener.listenOn(cfg.host, cfg.port)) {
-            print("cplanets-server: bind failed\n")
+            String detail = Sys.System().lastError().trim()
+            if (detail.length > 0) {
+                print(format(
+                    "cplanets-server: bind failed {}:{} ({})\n",
+                    cfg.host, cfg.port, detail))
+            } else {
+                print(format(
+                    "cplanets-server: bind failed {}:{}\n",
+                    cfg.host, cfg.port))
+            }
             driver.close()
             return(1)
         }

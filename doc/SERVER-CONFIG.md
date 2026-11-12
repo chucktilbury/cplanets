@@ -6,10 +6,14 @@ document. Sample: [`config/server-default.cfg`](../config/server-default.cfg).
 Tuning packs: `config/server-tuning-{small,combat,trade}.cfg`.
 
 Syntax: `key = value` lines. Blank lines and `#` comments are
-skipped. **Unknown keys fail loud** (process exits 1). Missing or
-unopenable `--config` is a **hard error** (exit 1 with a message) —
-there is no silent builtin / closed-default start when a path was
-expected. `--config` itself has no in-file key.
+skipped. **Unknown keys fail loud** (process exits 1).
+
+`--config PATH` is optional. When omitted, the server ensures and
+loads `~/.config/cplanets/server.cfg` (creating the XDG pack —
+`server.cfg`, `human.cfg`, `ai-{soft,mid,hard}.cfg` — when missing).
+An **explicit** `--config` path that cannot open is still a **hard
+error** (exit 1). `--config` itself has no in-file key. There is
+**no GUI server-config dialog** yet — edit the file.
 
 CLI flags present on argv override file values **silently**.
 §14 galaxy keys have no argv overlays (edit the file and restart).
@@ -49,15 +53,15 @@ See also: [CPLANETS.md](CPLANETS.md), [KNOB-COVERAGE.md](KNOB-COVERAGE.md),
 | `recv_buffer_bytes` | int | `65536` | `≥ 1024` (practical: 8KiB–1MiB) | Max bytes per accepted client recv. |
 | `seat_hard_cap` | int | `256` | `≥ 1` (practical: 8–1024) | Absolute seat bound when soft max is `0`. |
 | `verbose_capture_lines` | int | `64` | `≥ 1` (practical: 16–1024) | `ServerVerboseLog` ring size. |
-| `spawn_ai_count` | int | `0` | `0`…practical soft max | After listen, spawn this many `cplanets-ai` children via Cwhip `process` (`AsyncProcess`). Each child gets its own config file and a unique `display_name` from the proper-name pool. `0` = off. |
-| `spawn_ai_template` | string | `""` / sample `config/ai-default.cfg` | readable AI config path | Template copied per spawned AI. **Required** when `spawn_ai_count > 0`. |
+| `ai-client` | string pair | *(none)* | repeatable | Explicit AI seat: `ai-client = "FriendlyName", level`. Friendly name is the in-game `display_name` (contact/chrome). Level is optional (default **soft**) and selects `ai-<level>.cfg` beside the server config, then under `~/.config/cplanets/`, then `config/`. Example: `ai-client = "Alex", soft`. Omit all lines to spawn none. |
 | `spawn_ai_dir` | string | `""` | writable directory | Where generated per-AI configs are written. Empty → system temp (`…/cplanets-ai-spawn`). |
 | `spawn_ai_bin` | string | `""` | path to `cplanets-ai` | AI executable. Empty → sibling of `cplanets-server` argv[0]. |
 
-Spawned children dial the live listen `host`/`port` (loopback when bind is `0.0.0.0`). Banner lines: `SPAWN_AI=…`, `SPAWN_AI_COUNT=N`. Children are cancelled when the server listen loop ends.
+Spawned children dial the live listen `host`/`port` (loopback when bind is `0.0.0.0`). Banner lines: `SPAWN_AI=… name=… level=…`, `SPAWN_AI_COUNT=N`. Children are cancelled when the server listen loop ends.
 
-**Rejected legacy key:** `setup` → error
-`setup path removed; fold §14 keys into this server config…`.
+**Rejected legacy keys:**
+- `setup` → `setup path removed; fold §14 keys into this server config…`
+- `spawn_ai_count` / `spawn_ai_template` → use `ai-client = "name", level` instead.
 
 ---
 

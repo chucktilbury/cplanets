@@ -281,6 +281,7 @@ if(BUILD_TESTING)
         unit_serverPolicy
         unit_serverVerbose
         unit_serverConfig
+        unit_xdgDefaults
         unit_statusMenu
         unit_aiConfig
         unit_aiExploreStop

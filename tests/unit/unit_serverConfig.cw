@@ -3,7 +3,7 @@
  *
  * Overlays process/network and §14 scenario keys from application
  * text; checks clamp, host/address alias, setup= migration reject,
- * and that unknown keys fail loud.
+ * ai-client parse, and that unknown keys fail loud.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -15,6 +15,7 @@
  *   2026-11-08  Drop menu key (status via stdin m while serving).
  *   2026-11-09  Unified config: §14 keys ok; setup= rejected.
  *   2026-11-10  Assert spawn_ai_* keys (CPL-106).
+ *   2026-11-11  CPL-115: assert ai-client; reject spawn_ai_count.
  */
 
 include "server/configParse.cw"
@@ -34,8 +35,9 @@ start {
     text.append("recv_buffer_bytes = 8192\n")
     text.append("seat_hard_cap = 32\n")
     text.append("verbose_capture_lines = 16\n")
-    text.append("spawn_ai_count = 3\n")
-    text.append("spawn_ai_template = config/ai-default.cfg\n")
+    text.append("ai-client = \"Alex\", soft\n")
+    text.append("ai-client = Bethany, mid\n")
+    text.append("ai-client = Cameron\n")
     text.append("spawn_ai_dir = /tmp/ai-spawn\n")
     text.append("spawn_ai_bin = /bin/cplanets-ai\n")
     text.append("world_count = 18\n")
@@ -47,12 +49,23 @@ start {
     if (not parser.ok) {
         ok = false
     }
-    if (ok and cfg.spawnAiCount != 3) {
+    if (ok and cfg.aiClients.length != 3) {
         ok = false
     }
-    if (ok and not cfg.spawnAiTemplate.equals(
-        "config/ai-default.cfg")) {
-        ok = false
+    if (ok) {
+        AiClientEntry a0 = cfg.aiClients[0]
+        AiClientEntry a1 = cfg.aiClients[1]
+        AiClientEntry a2 = cfg.aiClients[2]
+        if (not a0.name.equals("Alex") or not a0.level.equals("soft")) {
+            ok = false
+        }
+        if (not a1.name.equals("Bethany") or not a1.level.equals("mid")) {
+            ok = false
+        }
+        if (not a2.name.equals("Cameron")
+            or not a2.level.equals("soft")) {
+            ok = false
+        }
     }
     if (ok and not cfg.spawnAiDir.equals("/tmp/ai-spawn")) {
         ok = false
@@ -131,6 +144,16 @@ start {
         ok = false
     }
     if (not setupParser.lastError.startsWith("setup path removed")) {
+        ok = false
+    }
+
+    # Legacy spawn_ai_count must fail loud with migration hint.
+    ServerConfigParse spawnParser = ServerConfigParse()
+    spawnParser.parseText("spawn_ai_count = 2\n")
+    if (spawnParser.ok) {
+        ok = false
+    }
+    if (not spawnParser.lastError.startsWith("spawn_ai_count")) {
         ok = false
     }
 

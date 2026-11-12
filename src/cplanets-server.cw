@@ -1,10 +1,11 @@
 /*
  * src/cplanets-server.cw — server executable (Phase F / TUNING A).
  *
- * --config PATH is mandatory (unified process + §14 scenario
- * knobs). Missing or empty path prints help and exits 2. Unopenable
- * or unreadable config is a hard error (exit 1) — no silent
- * Scenario() fallback. --serve [--host ADDR] [--port N]
+ * --config PATH is optional. When omitted, use (and create if
+ * missing) ~/.config/cplanets/server.cfg plus human/AI level
+ * defaults (CPL-115). An explicit path that cannot open is still
+ * a hard error (exit 1) — no silent Scenario() fallback.
+ * --serve [--host ADDR] [--port N]
  * [--players N] [--seed N] [--verbosity N] [--injectable]
  * [--cycles N] [--handshake-miss-ms N] [--accept-poll-ms N]:
  * bind TCP and run accept + cadence. While serving, stdin line `m`
@@ -39,6 +40,7 @@
  *   2026-11-09  Fold scenario into --config; drop --setup / setup=.
  *   2026-11-09  Hard error on unopenable config; new process knobs.
  *   2026-11-10  Optional spawn_ai_* AI client launch (CPL-106).
+ *   2026-11-11  CPL-115: XDG default --config; ai-client spawn.
  */
 
 import cli as Cli
@@ -46,6 +48,7 @@ import system as Sys
 
 include "lib/machine.cw"
 include "lib/state.cw"
+include "lib/xdgDefaults.cw"
 include "server/aiSpawn.cw"
 include "server/config.cw"
 include "server/configParse.cw"
@@ -115,7 +118,7 @@ class ServerMain {
         config.longName = "config"
         config.name = "config"
         config.description = (
-            "required: unified server+scenario config")
+            "server+scenario config (default: ~/.config/cplanets/server.cfg)")
         config.valueType = Cli.ValueType().STRING
         commandLine.addOption(config)
         Cli.Option serve = Cli.Option()
@@ -208,14 +211,14 @@ class ServerMain {
      * Parse argv; print help or an error and exit when needed.
      *
      * Purpose: single parse path for smoke and serve; unknown flags
-     * fail loud via stdlib cli. --config PATH is mandatory (non-empty);
-     * missing path prints the same help as -h and exits 2.
+     * fail loud via stdlib cli. --config may be omitted (XDG
+     * default); empty string on an explicit flag still fails help/2.
      *
      * Parameters:
      *   commandLine — registered CommandLine from buildCli().
      *
      * Returns: true when the caller should continue; false when this
-     * method already exited the process (help / parse / missing config).
+     * method already exited the process (help / parse error).
      */
     bool parseOrExit(Cli.CommandLine commandLine) {
         String problem = ""
@@ -235,8 +238,8 @@ class ServerMain {
             Sys.Process().exit(2)
             return(false)
         }
-        if (not commandLine.wasProvided("config")
-            or commandLine.value("config").length == 0) {
+        if (commandLine.wasProvided("config")
+            and commandLine.value("config").length == 0) {
             print(commandLine.helpText())
             Sys.Process().exit(2)
             return(false)
@@ -290,15 +293,14 @@ class ServerMain {
     }
 
     /*
-     * Load ServerConfig from required --config; overlay every CLI
-     * flag but path.
+     * Load ServerConfig from --config or the XDG default pack.
      *
      * Purpose: process/network and §14 scenario defaults live in
      * one server config file. --config PATH is the only flag with
-     * no in-file key. Missing/unopenable path is a hard error
-     * (exit 1) with a message — no silent closed-default start.
-     * Unknown config keys fail loud and exit(1). Caller already
-     * required a non-empty --config path.
+     * no in-file key. When --config is omitted, ensure and load
+     * ~/.config/cplanets/server.cfg (creating the XDG pack when
+     * missing). An explicit path that cannot open is a hard error
+     * (exit 1). Unknown config keys fail loud and exit(1).
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -307,7 +309,7 @@ class ServerMain {
      */
     ServerConfig loadConfig(Cli.CommandLine commandLine) {
         ServerConfig cfg = ServerConfig()
-        String path = commandLine.value("config")
+        String path = resolveConfigPath(commandLine)
         String text = ""
         try {
             Sys.File input = Sys.File(path, "r")
@@ -350,6 +352,40 @@ class ServerMain {
             commandLine, "injectable", cfg.injectable)
         cfg.clampAll()
         return(cfg)
+    }
+
+    /*
+     * Resolve the server config path (CLI or XDG default).
+     *
+     * Purpose: keep --config as an override; when omitted, seed
+     * ~/.config/cplanets/ (server + human + three AI levels) and
+     * return server.cfg.
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *
+     * Returns: readable config path (exits 1 on XDG failure).
+     */
+    String resolveConfigPath(Cli.CommandLine commandLine) {
+        if (commandLine.wasProvided("config")
+            and commandLine.value("config").length > 0) {
+            return(commandLine.value("config"))
+        }
+        XdgDefaults xdg = XdgDefaults()
+        if (not xdg.ensureDefaults()) {
+            print(format(
+                "cplanets-server: cannot create default config: {}\n",
+                xdg.lastError))
+            Sys.Process().exit(1)
+        }
+        String path = xdg.serverConfigPath()
+        if (path.length < 1) {
+            print("cplanets-server: cannot resolve default config path\n")
+            Sys.Process().exit(1)
+        }
+        print(format(
+            "cplanets-server: using default config {}\n", path))
+        return(path)
     }
 
     /*

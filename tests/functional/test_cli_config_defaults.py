@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""File defaults for CLI flags; argv overrides silently."""
+"""File defaults for CLI flags; argv overrides silently; XDG omit."""
 
 from __future__ import annotations
 
@@ -12,18 +12,30 @@ import time
 from pathlib import Path
 
 
-def run_bin(path: Path, args: list[str], timeout: float = 30.0) -> subprocess.CompletedProcess[str]:
+def run_bin(
+    path: Path,
+    args: list[str],
+    timeout: float = 30.0,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [str(path), *args],
         capture_output=True,
         text=True,
         timeout=timeout,
         check=False,
+        env=env,
     )
 
 
-def spawn_server(server: Path, extra: list[str]) -> tuple[subprocess.Popen[str], list[str]]:
-    env = os.environ.copy()
+def spawn_server(
+    server: Path,
+    extra: list[str],
+    env: dict[str, str] | None = None,
+) -> tuple[subprocess.Popen[str], list[str]]:
+    run_env = os.environ.copy()
+    if env:
+        run_env.update(env)
     cmd = [str(server), *extra]
     if Path("/usr/bin/stdbuf").is_file():
         cmd = ["/usr/bin/stdbuf", "-oL", "-eL", *cmd]
@@ -33,7 +45,7 @@ def spawn_server(server: Path, extra: list[str]) -> tuple[subprocess.Popen[str],
         stderr=subprocess.PIPE,
         stdin=subprocess.PIPE,
         text=True,
-        env=env,
+        env=run_env,
         bufsize=1,
     )
     assert proc.stdout is not None
@@ -229,34 +241,23 @@ def help_mentions_config(text: str) -> bool:
     return "--config" in text or "config" in text.lower()
 
 
-def test_missing_config_prints_help(bin_path: Path, label: str) -> int:
-    """Bare argv (no --config) must print help and exit 2."""
-    missing = run_bin(bin_path, [])
+def test_tick_requires_config(tick: Path, tick_config: Path) -> int:
+    """Tick still requires --config (no XDG pack)."""
+    missing = run_bin(tick, [])
     if missing.returncode != 2:
         print(
-            f"{label} missing-config exit {missing.returncode} "
+            f"tick missing-config exit {missing.returncode} "
             f"(want 2); out={missing.stdout!r} err={missing.stderr!r}"
         )
         return 1
     combined = missing.stdout + missing.stderr
     if not help_mentions_config(combined):
-        print(f"{label} missing-config help missing --config: {combined!r}")
+        print(f"tick missing-config help missing --config: {combined!r}")
         return 1
-    # Explicit -h still exits 0.
-    help_proc = run_bin(bin_path, ["-h"])
+    help_proc = run_bin(tick, ["-h"])
     if help_proc.returncode != 0:
-        print(f"{label} -h exit {help_proc.returncode}")
+        print(f"tick -h exit {help_proc.returncode}")
         return 1
-    if not help_mentions_config(help_proc.stdout + help_proc.stderr):
-        print(f"{label} -h missing --config text")
-        return 1
-    return 0
-
-
-def test_tick_requires_config(tick: Path, tick_config: Path) -> int:
-    rc = test_missing_config_prints_help(tick, "tick")
-    if rc != 0:
-        return rc
     smoke = run_bin(tick, ["--config", str(tick_config)])
     if smoke.returncode != 0:
         print(f"tick smoke exit {smoke.returncode}: {smoke.stderr!r}")
@@ -264,6 +265,87 @@ def test_tick_requires_config(tick: Path, tick_config: Path) -> int:
     if not smoke.stdout.startswith("cplanets-tick"):
         print(f"tick smoke missing name: {smoke.stdout!r}")
         return 1
+    return 0
+
+
+def test_xdg_defaults_when_config_omitted(
+    server: Path, ai: Path, client: Path
+) -> int:
+    """Omit --config → create ~/.config/cplanets pack and load it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp) / "home"
+        home.mkdir()
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+        # Force XDG away from the operator home (parent may export it).
+        env["XDG_CONFIG_HOME"] = str(home / ".config")
+        # Server: create pack, short serve on ephemeral port.
+        proc, preamble = spawn_server(
+            server,
+            ["--port", "0", "--cycles", "1"],
+            env=env,
+        )
+        try:
+            joined = "\n".join(preamble)
+            cfg_dir = home / ".config" / "cplanets"
+            for name in (
+                "server.cfg",
+                "human.cfg",
+                "ai-soft.cfg",
+                "ai-mid.cfg",
+                "ai-hard.cfg",
+            ):
+                path = cfg_dir / name
+                if not path.is_file():
+                    print(f"missing XDG file {path}; preamble={joined!r}")
+                    return 1
+            if not any(
+                item.startswith("CONFIG=") and "server.cfg" in item
+                for item in preamble
+            ):
+                print(f"XDG server missing CONFIG banner: {joined!r}")
+                return 1
+            if not any(item.startswith("PORT=") for item in preamble):
+                print(f"XDG server missing PORT: {joined!r}")
+                return 1
+            # Default pack lists three AI clients; spawn may fail if
+            # sibling bin missing in odd layouts — still created files.
+            text = (cfg_dir / "server.cfg").read_text(encoding="utf-8")
+            for needle in (
+                'ai-client = "Alex"',
+                'ai-client = "Bethany"',
+                'ai-client = "Cameron"',
+            ):
+                if needle not in text:
+                    print(f"server.cfg missing {needle}")
+                    return 1
+        finally:
+            stop(proc)
+
+        # AI: soft XDG default with port 0 → local once path.
+        ai_proc = run_bin(ai, ["--port", "0"], env=env)
+        if ai_proc.returncode != 0:
+            print(
+                f"ai XDG omit exit {ai_proc.returncode}: "
+                f"out={ai_proc.stdout!r} err={ai_proc.stderr!r}"
+            )
+            return 1
+        if "cplanets-ai" not in ai_proc.stdout:
+            print(f"ai XDG omit missing identity: {ai_proc.stdout!r}")
+            return 1
+
+        # Human: XDG human.cfg has gui=true — do not launch GTK.
+        # Confirm the file exists and help still documents --config.
+        if not (home / ".config" / "cplanets" / "human.cfg").is_file():
+            print("human.cfg missing after XDG ensure")
+            return 1
+        help_proc = run_bin(client, ["-h"], env=env)
+        if help_proc.returncode != 0:
+            print(f"human -h exit {help_proc.returncode}")
+            return 1
+        if not help_mentions_config(help_proc.stdout + help_proc.stderr):
+            print("human -h missing --config text")
+            return 1
     return 0
 
 
@@ -298,11 +380,9 @@ def main() -> int:
             ),
         ),
         (
-            "missing-config",
-            lambda: (
-                test_missing_config_prints_help(args.server, "server")
-                or test_missing_config_prints_help(args.ai, "ai")
-                or test_missing_config_prints_help(args.client, "human")
+            "xdg-defaults",
+            lambda: test_xdg_defaults_when_config_omitted(
+                args.server, args.ai, args.client
             ),
         ),
         (

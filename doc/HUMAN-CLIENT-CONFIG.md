@@ -9,8 +9,11 @@ Syntax: `key = value`. Blank lines and `#` comments are skipped.
 **Unknown keys are ignored** today (unlike server/AI fail-loud) —
 prefer only documented keys so future fail-loud stays easy.
 
-`--config PATH` is mandatory (no in-file key). CLI flags present on
-argv override file values **silently**.
+`--config PATH` is optional: when omitted, ensure/load
+`~/.config/cplanets/human.cfg` (XDG pack; CPL-115). An explicit path
+that cannot open fails hard. There is **no GUI server-config dialog**
+yet — edit the file. CLI flags present on argv override file values
+**silently**.
 
 Clients **never tick** and **never open** the universe DB. TCP seats
 are **server-assigned** on handshake; do not set `player_id` for

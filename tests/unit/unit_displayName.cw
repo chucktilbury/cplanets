@@ -119,20 +119,22 @@ start {
     }
     ServerConfigParse sp = ServerConfigParse()
     String stext = ""
-    stext.append("spawn_ai_count = 2\n")
-    stext.append("spawn_ai_template = config/ai-default.cfg\n")
+    stext.append("ai-client = \"Alex\", soft\n")
+    stext.append("ai-client = \"Bethany\", mid\n")
     stext.append("spawn_ai_dir = /tmp/cplanets-ai\n")
     stext.append("spawn_ai_bin = /opt/cplanets-ai\n")
     ServerConfig scfg = sp.parseText(stext)
     if (ok and not sp.ok) {
         ok = false
     }
-    if (ok and scfg.spawnAiCount != 2) {
+    if (ok and scfg.aiClients.length != 2) {
         ok = false
     }
-    if (ok and not scfg.spawnAiTemplate.equals(
-        "config/ai-default.cfg")) {
-        ok = false
+    if (ok) {
+        AiClientEntry first = scfg.aiClients[0]
+        if (not first.name.equals("Alex")) {
+            ok = false
+        }
     }
     if (ok and not scfg.spawnAiDir.equals("/tmp/cplanets-ai")) {
         ok = false

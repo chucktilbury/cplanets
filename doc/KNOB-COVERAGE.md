@@ -167,6 +167,6 @@ Human difficulty GUI is **not** required; AI stays file-driven.
 | [SERVER-CONFIG.md](SERVER-CONFIG.md) | Unified server + §14 key catalog |
 | [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md) | AI key catalog |
 | [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md) | Human key catalog |
-| `config/server-default.cfg` | Unified server + §14 sample |
+| `config/server-default.cfg` | Unified server + §14 sample (full key set; matches XDG `server.cfg`) |
 | `config/ai-default.cfg` | AI axes surface |
 | `scenarios/*.setup` | Reference §14 fragments only |

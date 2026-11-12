@@ -315,6 +315,16 @@ def test_xdg_defaults_when_config_omitted(
                 'ai-client = "Alex"',
                 'ai-client = "Bethany"',
                 'ai-client = "Cameron"',
+                # CPL-116: generated pack must list the full key set.
+                "seat_hard_cap =",
+                "recv_buffer_bytes =",
+                "verbose_capture_lines =",
+                "tick_auto_config_from_ai_lag =",
+                "yard_build_extra_hull_time_frac =",
+                "productive_rate =",
+                "wealth_upkeep_tick_rate =",
+                "design_scout_speed =",
+                "livability_display_max =",
             ):
                 if needle not in text:
                     print(f"server.cfg missing {needle}")

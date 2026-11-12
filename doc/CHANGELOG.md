@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **CPL-116 full XDG server.cfg key set:** auto-generated
+  `~/.config/cplanets/server.cfg` (and `config/server-default.cfg`)
+  list every process/network and §14 key the server understands,
+  with closed defaults — not a partial pack. Still keeps
+  `--config`, explicit `ai-client = "name", level`, and the three
+  AI + human XDG files from CPL-115. No GUI server-config dialog.
+  Docs: [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [CPLANETS.md](CPLANETS.md). Tests: `unit_xdgDefaults`,
+  `functional_cli_config_defaults`.
 - **CPL-115 XDG defaults + explicit AI clients:** when `--config` is
   omitted, `cplanets-server` / `cplanets` / `cplanets-ai` ensure and
   load defaults under `~/.config/cplanets/` (`server.cfg`,

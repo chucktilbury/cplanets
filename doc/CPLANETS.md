@@ -28,6 +28,8 @@ Default `build` installs these into `bin/`:
 `cplanets-ai`. When omitted, each ensures and loads a default under
 `~/.config/cplanets/` (`server.cfg`, `human.cfg`, or `ai-soft.cfg`),
 creating the pack (including `ai-{soft,mid,hard}.cfg`) when missing.
+Generated `server.cfg` includes **all** server configuration keys with
+their defaults (see [SERVER-CONFIG.md](SERVER-CONFIG.md)).
 `cplanets-tick` still **requires** `--config`. An explicit empty
 `--config` prints the same help as `-h` / `--help` and exits **2**.
 With a config whose mode flags are off (`serve` / `once` / … false),
@@ -209,7 +211,9 @@ Process/network **and** §14 galaxy knobs live in one
 `scenarios/*.setup` are reference fragments only (not loaded by
 path). CLI flags present on argv overlay process keys silently.
 An explicit unopenable `--config` is a hard error (no silent builtin).
-Omit `--config` to create/use the XDG pack under `~/.config/cplanets/`.
+Omit `--config` to create/use the XDG pack under `~/.config/cplanets/`;
+the generated `server.cfg` lists every server key with defaults (not a
+partial pack).
 
 On start it prints `HOST=<addr>`, `PORT=<n>`, `CONFIG=<path>`,
 `SCENARIO_MODE=<mode>`, `SEED=<n>`, `PLAYERS=<n>`, `CYCLES=<n>`,

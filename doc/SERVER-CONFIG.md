@@ -11,9 +11,13 @@ skipped. **Unknown keys fail loud** (process exits 1).
 `--config PATH` is optional. When omitted, the server ensures and
 loads `~/.config/cplanets/server.cfg` (creating the XDG pack —
 `server.cfg`, `human.cfg`, `ai-{soft,mid,hard}.cfg` — when missing).
-An **explicit** `--config` path that cannot open is still a **hard
-error** (exit 1). `--config` itself has no in-file key. There is
-**no GUI server-config dialog** yet — edit the file.
+The generated `server.cfg` lists **every** process/network and §14
+key the server understands, with closed defaults (same magnitudes as
+[`config/server-default.cfg`](../config/server-default.cfg), plus three
+sample `ai-client` lines). An **explicit** `--config` path that cannot
+open is still a **hard error** (exit 1). `--config` itself has no
+in-file key. There is **no GUI server-config dialog** yet — edit the
+file.
 
 CLI flags present on argv override file values **silently**.
 §14 galaxy keys have no argv overlays (edit the file and restart).
@@ -24,7 +28,7 @@ CLI flags present on argv override file values **silently**.
 | --- | --- |
 | `setup = scenarios/….setup` in server cfg | **Rejected.** Copy §14 keys into the server config (or start from `config/server-*.cfg`). |
 | CLI `--setup PATH` | **Removed.** Use one unified `--config`. |
-| Empty `setup=` → `SETUP=builtin` / `Scenario()` | Omitted §14 keys still keep `Scenario()` ctor defaults **inside** the loaded config; the config file itself must open. |
+| Empty `setup=` → `SETUP=builtin` / `Scenario()` | Hand-edited files may still omit §14 keys (ctor defaults fill in); the **auto-generated** XDG `server.cfg` and `config/server-default.cfg` list the full key set. |
 | Banner `SETUP=path\|builtin` | Banner `CONFIG=<path>` + `SCENARIO_MODE=<mode>`. |
 
 `scenarios/*.setup` files remain as **reference fragments** for

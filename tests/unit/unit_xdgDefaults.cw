@@ -10,6 +10,7 @@
  *
  * Changelog:
  *   2026-11-11  Initial XDG defaults unit.
+ *   2026-11-11  CPL-116: assert full server.cfg key coverage.
  */
 
 import system as Sys
@@ -77,6 +78,44 @@ start {
         ok = false
     }
     if (ok and not serverText.contains("ai-client = \"Cameron\"")) {
+        ok = false
+    }
+    # CPL-116: formerly omitted keys must appear with defaults.
+    if (ok and not serverText.contains("seat_hard_cap =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("verbose_capture_lines =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("recv_buffer_bytes =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("tick_auto_config_from_ai_lag =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains(
+        "yard_build_extra_hull_time_frac =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("productive_rate =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("wealth_upkeep_tick_rate =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("design_scout_speed =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("livability_display_max =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("rare_mineral_weight =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("start_wealth =")) {
+        ok = false
+    }
+    if (ok and not serverText.contains("galaxy_radius =")) {
         ok = false
     }
     if (priorHome.length > 0) {

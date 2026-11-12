@@ -17,6 +17,8 @@
  *   2026-11-09  Accept §14 scenario keys; reject setup= path.
  *   2026-11-09  recv_buffer_bytes, seat_hard_cap, verbose_capture_lines.
  *   2026-11-10  spawn_ai_count / template / dir / bin (CPL-106).
+ *   2026-11-11  CPL-115: ai-client = name, level; reject
+ *               spawn_ai_count / spawn_ai_template.
  */
 
 include "../lib/setupParse.cw"
@@ -163,10 +165,14 @@ class ServerConfigParse {
             cfg.seatHardCap = val.toInt64()
         } else (key.equals("verbose_capture_lines")) {
             cfg.verboseCaptureLines = val.toInt64()
-        } else (key.equals("spawn_ai_count")) {
-            cfg.spawnAiCount = val.toInt64()
-        } else (key.equals("spawn_ai_template")) {
-            cfg.spawnAiTemplate = val
+        } else (key.equals("ai-client") or key.equals("ai_client")) {
+            applyAiClient(cfg, val)
+        } else (key.equals("spawn_ai_count")
+            or key.equals("spawn_ai_template")) {
+            if (ok) {
+                ok = false
+                lastError = "spawn_ai_count/spawn_ai_template removed; use ai-client = \"name\", level (see doc/SERVER-CONFIG.md)"
+            }
         } else (key.equals("spawn_ai_dir")) {
             cfg.spawnAiDir = val
         } else (key.equals("spawn_ai_bin")) {
@@ -174,6 +180,90 @@ class ServerConfigParse {
         } else {
             applyScenarioKey(cfg, key, val)
         }
+    }
+
+    /*
+     * Parse one `ai-client = "friendlyname", level` value.
+     *
+     * Purpose: accumulate explicit AI seats. Friendly name is the
+     * in-game display_name. Level is optional and defaults to soft;
+     * it selects ai-<level>.cfg beside the server config (or XDG).
+     * Quotes around the name are optional. Empty name fails loud.
+     *
+     * Parameters:
+     *   cfg — mutable ServerConfig (aiClients list).
+     *   val — trimmed right-hand side after '='.
+     *
+     * Returns: nothing.
+     */
+    void applyAiClient(ServerConfig cfg, String val) {
+        String raw = val.trim()
+        if (raw.length < 1) {
+            if (ok) {
+                ok = false
+                lastError = "ai-client needs a friendly name"
+            }
+            return()
+        }
+        String namePart = raw
+        String levelPart = "soft"
+        list pieces = raw.split(",")
+        if (pieces.length >= 1) {
+            namePart = pieces[0]
+            namePart = namePart.trim()
+        }
+        if (pieces.length >= 2) {
+            levelPart = pieces[1]
+            levelPart = levelPart.trim()
+            if (levelPart.length < 1) {
+                levelPart = "soft"
+            }
+        }
+        namePart = stripQuotes(namePart)
+        if (namePart.length < 1) {
+            if (ok) {
+                ok = false
+                lastError = "ai-client friendly name is empty"
+            }
+            return()
+        }
+        # Duplicate display names would collide in chrome/contact.
+        int64 index = 0
+        while (index < cfg.aiClients.length) {
+            AiClientEntry prior = cfg.aiClients[index]
+            if (prior.name.equals(namePart)) {
+                if (ok) {
+                    ok = false
+                    lastError = format(
+                        "duplicate ai-client name: {}", namePart)
+                }
+                return()
+            }
+            index = index + 1
+        }
+        AiClientEntry entry = AiClientEntry(namePart, levelPart)
+        cfg.aiClients.append(entry)
+    }
+
+    /*
+     * Strip optional surrounding double quotes from a token.
+     *
+     * Purpose: accept both `Alex` and `"Alex"` in ai-client values.
+     *
+     * Parameters:
+     *   token — trimmed name fragment.
+     *
+     * Returns: token without a matching outer quote pair.
+     */
+    String stripQuotes(String token) {
+        String text = token.trim()
+        if (text.length >= 2
+            and text.startsWith("\"")
+            and text.endsWith("\"")) {
+            # remove(range) mutates; copy via replace of the pair.
+            text = text.replace("\"", "")
+        }
+        return(text)
     }
 
     /*

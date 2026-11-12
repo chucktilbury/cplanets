@@ -164,10 +164,10 @@ shown in chrome / digest / status. After handshake, clients
 `PUT /name` (`playerId` u32 + string). Humans set `display_name` in
 the human client config (changeable there). AI clients use config
 `display_name` or, when empty, a random proper name from a fixed
-pool (Alex, Bethany, …). The server may spawn N AI clients
-(`spawn_ai_count` / `spawn_ai_template` / `spawn_ai_dir` /
-`spawn_ai_bin`) via Cwhip `process`; each child gets its own config
-file and a unique name.
+pool (Alex, Bethany, …). The server may spawn named AI clients
+(`ai-client = "name", level` / `spawn_ai_dir` / `spawn_ai_bin`) via
+Cwhip `process`; each child gets its own config copied from
+`ai-<level>.cfg` with the friendly name as `display_name`.
 
 **Reconnect / drop (v1).** Drop frees **presence** (connected=false).
 While **running**, the seat remains **reclaimable with its token**

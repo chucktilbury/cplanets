@@ -1,8 +1,9 @@
 /*
  * src/cplanets.cw — human GTK client (Phase G + I map).
  *
- * --config PATH is mandatory (human settings; not AI config).
- * Missing or empty path prints help and exits 2.
+ * --config PATH is optional. When omitted, use (and create if
+ * missing) ~/.config/cplanets/human.cfg (CPL-115). Explicit empty
+ * --config still prints help and exits 2.
  * --once: fill a closed galaxy in-process and print lists (no TCP,
  * no GTK). --pull: TCP GET state+digest summary. --gui / --test:
  * GTK map canvas + top-level menubar panel dialogs (planets,
@@ -36,6 +37,7 @@
  *   2026-11-09  Wire GUI presence keep-alive action.
  *   2026-11-09  refresh_ms / --refresh-ms GUI state+digest poll.
  *   2026-11-10  Wire CPL-101 create fleet / assign / reclaim-stock.
+ *   2026-11-11  CPL-115: XDG default human.cfg when --config omitted.
  */
 
 import cli as Cli
@@ -44,6 +46,7 @@ import system as Sys
 
 include "lib/machine.cw"
 include "lib/state.cw"
+include "lib/xdgDefaults.cw"
 include "server/policyTable.cw"
 include "client/appCore.cw"
 include "client/config.cw"
@@ -108,7 +111,7 @@ class HumanMain {
         config.longName = "config"
         config.name = "config"
         config.description = (
-            "required: human settings file (not AI config)")
+            "human settings (default: ~/.config/cplanets/human.cfg)")
         config.valueType = Cli.ValueType().STRING
         commandLine.addOption(config)
         Cli.Option host = Cli.Option()
@@ -170,14 +173,14 @@ class HumanMain {
      * Parse argv; print help or an error and exit when needed.
      *
      * Purpose: single parse path; unknown flags fail loud.
-     * --config PATH is mandatory (non-empty); missing path prints
-     * the same help as -h and exits 2.
+     * --config may be omitted (XDG human.cfg); an explicit empty
+     * value still prints help and exits 2.
      *
      * Parameters:
      *   commandLine — registered CommandLine from buildCli().
      *
      * Returns: true when the caller should continue; false when this
-     * method already exited the process (help / parse / missing config).
+     * method already exited the process (help / parse error).
      */
     bool parseOrExit(Cli.CommandLine commandLine) {
         String problem = ""
@@ -197,8 +200,8 @@ class HumanMain {
             Sys.Process().exit(2)
             return(false)
         }
-        if (not commandLine.wasProvided("config")
-            or commandLine.value("config").length == 0) {
+        if (commandLine.wasProvided("config")
+            and commandLine.value("config").length == 0) {
             print(commandLine.helpText())
             Sys.Process().exit(2)
             return(false)
@@ -229,13 +232,13 @@ class HumanMain {
     }
 
     /*
-     * Load HumanConfig from required --config with host/port/player
-     * / refresh overlays.
+     * Load HumanConfig from --config or the XDG default pack.
      *
      * Purpose: own settings file; argv may override dial / seat /
      * mode flags / refresh_ms. Overlays apply only when the option
-     * was provided. Caller already required a non-empty --config
-     * path.
+     * was provided. When --config is omitted, ensure and load
+     * ~/.config/cplanets/human.cfg (creating the XDG pack when
+     * missing). No GUI server-config dialog yet — file only.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -244,7 +247,7 @@ class HumanMain {
      */
     HumanConfig loadConfig(Cli.CommandLine commandLine) {
         HumanConfig cfg = HumanConfig()
-        String path = commandLine.value("config")
+        String path = resolveConfigPath(commandLine)
         Sys.File input = Sys.File(path, "r")
         String text = input.readAll()
         input.close()
@@ -286,6 +289,38 @@ class HumanMain {
         }
         cfg.clampAll()
         return(cfg)
+    }
+
+    /*
+     * Resolve the human config path (CLI or XDG default).
+     *
+     * Purpose: keep --config as an override; when omitted, seed
+     * ~/.config/cplanets/ and return human.cfg.
+     *
+     * Parameters:
+     *   commandLine — parsed Cli.CommandLine.
+     *
+     * Returns: readable config path (exits 1 on XDG failure).
+     */
+    String resolveConfigPath(Cli.CommandLine commandLine) {
+        if (commandLine.wasProvided("config")
+            and commandLine.value("config").length > 0) {
+            return(commandLine.value("config"))
+        }
+        XdgDefaults xdg = XdgDefaults()
+        if (not xdg.ensureDefaults()) {
+            print(format(
+                "cplanets: cannot create default config: {}\n",
+                xdg.lastError))
+            Sys.Process().exit(1)
+        }
+        String path = xdg.humanConfigPath()
+        if (path.length < 1) {
+            print("cplanets: cannot resolve default config path\n")
+            Sys.Process().exit(1)
+        }
+        print(format("cplanets: using default config {}\n", path))
+        return(path)
     }
 
     /*
@@ -404,11 +439,11 @@ class HumanMain {
     /*
      * Dispatch smoke / once / pull / gui from a parsed CommandLine.
      *
-     * Purpose: single entry used by start {}. --config is required
-     * upstream. Mode defaults come from the settings file; argv
-     * overrides silently. gui/test beat pull; pull needs port > 0;
-     * once (or pull with port 0) prints lists; all modes false →
-     * smoke identity.
+     * Purpose: single entry used by start {}. --config may come
+     * from argv or the XDG default. Mode defaults come from the
+     * settings file; argv overrides silently. gui/test beat pull;
+     * pull needs port > 0; once (or pull with port 0) prints lists;
+     * all modes false → smoke identity.
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.

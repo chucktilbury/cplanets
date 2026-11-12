@@ -2,9 +2,9 @@
  * src/server/config.cw — unified server process + scenario knobs.
  *
  * One operator file for listen/serve runtime and former §14 scenario
- * magnitudes (RULES §2 / preferences). Missing or unopenable
- * --config is a hard error; there is no separate setup= path and no
- * silent builtin fallback when a file was expected.
+ * magnitudes (RULES §2 / preferences). --config PATH still works;
+ * when omitted, XDG ~/.config/cplanets/server.cfg is created/used
+ * (CPL-115). Explicit paths that cannot open remain a hard error.
  *
  * Created: 2026-11-07
  * Author: Auto
@@ -19,7 +19,11 @@
  *   2026-11-09  recv_buffer_bytes, seat_hard_cap, verbose_capture_lines.
  *   2026-11-10  spawn_ai_* keys for server-launched AI clients
  *               (CPL-106).
+ *   2026-11-11  CPL-115: aiClients list replaces spawn_ai_count /
+ *               spawn_ai_template; keep spawn_ai_dir / spawn_ai_bin.
  */
+
+include "aiClientEntry.cw"
 
 /*
  * ServerConfig holds network / process defaults plus the Scenario
@@ -60,13 +64,10 @@ class ServerConfig {
     int64 seatHardCap
     # ServerVerboseLog ring size (former maxLines 64 literal).
     int64 verboseCaptureLines
-    # How many AI client processes to spawn after listen (0 = none).
-    # Each child gets its own config file under spawnAiDir with a
-    # unique display_name from the proper-name pool (CPL-106).
-    int64 spawnAiCount
-    # AI config template copied per spawned child (required when
-    # spawnAiCount > 0). Typically config/ai-default.cfg.
-    String spawnAiTemplate
+    # Explicit AI clients from repeated `ai-client = "name", level`
+    # lines (CPL-115). Empty list = do not spawn. Friendly name is
+    # the in-game display_name; level selects ai-<level>.cfg.
+    list aiClients
     # Directory for generated per-AI configs. Empty → system temp
     # dir under a cplanets-ai-spawn-* folder.
     String spawnAiDir
@@ -103,8 +104,7 @@ class ServerConfig {
         recvBufferBytes = 65536
         seatHardCap = 256
         verboseCaptureLines = 64
-        spawnAiCount = 0
-        spawnAiTemplate = ""
+        aiClients = []
         spawnAiDir = ""
         spawnAiBin = ""
         scenario = Scenario()
@@ -138,9 +138,7 @@ class ServerConfig {
         if (verbosity < 0) {
             verbosity = 0
         }
-        if (spawnAiCount < 0) {
-            spawnAiCount = 0
-        } else (verbosity > 10) {
+        if (verbosity > 10) {
             verbosity = 10
         }
         if (handshakeMissMs < 1) {

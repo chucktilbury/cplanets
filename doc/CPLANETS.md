@@ -24,18 +24,18 @@ Default `build` installs these into `bin/`:
 | `cplanets-ai` | Stand-alone AI client on the same protocol. Own config file. Never ticks. |
 | `cplanets-tick` | Headless identity / future N-tick host stub (no TCP, no GTK). |
 
-`--config PATH` is **mandatory** on every production binary. Missing
-or empty path prints the same help as `-h` / `--help` and exits **2**.
+`--config PATH` is **optional** on `cplanets-server`, `cplanets`, and
+`cplanets-ai`. When omitted, each ensures and loads a default under
+`~/.config/cplanets/` (`server.cfg`, `human.cfg`, or `ai-soft.cfg`),
+creating the pack (including `ai-{soft,mid,hard}.cfg`) when missing.
+`cplanets-tick` still **requires** `--config`. An explicit empty
+`--config` prints the same help as `-h` / `--help` and exits **2**.
 With a config whose mode flags are off (`serve` / `once` / … false),
 each binary prints its program name + shared lib identity — useful as
 a smoke check after build (`--config config/…-default.cfg`). All four
 user-facing binaries parse argv with the Cwhip stdlib `cli` package
 (`import cli as Cli`); `--help` / `-h` prints generated usage and
 exits **0**. Unknown flags fail loud (exit 2).
-
-**Planned follow-on (not implemented):** when `--config` is omitted,
-auto-load a default config from the user's home directory. Until that
-lands, always pass an explicit `--config PATH`.
 
 **Map canvas (Phase I) ships** as the main DrawingArea panel; former
 list notebook tabs open from the **View** menu as non-modal dialogs.
@@ -95,29 +95,30 @@ Paths below assume you are at the project root after a successful
 
 ### CLI vs config defaults
 
-`--config PATH` is **required**. Every other command-line parameter
-may also be set as a default in that file. Load the file first; any
-flag **present on argv** overrides the corresponding file value
-**silently** (no warning). The server uses one unified `--config`
-(process/network **and** §14 scenario knobs). Legacy `setup=` /
-`--setup` are removed — see [SERVER-CONFIG.md](SERVER-CONFIG.md).
-`--config` is the only path without an in-file default.
+`--config PATH` may be omitted (XDG defaults) on server / human / AI.
+Every other command-line parameter may also be set as a default in
+that file. Load the file first; any flag **present on argv** overrides
+the corresponding file value **silently** (no warning). The server
+uses one unified `--config` (process/network **and** §14 scenario
+knobs). Legacy `setup=` / `--setup` / `spawn_ai_count` /
+`spawn_ai_template` are removed — see
+[SERVER-CONFIG.md](SERVER-CONFIG.md). Explicit AI seats use
+`ai-client = "FriendlyName", level` (level optional → soft;
+`ai-<level>.cfg`). No GUI server-config dialog yet — file only.
 `cplanets-tick` has a placeholder config (`config/tick-default.cfg`)
 and no advance-N value flags yet.
-
-**Planned:** home-directory default config when `--config` is
-omitted — not implemented; keep passing `--config` explicitly.
 
 ### `cplanets-server`
 
 ```text
-bin/cplanets-server --config config/server-default.cfg [flags…]
+bin/cplanets-server [--config config/server-default.cfg] [flags…]
+# or omit --config → ~/.config/cplanets/server.cfg
 ```
 
 | Flag | Default | Config key | Meaning |
 | --- | --- | --- | --- |
 | `-h`, `--help` | — | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(required)* | *(path only)* | Unified server + §14 config ([SERVER-CONFIG.md](SERVER-CONFIG.md)) |
+| `--config PATH` | `~/.config/cplanets/server.cfg` | *(path only)* | Unified server + §14 config ([SERVER-CONFIG.md](SERVER-CONFIG.md)); omit → create/use XDG default |
 | `--serve` | off | `serve` | Bind TCP and run accept + cadence loop |
 | `--host ADDR` | `127.0.0.1` | `host` (alias `address`) | Listen bind address |
 | `--port N` | `7700` (sample) | `port` | Listen port; `0` still picks an ephemeral free port (CI / harnesses) |
@@ -207,7 +208,8 @@ Process/network **and** §14 galaxy knobs live in one
 `config/server-*.cfg` ([SERVER-CONFIG.md](SERVER-CONFIG.md)).
 `scenarios/*.setup` are reference fragments only (not loaded by
 path). CLI flags present on argv overlay process keys silently.
-Missing/unopenable `--config` is a hard error (no silent builtin).
+An explicit unopenable `--config` is a hard error (no silent builtin).
+Omit `--config` to create/use the XDG pack under `~/.config/cplanets/`.
 
 On start it prints `HOST=<addr>`, `PORT=<n>`, `CONFIG=<path>`,
 `SCENARIO_MODE=<mode>`, `SEED=<n>`, `PLAYERS=<n>`, `CYCLES=<n>`,
@@ -225,7 +227,7 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | Flag | Config key | Meaning |
 | --- | --- | --- |
 | `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(required; path only)* | Human settings file (not the AI config) |
+| `--config PATH` | `~/.config/cplanets/human.cfg` | Human settings (not AI); omit → create/use XDG default |
 | `--host HOST` | `host` | Dial host |
 | `--port N` | `port` | Dial port (`> 0` for TCP) |
 | `--player N` | `player_id` | Offline seat id only (`--once` / `port 0`); TCP seats are server-assigned on handshake |
@@ -278,7 +280,7 @@ bin/cplanets-ai --config config/ai-default.cfg [flags…]
 | Flag | Config key | Meaning |
 | --- | --- | --- |
 | `-h`, `--help` | — | Print stdlib `cli` usage and exit 0 |
-| `--config PATH` | *(required; path only)* | AI config (not human settings) |
+| `--config PATH` | `~/.config/cplanets/ai-soft.cfg` | AI config (not human); omit → create/use XDG soft level |
 | `--host HOST` / `--port N` | `host` / `port` | Dial |
 | `--verbosity N` | `verbosity` | stdout log level 0–10 (clamped) |
 | `--once` | `once` | Print one local policy shape (no TCP; one-shot) |

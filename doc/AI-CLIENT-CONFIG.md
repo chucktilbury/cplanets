@@ -5,7 +5,9 @@ RULES §2). Sample: [`config/ai-default.cfg`](../config/ai-default.cfg).
 Aggression bands: `config/ai-{soft,mid,hard}.cfg`.
 
 Syntax: `key = value`. Unknown keys **fail loud**. `--config PATH`
-is mandatory (no in-file key). CLI flags present on argv override
+is optional: when omitted, ensure/load
+`~/.config/cplanets/ai-soft.cfg` (XDG pack; CPL-115). An explicit
+path that cannot open fails hard. CLI flags present on argv override
 file values **silently**.
 
 TCP seats are **server-assigned** on `PUT /handshake`. Do not rely
@@ -55,7 +57,7 @@ shape (ticks vs wall) is still open in RULES.
 | `player_id` | int | `-1` | (omit / `-1`) | `-1` or `≥ 0` | Legacy seat pin. Live TCP: leave `-1`; server assigns. Offline `--once` may pin via `ensureOfflineSeat`. |
 | `host` | string | `127.0.0.1` | `127.0.0.1` | hostname / IP | Server dial address. CLI `--host`. |
 | `port` | int | `0` | `7700` | `≥ 0` | Server dial port (`0` = offline / no TCP). CLI `--port`. |
-| `display_name` | string | `""` | (omit) | proper name | Seat label sent via `PUT /name` after handshake. Empty → pick once from the proper-name pool (Alex, Bethany, …) using `seed`. Server `spawn_ai_*` overlays a unique name per child config. |
+| `display_name` | string | `""` | (omit) | proper name | Seat label sent via `PUT /name` after handshake. Empty → pick once from the proper-name pool (Alex, Bethany, …) using `seed`. Server `ai-client` spawn overlays the friendly name from the server config. |
 
 `reconnectToken` is **not** a file key (opaque bytes from handshake
 ack, process-local).

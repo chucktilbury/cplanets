@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **CPL-115 XDG defaults + explicit AI clients:** when `--config` is
+  omitted, `cplanets-server` / `cplanets` / `cplanets-ai` ensure and
+  load defaults under `~/.config/cplanets/` (`server.cfg`,
+  `human.cfg`, `ai-{soft,mid,hard}.cfg`). Keep `--config` as an
+  override; tick still requires it. No GUI server-config dialog.
+  Replace `spawn_ai_count` / `spawn_ai_template` with repeatable
+  `ai-client = "FriendlyName", level` (level optional → soft;
+  template `ai-<level>.cfg`). Friendly name is the in-game
+  `display_name`. Docs: [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [AI-CLIENT-CONFIG.md](AI-CLIENT-CONFIG.md),
+  [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md),
+  [CPLANETS.md](CPLANETS.md). Tests: `unit_serverConfig`,
+  `unit_xdgDefaults`, `functional_cli_config_defaults`.
 - **CPL-114 productive = positive net income:** a planet is
   **productive** iff structural combined net (farming + industry at
   full intensity) is **> 0**. Owned populated habit-complete rocks

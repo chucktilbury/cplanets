@@ -44,6 +44,7 @@
  *   2026-11-12  CPL-117: bind failure prints host:port (+ lastError).
  *   2026-11-12  CPL-118: defer ai-client spawn until human / go;
  *               lobby start via human Pause uncheck (setPaused).
+ *   2026-11-12  AI spawn only after lobby go (not human connect).
  */
 
 import cli as Cli
@@ -486,9 +487,11 @@ class ServerMain {
         print(
             "unchecks Pause (or console g / status-menu Go). ")
         print(
-            "Configured ai-client children spawn after the ")
+            "Configured ai-client children spawn after lobby ")
         print(
-            "first human connects (or on go for AI-only). ")
+            "go (Pause uncheck / console g / admin go) — not ")
+        print(
+            "on human connect alone. ")
         print(
             "Status menu: type m then Enter ")
         print(
@@ -497,7 +500,7 @@ class ServerMain {
             "stray keys are flushed).\n")
         # Flush so Python functional tests see PORT= before accept.
         # Do not spawn AI here — arm deferred spawn for the serve
-        # loop (human connect or go).
+        # loop (fires on lobby go / PHASE=running).
         Sys.StandardIO().flush()
         AiSpawnBook spawns = AiSpawnBook()
         spawns.armDeferred(cfg, listener.getPort(), cfg.seed)

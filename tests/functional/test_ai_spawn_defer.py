@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""CPL-118: configured ai-client children spawn after a human connects.
+"""AI clients spawn after lobby go — not on human connect alone.
 
-Listen/start must not print SPAWN_AI_COUNT. After a human handshake,
-the serve loop should launch armed children and print SPAWN_AI_COUNT.
+Listen/start and human handshake must not print SPAWN_AI_COUNT.
+After PUT /admin/go (same path as Pause uncheck), the serve loop
+should launch armed children and print SPAWN_AI_COUNT.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import time
 from pathlib import Path
 
 from wire import (
+    admin_go,
     decode_envelope,
     handshake,
     parse_handshake_ack,
@@ -181,7 +183,7 @@ def main() -> int:
         early = "\n".join(tail.snapshot())
         if "SPAWN_AI_COUNT=" in early:
             raise RuntimeError(
-                f"AI spawned at listen before human: {early!r}"
+                f"AI spawned at listen before go: {early!r}"
             )
 
         resp = exchange("127.0.0.1", port, handshake())
@@ -199,16 +201,26 @@ def main() -> int:
                 f"bad human handshake path={path} body={body!r}"
             )
 
+        # Human connect alone must still not spawn.
+        time.sleep(0.4)
+        mid = "\n".join(tail.snapshot())
+        if "SPAWN_AI_COUNT=" in mid:
+            raise RuntimeError(
+                f"AI spawned on human connect before go: {mid!r}"
+            )
+
+        resp = exchange("127.0.0.1", port, admin_go())
+        _, _, path, body = decode_envelope(resp)
+        if path != "/admin/go" or body[0] != 1:
+            raise RuntimeError(
+                f"admin go failed path={path} body={body!r}"
+            )
+
         spawn_line = tail.wait_for("SPAWN_AI_COUNT=", 5.0)
         if spawn_line is None:
             late = "\n".join(tail.snapshot())
-            err = ""
-            if proc.stderr is not None:
-                # Best-effort; may block if still running — skip.
-                err = "(stderr not drained)"
             raise RuntimeError(
-                f"no SPAWN_AI_COUNT after human; stdout={late!r} "
-                f"{err}"
+                f"no SPAWN_AI_COUNT after go; stdout={late!r}"
             )
         count = int(spawn_line.split("=", 1)[1])
         if count != 1:

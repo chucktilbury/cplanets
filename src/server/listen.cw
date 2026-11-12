@@ -25,6 +25,7 @@
  *   2026-11-09  recvBufferBytes from server config (was 65536).
  *   2026-11-12  CPL-117: FD_CLOEXEC on listen fd (AI spawn inherit).
  *   2026-11-12  CPL-118: poll deferred AiSpawnBook (human / go).
+ *   2026-11-12  AI spawn only after lobby go (not human connect).
  */
 
 import networking as Networking
@@ -41,8 +42,8 @@ include "socketCloexec.cw"
  * SO_RCVTIMEO (ServerSocket has no setTimeout). One writer: all
  * mutations go through ServerHandler → GameDriver. menuGate stays
  * disabled unless the server calls enable() before serve().
- * Optional aiSpawns (armDeferred) fires after a human connects or
- * lobby go — not at listen.
+ * Optional aiSpawns (armDeferred) fires after lobby go — not at
+ * listen and not on human connect alone.
  */
 class ServerListen {
     Networking.Runtime net
@@ -159,8 +160,8 @@ class ServerListen {
      * maybeTick so wall cadence advances without a client. When the
      * menu gate is enabled, a non-blocking stdin poll may open the
      * status console (ticks paused while open). When aiSpawns is
-     * armed, maybeSpawn runs each cycle after accept handling so a
-     * just-seated human (or console/admin go) can launch AI.
+     * armed, maybeSpawn runs each cycle after accept handling so
+     * lobby go (Pause uncheck / console g / admin go) can launch AI.
      *
      * Parameters: none.
      *
@@ -203,10 +204,11 @@ class ServerListen {
     }
 
     /*
-     * Fire deferred AI spawn when a human is live or lobby left.
+     * Fire deferred AI spawn after lobby go (PHASE=running).
      *
      * Purpose: keep serve() free of spawn details; log once on
      * failure without aborting an already-connected human session.
+     * Human connect alone must not spawn (lobby stays quiet).
      *
      * Parameters: none.
      *
@@ -216,10 +218,7 @@ class ServerListen {
         if (aiSpawns == null) {
             return()
         }
-        bool humanHere = (
-            driver.presence.countLiveHumans(driver.game.players)
-            >= 1)
-        if (not aiSpawns.maybeSpawn(humanHere, driver.running)) {
+        if (not aiSpawns.maybeSpawn(driver.running)) {
             print(format(
                 "cplanets-server: AI spawn failed: {}\n",
                 aiSpawns.lastError))

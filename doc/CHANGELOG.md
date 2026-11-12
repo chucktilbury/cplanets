@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Human GUI hang with `gui=true` (DropDown reentry + stock
+  scroll):** `GuiChoiceRow` now suppresses `onSelected` /
+  `changedAction` while programmatic `setChoices` / `setSelected`
+  rebuild the model. GtkDropDown `notify::selected` on every append
+  was re-entering Fleets Inventory `refresh()` → `setChoices` and
+  spinning at 100% CPU inside `GuiMain.activate` before `present()`.
+  Fleets Inventory also removes the prior `stockScroll` child before
+  `setChild` on refresh (GTK ScrolledWindow is single-child). Sparse
+  `~/.config/cplanets/human.cfg` with `gui = true` now opens the
+  main window.
+- **AI spawn only after lobby go (not human connect):** configured
+  `ai-client` children launch when PHASE becomes running (human
+  Pause uncheck / console `g` / status-menu Go / `PUT /admin/go`).
+  Human connect alone no longer spawns AI (that flooded the serve
+  loop and looked like the game had started while still in lobby).
+  Docs: [RULES.md](RULES.md), [CPLANETS.md](CPLANETS.md),
+  [SERVER-CONFIG.md](SERVER-CONFIG.md). Tests:
+  `functional_ai_spawn_defer`.
 - **Human client opens GTK by default (not smoke):** `HumanConfig`
   ctor `gui` is now `true`, so a sparse `~/.config/cplanets/human.cfg`
   that omits `gui` no longer falls into printSmoke (looked like
@@ -15,8 +33,8 @@
   until start. **Normal start** is the human Pause CheckButton —
   unchecking Pause (`PUT /pause` 0) calls shared `go()`. Console
   `g` / status-menu Go / `PUT /admin/go` remain as fallback.
-  Configured `ai-client` children spawn **after the first live
-  human connects** (or on go for AI-only), not at listen/start.
+  Configured `ai-client` children spawn **after lobby go** (not at
+  listen/start or on human connect alone).
   Docs: [RULES.md](RULES.md), [CPLANETS.md](CPLANETS.md),
   [SERVER-CONFIG.md](SERVER-CONFIG.md). Tests: `unit_lobbyHumanPause`,
   `functional_lobby_hold`, `functional_ai_spawn_defer`.

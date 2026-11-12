@@ -144,8 +144,9 @@ human) starts checked in lobby; **unchecking Pause** sends
 `PUT /pause` 0 and leaves lobby via the shared `go()` path. Console
 **`g`+Enter** / status-menu **Go** / harness `PUT /admin/go` remain
 as the same path (AI-only / dev / CI). Configured **`ai-client`
-children spawn after the first live human connects** (or on go when
-no human yet); they are **not** launched at listen/start. End-of-game
+children spawn after lobby go** (human Pause uncheck / console `g` /
+admin go) — **not** at listen/start and **not** on human connect
+alone. End-of-game
 checks (all-humans-quit / eliminate-all) also wait until go —
 connecting an AI in lobby must not end the server. Later clients may
 still connect and get seats while in lobby. Lobby miss-drop clears

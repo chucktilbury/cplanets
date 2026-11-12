@@ -108,9 +108,9 @@ start** is the human Pause CheckButton: lobby publishes paused, and
 **unchecking Pause** (`PUT /pause` flag 0) calls the shared `go()`
 path. Console **`g`+Enter** (banner `GO_KEY=g`), status-menu **Go**,
 and harness `PUT /admin/go` remain as the same path (AI-only / dev /
-CI fallback). Configured `ai-client` children **spawn after the first
-live human connects** (or on go when no human — AI-only fallback),
-not at listen/start. Later “all humans ready” may call that same
+CI fallback). Configured `ai-client` children **spawn after lobby
+go** (human Pause uncheck / console `g` / admin go) — not at
+listen/start and not on human connect alone. Later “all humans ready” may call that same
 `go()` path; auto-ready is a stub. After go, phase is **running** and
 cadence proceeds as below.
 
@@ -170,9 +170,9 @@ the human client config (changeable there). AI clients use config
 `display_name` or, when empty, a random proper name from a fixed
 pool (Alex, Bethany, …). The server may spawn named AI clients
 (`ai-client = "name", level` / `spawn_ai_dir` / `spawn_ai_bin`) via
-Cwhip `process` **after a human connects** (or on go for AI-only);
-each child gets its own config copied from `ai-<level>.cfg` with the
-friendly name as `display_name`.
+Cwhip `process` **after lobby go** (Pause uncheck / console `g` /
+admin go); each child gets its own config copied from `ai-<level>.cfg`
+with the friendly name as `display_name`.
 
 **Reconnect / drop (v1).** Drop frees **presence** (connected=false).
 While **running**, the seat remains **reclaimable with its token**

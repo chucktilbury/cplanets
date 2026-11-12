@@ -14,6 +14,10 @@
  *   2026-11-10  Preserve prior selection across setChoices refresh.
  *   2026-11-11  Remember last non-empty pick so refresh_ms cannot
  *               snap back to index 0 when DropDown.setChoices does.
+ *   2026-11-12  Suppress onSelected during programmatic setChoices /
+ *               setSelected so append notify cannot re-enter refresh
+ *               (Fleets Inventory planetChoice → refresh → hang;
+ *               no main window with gui=true).
  */
 
 /*
@@ -24,6 +28,12 @@
  * read value() when building PUT bodies. setChoices / setValue may
  * run before buildWidget(); pending state is applied when the
  * DropDown is created.
+ *
+ * GtkDropDown emits notify::selected on every clear/append during
+ * setChoices. Those signals must not run changedAction — pages such
+ * as Fleets Inventory wire planetChoice.changedAction to refresh(),
+ * which calls setChoices again and otherwise infinite-loops inside
+ * GuiMain.activate before window.present().
  */
 class GuiChoiceRow {
     Gtk.DropDown drop
@@ -33,6 +43,9 @@ class GuiChoiceRow {
     void<> changedAction
     void<int64> selectedAction
     String emptyText
+    # True while applyChoices / selectText mutate the DropDown so
+    # notify::selected does not re-enter changedAction.
+    bool suppressSelected
 
     /*
      * Construct an empty choice row.
@@ -51,6 +64,7 @@ class GuiChoiceRow {
         changedAction = null
         selectedAction = null
         emptyText = "(none)"
+        suppressSelected = false
     }
 
     /*
@@ -177,7 +191,9 @@ class GuiChoiceRow {
     /*
      * DropDown selection changed.
      *
-     * Purpose: default onSelected → optional changedAction.
+     * Purpose: default onSelected → optional changedAction. Skips
+     * notify while suppressSelected so programmatic setChoices /
+     * setSelected (model rebuild) cannot re-enter page refresh.
      *
      * Parameters:
      *   index — new selected index (ignored; value() is source of truth).
@@ -185,6 +201,9 @@ class GuiChoiceRow {
      * Returns: nothing.
      */
     void onSelected(int64 index) {
+        if (suppressSelected) {
+            return()
+        }
         # Remember the operator's live pick so the next setChoices
         # refresh can restore it even when DropDown briefly reports
         # empty during model rebuild (CPL-111).
@@ -243,34 +262,40 @@ class GuiChoiceRow {
         if (prior.length < 1 and hasPendingValue) {
             prior = pendingValue
         }
+        suppressSelected = true
         if (newChoices.length < 1) {
             list placeholder = []
             placeholder.append(emptyText)
             drop.setChoices(placeholder)
             drop.setSelected(0)
             drop.setSensitive(false)
+            suppressSelected = false
             return()
         }
         drop.setSensitive(true)
         drop.setChoices(newChoices)
         if (prior.length > 0) {
-            if (selectText(prior)) {
+            if (selectTextUnlocked(prior)) {
                 pendingValue = prior
                 hasPendingValue = true
+                suppressSelected = false
                 return()
             }
         }
         if (hasPendingValue and pendingValue.length > 0) {
-            if (selectText(pendingValue)) {
+            if (selectTextUnlocked(pendingValue)) {
+                suppressSelected = false
                 return()
             }
         }
+        suppressSelected = false
     }
 
     /*
      * Select by exact label on the live DropDown.
      *
-     * Purpose: setValue / applyPending.
+     * Purpose: setValue / applyPending. Suppresses selection notify
+     * so callers that wire changedAction → refresh do not re-enter.
      *
      * Parameters:
      *   wanted — exact choice string.
@@ -278,6 +303,27 @@ class GuiChoiceRow {
      * Returns: true when selected.
      */
     bool selectText(String wanted) {
+        if (drop == null) {
+            return(false)
+        }
+        suppressSelected = true
+        bool ok = selectTextUnlocked(wanted)
+        suppressSelected = false
+        return(ok)
+    }
+
+    /*
+     * Select by label while the caller already holds suppressSelected.
+     *
+     * Purpose: applyChoices nested setSelected without clearing the
+     * outer suppress flag mid-rebuild.
+     *
+     * Parameters:
+     *   wanted — exact choice string.
+     *
+     * Returns: true when selected.
+     */
+    bool selectTextUnlocked(String wanted) {
         if (drop == null) {
             return(false)
         }

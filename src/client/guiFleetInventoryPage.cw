@@ -13,6 +13,8 @@
  *   2026-11-10  Initial Fleets Inventory dialog page.
  *   2026-11-11  Planet scope; multi-select stock; Assign /
  *               Un-assign buttons (CPL-111).
+ *   2026-11-12  Remove prior stockScroll child before setChild on
+ *               refresh (GTK ScrolledWindow is single-child).
  */
 
 include "appCore.cw"
@@ -35,6 +37,9 @@ class GuiFleetInventoryPage {
     AppCore core
     GuiChoiceRow planetChoice
     Gtk.ScrolledWindow stockScroll
+    # Current stockScroll child (Box of CheckButtons); removed before
+    # each rebuild because ScrolledWindow.setChild rejects a second child.
+    Gtk.Widget stockBody
     list stockChecks
     list stockLabels
     Gtk.Label fleetList
@@ -63,6 +68,7 @@ class GuiFleetInventoryPage {
         core = appCore
         planetChoice = GuiChoiceRow()
         stockScroll = null
+        stockBody = null
         stockChecks = []
         stockLabels = []
         fleetList = null
@@ -278,7 +284,12 @@ class GuiFleetInventoryPage {
         if (shown < 1) {
             fresh.append(Gtk.Label("(no unassigned hulls here)"))
         }
+        if (stockBody != null) {
+            stockScroll.remove(stockBody)
+            stockBody = null
+        }
         stockScroll.setChild(fresh)
+        stockBody = fresh
     }
 
     /*

@@ -408,7 +408,7 @@ class XdgDefaults {
         text.append("recv_buffer_bytes = 65536\n\n")
         text.append("# Explicit AI clients (friendly name = display_name).\n")
         text.append("# Level selects ai-<level>.cfg beside this file.\n")
-        text.append("# Spawn after first human connects (or on go).\n")
+        text.append("# Spawn after lobby go (Pause uncheck / g).\n")
         text.append("ai-client = \"Alex\", soft\n")
         text.append("ai-client = \"Bethany\", mid\n")
         text.append("ai-client = \"Cameron\", hard\n")

@@ -3,8 +3,10 @@
  *
  * Launch stand-alone cplanets-ai children listed by
  * `ai-client = "name", level` in the server config. Spawn is
- * **deferred**: arm after listen, then fire once a live human is
- * seated (or once lobby go runs, for AI-only / console fallback).
+ * **deferred**: arm after listen, then fire once lobby go runs
+ * (human Pause uncheck / console `g` / status-menu Go /
+ * PUT /admin/go). Human connect alone must not spawn — that looked
+ * like the server “started cycling” while still in lobby.
  * Each child gets its own config file copied from `ai-<level>.cfg`
  * with display_name set to the friendly name and dial host/port
  * matching the live listen bind (CPL-115 / CPL-118).
@@ -16,6 +18,7 @@
  *   2026-11-10  Initial AsyncProcess AI spawn helper (CPL-106).
  *   2026-11-11  CPL-115: spawn from aiClients + ai-<level>.cfg.
  *   2026-11-12  CPL-118: defer spawn until human connect or go.
+ *   2026-11-12  Spawn only after lobby go (not on human connect).
  */
 
 import process as P
@@ -67,12 +70,12 @@ class AiSpawnBook {
     }
 
     /*
-     * Remember listen bind so spawn can wait for a human (or go).
+     * Remember listen bind so spawn can wait for lobby go.
      *
      * Purpose: keep explicit `ai-client` config lines, but do not
-     * launch children at listen/start. The serve loop calls
-     * maybeSpawn each cycle; first live human (or lobby→running)
-     * fires spawnAll once.
+     * launch children at listen/start or on human connect. The
+     * serve loop calls maybeSpawn each cycle; lobby→running
+     * (Pause uncheck / console g / admin go) fires spawnAll once.
      *
      * Parameters:
      *   cfg — loaded ServerConfig (aiClients + host + spawn_*).
@@ -93,27 +96,27 @@ class AiSpawnBook {
     }
 
     /*
-     * Spawn armed AI clients after a human connects or go runs.
+     * Spawn armed AI clients after lobby go (PHASE=running).
      *
-     * Purpose: primary path is “first live human seated”; fallback
-     * is lobby go (console `g` / status-menu Go / PUT /admin/go)
-     * so AI-only / harness sessions still get configured children
-     * without requiring a human Pause uncheck. Idempotent after
+     * Purpose: keep the lobby quiet — human connect alone must not
+     * launch AI children (that flooded the serve loop and looked
+     * like the game had started). Fire on running so human Pause
+     * uncheck, console `g`, status-menu Go, and PUT /admin/go all
+     * share one path (including AI-only sessions). Idempotent after
      * the first attempt (success or failure).
      *
      * Parameters:
-     *   humanPresent — true when countLiveHumans >= 1.
      *   running — true after lobby go (PHASE=running).
      *
      * Returns: true when still waiting, already done, list empty,
      * or spawnAll succeeded; false when spawnAll failed (lastError
      * set; deferDone still true so the loop does not retry).
      */
-    bool maybeSpawn(bool humanPresent, bool running) {
+    bool maybeSpawn(bool running) {
         if (not deferArmed or deferDone) {
             return(true)
         }
-        if (not humanPresent and not running) {
+        if (not running) {
             return(true)
         }
         deferDone = true

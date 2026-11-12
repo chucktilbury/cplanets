@@ -103,12 +103,16 @@ issues reconnect tokens, and the operator status menu works, but
 **wall ticks do not advance** (injectable `/admin/advance` is also
 blocked), **play verbs** (order / build / design / recall / reclaim /
 budget) are rejected, and published chrome reports the hold as
-**paused** so clients do not treat connect as serve-start. The
-operator starts the game with console **`g`+Enter** (banner
-`GO_KEY=g`), status-menu **Go**, or harness `PUT /admin/go` — all
-share one `go()` path. Later “all humans ready” may call that same
-path; **v1 = operator go only** (auto-ready is a stub). After go,
-phase is **running** and cadence proceeds as below.
+**paused** so clients do not treat connect as serve-start. **Normal
+start** is the human Pause CheckButton: lobby publishes paused, and
+**unchecking Pause** (`PUT /pause` flag 0) calls the shared `go()`
+path. Console **`g`+Enter** (banner `GO_KEY=g`), status-menu **Go**,
+and harness `PUT /admin/go` remain as the same path (AI-only / dev /
+CI fallback). Configured `ai-client` children **spawn after the first
+live human connects** (or on go when no human — AI-only fallback),
+not at listen/start. Later “all humans ready” may call that same
+`go()` path; auto-ready is a stub. After go, phase is **running** and
+cadence proceeds as below.
 
 **Seat allocation (v1).** The **server allocates seats** on connect.
 Clients must **not** choose `playerId` as seating authority — there
@@ -166,8 +170,9 @@ the human client config (changeable there). AI clients use config
 `display_name` or, when empty, a random proper name from a fixed
 pool (Alex, Bethany, …). The server may spawn named AI clients
 (`ai-client = "name", level` / `spawn_ai_dir` / `spawn_ai_bin`) via
-Cwhip `process`; each child gets its own config copied from
-`ai-<level>.cfg` with the friendly name as `display_name`.
+Cwhip `process` **after a human connects** (or on go for AI-only);
+each child gets its own config copied from `ai-<level>.cfg` with the
+friendly name as `display_name`.
 
 **Reconnect / drop (v1).** Drop frees **presence** (connected=false).
 While **running**, the seat remains **reclaimable with its token**
@@ -897,8 +902,9 @@ path); **home yards spawn on seat connect** (not pre-seeded; drop
 leaves home in place); **server allocates seats on handshake**
 (clients do not claim `playerId`; seats grow on connect; `players`
 is soft max / expected hint, not a hard fixed array; opaque
-reconnect token reclaim); **lobby until operator go** (no ticks
-until `g` / Go / `/admin/go`; go uses whatever seats are seated);
+reconnect token reclaim); **lobby until go** (no ticks until human
+Pause uncheck / `g` / Go / `/admin/go`; `ai-client` spawn after
+human connect or on go; go uses whatever seats are seated);
 
 mid-dispatch: other policy OK, that fleet
 locked until recall; design/build take time (setup/ticks);

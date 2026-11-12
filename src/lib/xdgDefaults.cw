@@ -16,6 +16,7 @@
  *   2026-11-11  CPL-115: XDG default config creation.
  *   2026-11-11  CPL-116: default server.cfg lists every server key.
  *   2026-11-12  CPL-117: auto-heal incomplete generated server.cfg.
+ *   2026-11-12  CPL-118: note deferred ai-client spawn in server.cfg.
  */
 
 # Callers must `import system as Sys` (server / human / AI mains do).
@@ -407,6 +408,7 @@ class XdgDefaults {
         text.append("recv_buffer_bytes = 65536\n\n")
         text.append("# Explicit AI clients (friendly name = display_name).\n")
         text.append("# Level selects ai-<level>.cfg beside this file.\n")
+        text.append("# Spawn after first human connects (or on go).\n")
         text.append("ai-client = \"Alex\", soft\n")
         text.append("ai-client = \"Bethany\", mid\n")
         text.append("ai-client = \"Cameron\", hard\n")

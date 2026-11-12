@@ -255,6 +255,7 @@ if(BUILD_TESTING)
         unit_lobbyReconnect
         unit_lobbyAiConnect
         unit_lobbyHoldGhosts
+        unit_lobbyHumanPause
         unit_humanSeatGo
         unit_dynamicSeats
         unit_empirePools
@@ -436,6 +437,12 @@ if(BUILD_TESTING)
         "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
         "-DPYTHON=${Python3_EXECUTABLE}"
         -P "${PROJECT_SOURCE_DIR}/tests/functional/test_lobby_hold.cmake")
+    add_test(NAME functional_ai_spawn_defer COMMAND "${CMAKE_COMMAND}"
+        "-DSERVER=${cplanets-server_executable}"
+        "-DAI=${cplanets-ai_executable}"
+        "-DSERVER_CONFIG=${PROJECT_SOURCE_DIR}/config/server-default.cfg"
+        "-DPYTHON=${Python3_EXECUTABLE}"
+        -P "${PROJECT_SOURCE_DIR}/tests/functional/test_ai_spawn_defer.cmake")
     # Operator samples under config/ are relative to the source root.
     # CTest's default cwd is the build tree; run functionals from the
     # source root so paths match an operator launch.
@@ -455,7 +462,8 @@ if(BUILD_TESTING)
         functional_ai_status_menu
         functional_ai_serve_continuous
         functional_ai_loop_period
-        functional_lobby_hold)
+        functional_lobby_hold
+        functional_ai_spawn_defer)
     set_tests_properties(${_cplanets_functional_tests} PROPERTIES
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()

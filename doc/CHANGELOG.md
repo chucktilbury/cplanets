@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **CPL-118 lobby waits; human Pause starts; deferred AI spawn:**
+  server stays in lobby (published paused, no ticks / play verbs)
+  until start. **Normal start** is the human Pause CheckButton —
+  unchecking Pause (`PUT /pause` 0) calls shared `go()`. Console
+  `g` / status-menu Go / `PUT /admin/go` remain as fallback.
+  Configured `ai-client` children spawn **after the first live
+  human connects** (or on go for AI-only), not at listen/start.
+  Docs: [RULES.md](RULES.md), [CPLANETS.md](CPLANETS.md),
+  [SERVER-CONFIG.md](SERVER-CONFIG.md). Tests: `unit_lobbyHumanPause`,
+  `functional_lobby_hold`, `functional_ai_spawn_defer`.
 - **CPL-117 server bind + incomplete XDG heal:** mark the TCP listen
   socket `FD_CLOEXEC` so spawned `cplanets-ai` children no longer
   inherit it (orphans were holding `127.0.0.1:7700` → opaque

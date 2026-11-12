@@ -1,11 +1,13 @@
 /*
  * src/server/aiSpawn.cw — spawn explicit AI clients via process.
  *
- * After the server listens, optionally launch stand-alone
- * cplanets-ai children listed by `ai-client = "name", level` in
- * the server config. Each child gets its own config file copied
- * from `ai-<level>.cfg` with display_name set to the friendly
- * name and dial host/port matching the live listen bind (CPL-115).
+ * Launch stand-alone cplanets-ai children listed by
+ * `ai-client = "name", level` in the server config. Spawn is
+ * **deferred**: arm after listen, then fire once a live human is
+ * seated (or once lobby go runs, for AI-only / console fallback).
+ * Each child gets its own config file copied from `ai-<level>.cfg`
+ * with display_name set to the friendly name and dial host/port
+ * matching the live listen bind (CPL-115 / CPL-118).
  *
  * Created: 2026-11-10
  * Author: Auto
@@ -13,6 +15,7 @@
  * Changelog:
  *   2026-11-10  Initial AsyncProcess AI spawn helper (CPL-106).
  *   2026-11-11  CPL-115: spawn from aiClients + ai-<level>.cfg.
+ *   2026-11-12  CPL-118: defer spawn until human connect or go.
  */
 
 import process as P
@@ -28,13 +31,19 @@ include "config.cw"
  *
  * Writes per-child configs, starts AsyncProcess handles, and
  * cancels them on close. Does not tick or seat — children dial
- * TCP like any external AI client.
+ * TCP like any external AI client. Prefer armDeferred + maybeSpawn
+ * from the serve loop so AI do not dial before a human is present.
  */
 class AiSpawnBook {
     list children
     list configPaths
     list names
     String lastError
+    bool deferArmed
+    bool deferDone
+    ServerConfig deferCfg
+    int64 deferPort
+    int64 deferSeed
 
     /*
      * Construct an empty spawn book.
@@ -50,16 +59,80 @@ class AiSpawnBook {
         configPaths = []
         names = []
         lastError = ""
+        deferArmed = false
+        deferDone = false
+        deferCfg = null
+        deferPort = 0
+        deferSeed = 0
+    }
+
+    /*
+     * Remember listen bind so spawn can wait for a human (or go).
+     *
+     * Purpose: keep explicit `ai-client` config lines, but do not
+     * launch children at listen/start. The serve loop calls
+     * maybeSpawn each cycle; first live human (or lobby→running)
+     * fires spawnAll once.
+     *
+     * Parameters:
+     *   cfg — loaded ServerConfig (aiClients + host + spawn_*).
+     *   listenPort — actual bound TCP port (may differ from
+     *                cfg.port when ephemeral).
+     *   seed — PRNG seed for per-child seed overlays.
+     *
+     * Returns: nothing.
+     */
+    void armDeferred(
+        ServerConfig cfg, int64 listenPort, int64 seed) {
+        deferCfg = cfg
+        deferPort = listenPort
+        deferSeed = seed
+        deferArmed = true
+        deferDone = false
+        lastError = ""
+    }
+
+    /*
+     * Spawn armed AI clients after a human connects or go runs.
+     *
+     * Purpose: primary path is “first live human seated”; fallback
+     * is lobby go (console `g` / status-menu Go / PUT /admin/go)
+     * so AI-only / harness sessions still get configured children
+     * without requiring a human Pause uncheck. Idempotent after
+     * the first attempt (success or failure).
+     *
+     * Parameters:
+     *   humanPresent — true when countLiveHumans >= 1.
+     *   running — true after lobby go (PHASE=running).
+     *
+     * Returns: true when still waiting, already done, list empty,
+     * or spawnAll succeeded; false when spawnAll failed (lastError
+     * set; deferDone still true so the loop does not retry).
+     */
+    bool maybeSpawn(bool humanPresent, bool running) {
+        if (not deferArmed or deferDone) {
+            return(true)
+        }
+        if (not humanPresent and not running) {
+            return(true)
+        }
+        deferDone = true
+        if (deferCfg == null) {
+            lastError = "deferred AI spawn missing config"
+            return(false)
+        }
+        return(spawnAll(deferCfg, deferPort, deferSeed))
     }
 
     /*
      * Spawn every cfg.aiClients entry when the list is non-empty.
      *
-     * Purpose: operator convenience so one server config can
-     * bring up a lobby with named AI seats already dialing. Each
-     * child receives `--config` pointing at a generated file under
-     * spawn_ai_dir (or a temp dir). Level files are ai-<level>.cfg
-     * resolved beside the server config, then XDG, then cwd.
+     * Purpose: operator convenience so one server config can list
+     * named AI seats; launch happens from maybeSpawn (human or go),
+     * not at listen. Each child receives `--config` pointing at a
+     * generated file under spawn_ai_dir (or a temp dir). Level files
+     * are ai-<level>.cfg resolved beside the server config, then
+     * XDG, then cwd.
      *
      * Parameters:
      *   cfg — loaded ServerConfig (aiClients + host + spawn_*).

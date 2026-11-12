@@ -42,6 +42,8 @@
  *   2026-11-10  Optional spawn_ai_* AI client launch (CPL-106).
  *   2026-11-11  CPL-115: XDG default --config; ai-client spawn.
  *   2026-11-12  CPL-117: bind failure prints host:port (+ lastError).
+ *   2026-11-12  CPL-118: defer ai-client spawn until human / go;
+ *               lobby start via human Pause uncheck (setPaused).
  */
 
 import cli as Cli
@@ -480,11 +482,13 @@ class ServerMain {
             print("PHASE=running\n")
         }
         print(
-            "Lobby: wall ticks do not advance until go. ")
+            "Lobby: wall ticks do not advance until a human ")
         print(
-            "Type g then Enter to start (or status-menu Go, ")
+            "unchecks Pause (or console g / status-menu Go). ")
         print(
-            "which also closes the menu). ")
+            "Configured ai-client children spawn after the ")
+        print(
+            "first human connects (or on go for AI-only). ")
         print(
             "Status menu: type m then Enter ")
         print(
@@ -492,18 +496,12 @@ class ServerMain {
         print(
             "stray keys are flushed).\n")
         # Flush so Python functional tests see PORT= before accept.
+        # Do not spawn AI here — arm deferred spawn for the serve
+        # loop (human connect or go).
         Sys.StandardIO().flush()
         AiSpawnBook spawns = AiSpawnBook()
-        if (not spawns.spawnAll(
-            cfg, listener.getPort(), cfg.seed)) {
-            print(format(
-                "cplanets-server: AI spawn failed: {}\n",
-                spawns.lastError))
-            spawns.closeAll()
-            listener.close()
-            driver.close()
-            return(1)
-        }
+        spawns.armDeferred(cfg, listener.getPort(), cfg.seed)
+        listener.enableAiSpawn(spawns)
         listener.serve()
         spawns.closeAll()
         listener.close()

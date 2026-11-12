@@ -51,6 +51,8 @@
  *   2026-11-10  Retire keeps human=true; go refreshes end-status
  *               so last-human leave still all_humans_quit (CPL-108).
  *               Human allocate restores human after AI seat reuse.
+ *   2026-11-12  CPL-118: setPaused(false) in lobby calls go() so
+ *               the human Pause CheckButton starts the game.
  */
 
 include "clock.cw"
@@ -218,18 +220,19 @@ class GameDriver {
         if (running) {
             return(true)
         }
-        lastOrderError = "still in lobby (operator go required)"
+        lastOrderError = "still in lobby (uncheck Pause or go)"
         return(false)
     }
 
     /*
      * Leave lobby and allow wall / injectable ticks.
      *
-     * Purpose: operator console `g` / status-menu Go / harness
-     * PUT /admin/go. Idempotent. Does not itself fire a tick.
-     * Starts with **whatever seats are already allocated** — does
-     * not wait for softMaxPlayers / expected seat count. Later
-     * “all humans ready” can call this same path
+     * Purpose: shared start path for human Pause uncheck
+     * (setPaused false), operator console `g` / status-menu Go,
+     * and harness PUT /admin/go. Idempotent. Does not itself fire
+     * a tick. Starts with **whatever seats are already allocated**
+     * — does not wait for softMaxPlayers / expected seat count.
+     * Later “all humans ready” can call this same path
      * (tryAutoGoAllHumansReady is the stub hook). Before flipping
      * running, retires lobby-abandoned seats so a human that
      * miss-dropped while seating (token cleared) cannot make the
@@ -1339,6 +1342,12 @@ class GameDriver {
      *
      * Purpose: pause only when exactly one live human remains.
      * With two or more humans, reject and keep the clock running.
+     * While still in lobby, clearing pause (wantPaused=false) is
+     * the normal human start control: it calls go() so wall ticks
+     * and play verbs unlock — same path as console `g` /
+     * status-menu Go / PUT /admin/go. Lobby already publishes as
+     * paused; the human Pause CheckButton starts checked and
+     * unchecking starts the game (CPL-118).
      *
      * Parameters:
      *   wantPaused — desired pause flag.
@@ -1351,6 +1360,9 @@ class GameDriver {
             return(false)
         }
         paused = wantPaused
+        if (not wantPaused and not running and not game.ended) {
+            go()
+        }
         republishWithoutTick()
         return(true)
     }

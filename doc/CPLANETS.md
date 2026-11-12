@@ -242,10 +242,13 @@ bin/cplanets --config config/human-default.cfg [flags…]
 | `--player N` | `player_id` | Offline seat id only (`--once` / `port 0`); TCP seats are server-assigned on handshake |
 | `--once` | `once` | In-process closed galaxy; print list summary (no TCP, no GTK) |
 | `--pull` | `pull` | TCP GET state + digest summary (needs `port > 0`) |
-| `--gui` | `gui` | GTK map + top-level menubar panel dialogs |
-| `--test` | `test` | GTK path that auto-quits after a short schedule |
+| `--gui` | `gui` | GTK map + top-level menubar panel dialogs (file/ctor default **true**; omit-config XDG pack also writes `gui = true`) |
+| `--test` | `test` | GTK path that auto-quits after a short schedule (not the operator default) |
 | `--refresh-ms N` | `refresh_ms` | Live GUI poll period (ms) for `GET /state` + `GET /digest` (default **1000**; `0` = off). Distinct from presence keep-alive handshake (~2s) |
 
+Operator default is GTK: a sparse `human.cfg` that omits `gui`
+still opens the UI. Headless smoke / CTest samples set `gui = false`.
+Mode precedence: `--test` → `--once` → `--pull` → `gui` → smoke.
 With `--gui` / `--test` and `port > 0`, the client pulls from the
 server; otherwise (`port = 0`) it prefills an offline closed galaxy.
 Sample configs use **port 7700** so a normal play session matches the

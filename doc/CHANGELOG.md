@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Human client opens GTK by default (not smoke):** `HumanConfig`
+  ctor `gui` is now `true`, so a sparse `~/.config/cplanets/human.cfg`
+  that omits `gui` no longer falls into printSmoke (looked like
+  “stuck in test mode”). Headless CTest / harness configs must keep
+  `gui = false`. Dispatch precedence is `--test` → `--once` →
+  `--pull` → `gui` → smoke so `cplanets --once` / `--pull` stay
+  headless against an XDG `gui = true` file. Docs:
+  [HUMAN-CLIENT-CONFIG.md](HUMAN-CLIENT-CONFIG.md).
 - **CPL-118 lobby waits; human Pause starts; deferred AI spawn:**
   server stays in lobby (published paused, no ticks / play verbs)
   until start. **Normal start** is the human Pause CheckButton —

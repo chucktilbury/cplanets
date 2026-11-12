@@ -10,7 +10,8 @@
  * fleets, ships, digest, policy) + explored dialog. Never ticks;
  * never opens the universe DB (RULES §2 / PLAN §4.G / §4.I).
  * User-facing argv uses stdlib `cli` (including --help / -h).
- * With all modes false from file/argv, prints smoke identity.
+ * With gui=false and other modes false from file/argv, prints
+ * smoke identity (CTest). Operator default gui=true opens GTK.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -38,6 +39,8 @@
  *   2026-11-09  refresh_ms / --refresh-ms GUI state+digest poll.
  *   2026-11-10  Wire CPL-101 create fleet / assign / reclaim-stock.
  *   2026-11-11  CPL-115: XDG default human.cfg when --config omitted.
+ *   2026-11-12  HumanConfig gui defaults true; smoke only when
+ *               gui=false (and no once/pull/test) from file/argv.
  */
 
 import cli as Cli
@@ -441,9 +444,12 @@ class HumanMain {
      *
      * Purpose: single entry used by start {}. --config may come
      * from argv or the XDG default. Mode defaults come from the
-     * settings file; argv overrides silently. gui/test beat pull;
-     * pull needs port > 0; once (or pull with port 0) prints lists;
-     * all modes false → smoke identity.
+     * settings file; argv overrides silently. Precedence:
+     * --test (auto-quit GTK) → --once → --pull (TCP or offline
+     * lists) → gui → smoke. Explicit once/pull beat the operator
+     * gui=true default so `cplanets --once` stays headless when
+     * ~/.config/cplanets/human.cfg has gui=true. Smoke identity
+     * only when gui=false and no other mode (CTest harnesses).
      *
      * Parameters:
      *   commandLine — parsed Cli.CommandLine.
@@ -456,16 +462,24 @@ class HumanMain {
         bool wantPull = resolveFlag(commandLine, "pull", cfg.pull)
         bool wantGui = resolveFlag(commandLine, "gui", cfg.gui)
         bool wantTest = resolveFlag(commandLine, "test", cfg.test)
-        if (wantGui or wantTest) {
-            runGui(cfg, wantTest)
+        if (wantTest) {
+            runGui(cfg, true)
+            return()
+        }
+        if (wantOnce) {
+            runOnce(cfg)
             return()
         }
         if (wantPull and cfg.port > 0) {
             runPull(cfg)
             return()
         }
-        if (wantOnce or wantPull) {
+        if (wantPull) {
             runOnce(cfg)
+            return()
+        }
+        if (wantGui) {
+            runGui(cfg, false)
             return()
         }
         printSmoke()

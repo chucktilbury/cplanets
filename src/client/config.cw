@@ -14,6 +14,8 @@
  *   2026-11-08  reconnectToken from handshake ack for reclaim.
  *   2026-11-09  refresh_ms: GUI GET /state+/digest poll period.
  *   2026-11-10  display_name seat label (CPL-106).
+ *   2026-11-12  Default gui=true so omit-key / sparse configs open
+ *               GTK (smoke / harness must set gui=false explicitly).
  */
 
 /*
@@ -23,6 +25,9 @@
  * the universe DB (RULES §2). Mode flags mirror CLI switches so
  * a settings file can select once / pull / gui / test; argv
  * still overrides silently when the flag is present.
+ * Operator default is gui=true (GTK). Headless smoke / CTest /
+ * harness configs must set gui=false explicitly; --test is the
+ * only auto-quit GTK path.
  * reconnectToken is opaque TOKEN_BYTES from the server handshake
  * ack; process-local only (not a config-file key).
  * refreshMs drives live GUI pull of GET /state + GET /digest
@@ -55,7 +60,7 @@ class HumanConfig {
      * Parameters: none.
      *
      * Returns: HumanConfig host 127.0.0.1, port 0, seat -1,
-     * empty reconnect token, refreshMs 1000.
+     * empty reconnect token, gui true, refreshMs 1000.
      */
     HumanConfig() {
         playerId = -1
@@ -65,7 +70,10 @@ class HumanConfig {
         port = 0
         once = false
         pull = false
-        gui = false
+        # Operator path opens GTK when the file omits `gui`
+        # (sparse ~/.config/cplanets/human.cfg). CTest / harness
+        # samples set gui=false so printSmoke / --pull stay headless.
+        gui = true
         test = false
         refreshMs = 1000
     }

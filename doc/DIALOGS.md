@@ -174,16 +174,17 @@ policy.
 ### 4.2 Planet budget / allocation
 
 **Exists** as Planets panel allocation % Scale → `PUT /budget`.
-Production tick multiplies that rock’s empire-pool wealth/resource
-credit by `allocationPct/100` (existing `production_tick_rate` /
-cover / AFK magnitudes; no per-planet logistics tax). Map ContextMenu
-“Budget this planet” fills the same Entry/Scale for owned rocks.
-Concrete surface:
+Production tick applies per-planet **net** income
+(`credit − upkeep`, CPL-113) into empire wealth/resources; both
+sides scale by `allocationPct/100` (plus `production_tick_rate` /
+upkeep rates / cover / AFK; no per-planet logistics tax). Map
+ContextMenu “Budget this planet” fills the same Entry/Scale for
+owned rocks. Concrete surface:
 
 | Content | Notes |
 | --- | --- |
-| Per-owned-planet `allocationPct` (0–100) | **Scale**; default **100** = full existing production magnitudes; empire pools remain sacred (no yard logistics tax) |
-| Tick effect | Productive owned rock → pool credit × `allocationPct/100` |
+| Per-owned-planet `allocationPct` (0–100) | **Scale**; default **100** = full net-income intensity; empire pools remain sacred (no yard logistics tax) |
+| Tick effect | Productive owned rock → empire pool **net** × `allocationPct/100` (may debit) |
 | Entry point | Planets root click; map ContextMenu for owned rocks |
 | Exact richer knob list | Still **open** under empire-pool model — do not invent logistics |
 

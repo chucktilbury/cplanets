@@ -265,6 +265,31 @@ minerals** — each with an **accessibility** rating (setup-spawned;
 (`access_*`, `habit_*`, `rare_mineral_weight`, …). Home yards start
 fully accessible and already productive.
 
+**Per-planet net income (CPL-113).** Each **productive** owned rock
+applies a **net** into the empire pool each production tick — not a
+credit-only bump. Net may be **positive or negative**.
+
+- **Farming → wealth:**  
+  `wealth_net = wealth_credit − wealth_upkeep`  
+  `wealth_credit = livability × farm_access × cover × production_tick_rate × afk_scale × allocation`  
+  `wealth_upkeep = livability × farm_difficulty × wealth_upkeep_tick_rate × cover × afk_scale × allocation`  
+  where `farm_access` is mean air/water accessibility (floored by
+  `access_floor`) and `farm_difficulty = 1 / max(access, access_floor)`.
+- **Industry → resources:** same shape with mineral composite /
+  mineral access / `resources_upkeep_tick_rate`.
+- Low accessibility therefore **cuts credit and raises upkeep**, so
+  hard rocks can be an **ongoing debit**. Easy rocks stay a credit
+  when upkeep rates sit below production rate at access ≈ 1.
+- `allocationPct` (and AFK / cover) scales **both** sides — throttling
+  a rock throttles income intensity, not a logistics tax.
+- Upkeep rates of **0** restore credit-only behavior (CPL-112 shape).
+
+**Clamp.** Empire `wealth` / `resources` never go below **0** from
+planet upkeep. Planets apply in galaxy index order; a debit that would
+overdraw truncates to the remaining stock on that axis (partial drain).
+Habit / yard spends use the same floor idea. Stocks stay empire-wide;
+this does not invent per-planet banks.
+
 ## 3. State
 
 - **Scenario**: setup coefficients / mappings (bumps, weights,
@@ -453,7 +478,8 @@ has traveled halfway.
 Intra-tick sequence below is unchanged by the §2 clock: only **when**
 the server calls `tick` changed (real-time cadence), not this order.
 
-1. Production on productive planets; shipyard builds.
+1. Production on productive planets (per-planet **net** income into
+   empire pools — CPL-113); shipyard builds.
 2. Cancellations (same-tick recall of not-yet-departed orders).
 3. Other `recall` (turn toward **sender**; recompute ETA).
 4. Decrement ETA / move.

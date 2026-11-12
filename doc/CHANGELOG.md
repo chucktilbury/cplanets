@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **CPL-113 per-planet net income:** productive rocks apply
+  `net = production credit − upkeep` into empire wealth/resources.
+  Credit still scales with accessibility; upkeep scales with
+  `accessDifficulty` (`1/access`). Net may be negative (ongoing
+  debit). Empire pools clamp at 0 when debit exceeds stock
+  (galaxy index order). Knobs: `wealth_upkeep_tick_rate`,
+  `resources_upkeep_tick_rate` (default `0.003`; `0` = credit-only).
+  Docs: [RULES.md](RULES.md) §2 / §7, [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md), [DIALOGS.md](DIALOGS.md).
 - **CPL-112 planetary resources / accessibility:** each rock carries
   air, water, common minerals, rare minerals with per-resource
   accessibility. Farming (air+water) credits empire wealth; industry

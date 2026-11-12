@@ -19,6 +19,8 @@
  *               free the type name after the last hulls reclaim.
  *   2026-11-11  CPL-112: farming vs industry production axes;
  *               accessibility scales credit; advance habit ticks.
+ *   2026-11-11  CPL-113: per-planet net = credit − upkeep; clamp
+ *               empire pools at zero when debit exceeds stock.
  */
 
 include "design.cw"
@@ -132,15 +134,20 @@ class Production {
     }
 
     /*
-     * Credit one productive planet into its owner's pools.
+     * Apply one productive planet's net income to empire pools.
      *
-     * Purpose: CPL-112 farming (air+water → wealth) vs industry
-     * (minerals → resources), each scaled by accessibility and
-     * by coverFactor / allocationPct. Empire-pool path only —
-     * no per-planet stockpile or yard logistics tax.
+     * Purpose: CPL-113 — each productive rock yields
+     *   net = production credit − upkeep
+     * Farming (air+water → wealth) and industry (minerals →
+     * resources) are independent. Credit scales with accessibility;
+     * upkeep scales with accessDifficulty (1/access). Net may be
+     * negative (ongoing debit into the empire pool). Empire-pool
+     * path only — no per-planet stockpile. When a debit would drive
+     * a pool below zero, clamp that axis to zero (planet-index
+     * order; remaining stock absorbs a partial debit).
      *
      * Parameters:
-     *   scenario — coverFactor / productionTickRate / accessFloor.
+     *   scenario — cover / production / upkeep rates, accessFloor.
      *   rock — productive owned planet (allocationPct spend bias).
      *   players — empire list.
      *   events — event log.
@@ -157,35 +164,88 @@ class Production {
         }
         Player seat = players[rock.ownerId]
         fp64 rate = scenario.productionTickRate
+        fp64 wealthUpkeepRate = scenario.wealthUpkeepTickRate
+        if (wealthUpkeepRate < 0.0) {
+            wealthUpkeepRate = 0.0
+        }
+        fp64 resUpkeepRate = scenario.resourcesUpkeepTickRate
+        if (resUpkeepRate < 0.0) {
+            resUpkeepRate = 0.0
+        }
         fp64 scale = seat.afkProductionScale
         fp64 alloc = allocationFraction(rock.allocationPct)
+        fp64 shared = scenario.coverFactor * rate * scale * alloc
         fp64 farmAccess = rock.habitAccess()
+        fp64 farmDiff = scenario.accessDifficulty(farmAccess)
+        fp64 mineAccess = rock.mineralAccess()
+        fp64 mineDiff = scenario.accessDifficulty(mineAccess)
+        # Clamp access the same way difficulty floors it, so credit
+        # never uses a raw below-floor access while upkeep uses floor.
         if (farmAccess < scenario.accessFloor) {
             farmAccess = scenario.accessFloor
         }
-        fp64 mineAccess = rock.mineralAccess()
+        if (farmAccess < 0.0) {
+            farmAccess = 0.0
+        }
         if (mineAccess < scenario.accessFloor) {
             mineAccess = scenario.accessFloor
         }
-        fp64 wealthGain = (
+        if (mineAccess < 0.0) {
+            mineAccess = 0.0
+        }
+        fp64 wealthCredit = rock.livability * farmAccess * shared
+        # Upkeep uses difficulty and its own rate; share cover/AFK/
+        # allocation so throttling a rock throttles both sides.
+        fp64 wealthUpkeep = (
             rock.livability
-            * farmAccess
+            * farmDiff
+            * wealthUpkeepRate
             * scenario.coverFactor
-            * rate
             * scale
             * alloc)
-        fp64 resGain = (
+        fp64 wealthNet = wealthCredit - wealthUpkeep
+        fp64 resCredit = rock.resources * mineAccess * shared
+        fp64 resUpkeep = (
             rock.resources
-            * mineAccess
+            * mineDiff
+            * resUpkeepRate
             * scenario.coverFactor
-            * rate
             * scale
             * alloc)
-        seat.wealth = seat.wealth + wealthGain
-        seat.resources = seat.resources + resGain
+        fp64 resNet = resCredit - resUpkeep
+        wealthNet = clampPoolDelta(seat.wealth, wealthNet)
+        resNet = clampPoolDelta(seat.resources, resNet)
+        seat.wealth = seat.wealth + wealthNet
+        seat.resources = seat.resources + resNet
         players[rock.ownerId] = seat
         events.append(
             TickEvent("production", -1, rock.id, seat.id, 1))
+    }
+
+    /*
+     * Truncate a pool delta so the resulting stock stays >= 0.
+     *
+     * Purpose: CPL-113 coherent clamp — empire wealth/resources
+     * never go negative from planet upkeep. Credits pass through;
+     * debits that exceed the current stock become a full drain.
+     *
+     * Parameters:
+     *   stock — current empire pool value (>= 0 expected).
+     *   delta — proposed credit (positive) or debit (negative).
+     *
+     * Returns: delta, or -stock when debit would overdraw.
+     */
+    fp64 clampPoolDelta(fp64 stock, fp64 delta) {
+        if (delta >= 0.0) {
+            return(delta)
+        }
+        if (stock + delta >= 0.0) {
+            return(delta)
+        }
+        if (stock <= 0.0) {
+            return(0.0)
+        }
+        return(0.0 - stock)
     }
 
     /*

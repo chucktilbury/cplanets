@@ -89,7 +89,9 @@ start {
     Dispatch bill = Dispatch()
     fp64 cost = bill.dispatchCost(game.scenario, scout, 3)
     Planet homeRock = game.galaxy.planets[0]
-    fp64 prod = homeRock.livability * game.scenario.coverFactor * 0.01
+    fp64 prod = homeRock.livability * game.scenario.coverFactor * (
+        game.scenario.productionTickRate
+        - game.scenario.wealthUpkeepTickRate)
     fp64 delta = game.primaryPlayer().wealth - (w0 + prod - cost)
     if (delta < 0.0) {
         delta = 0.0 - delta
@@ -147,7 +149,9 @@ start {
         ok = false
     }
     Planet cancelHome = cancel.galaxy.planets[0]
-    fp64 cancelProd = cancelHome.livability * cancel.scenario.coverFactor * 0.01
+    fp64 cancelProd = cancelHome.livability * cancel.scenario.coverFactor * (
+        cancel.scenario.productionTickRate
+        - cancel.scenario.wealthUpkeepTickRate)
     fp64 cancelDelta = cancel.primaryPlayer().wealth - (cw + cancelProd)
     if (cancelDelta < 0.0) {
         cancelDelta = 0.0 - cancelDelta

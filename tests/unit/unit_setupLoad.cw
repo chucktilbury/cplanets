@@ -17,6 +17,7 @@
  *   2026-11-07  Assert process CLI mirror keys.
  *   2026-11-07  Drop process-key asserts; reject them as unknown.
  *   2026-11-07  Assert production/galaxy/design template overlays.
+ *   2026-11-11  Assert CPL-113 upkeep tick rate overlays.
  */
 
 include "lib/setupParse.cw"
@@ -31,6 +32,8 @@ start {
     text.append("tech_teleport_threshold = 9.5\n")
     text.append("productive_inherent_defense = 1.5\n")
     text.append("production_tick_rate = 0.02\n")
+    text.append("wealth_upkeep_tick_rate = 0.004\n")
+    text.append("resources_upkeep_tick_rate = 0.005\n")
     text.append("yard_build_cost_per_size = 12.0\n")
     text.append("design_develop_cost_per_size = 55.0\n")
     text.append("colony_hop_fraction = 0.4\n")
@@ -67,6 +70,12 @@ start {
         ok = false
     }
     if (s.productionTickRate != 0.02f64) {
+        ok = false
+    }
+    if (s.wealthUpkeepTickRate != 0.004f64) {
+        ok = false
+    }
+    if (s.resourcesUpkeepTickRate != 0.005f64) {
         ok = false
     }
     if (s.yardBuildCostPerSize != 12.0f64) {

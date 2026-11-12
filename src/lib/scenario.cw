@@ -20,6 +20,7 @@
  *               time factor (CPL-111, default 0.10).
  *   2026-11-11  CPL-112: rare mineral weight, access spawn band /
  *               floor, habitability base ticks + wealth cost.
+ *   2026-11-11  CPL-113: planet upkeep tick rates (net income).
  */
 
 /*
@@ -106,6 +107,10 @@ class Scenario {
     # Colony terraforming: ticks and wealth × habit difficulty.
     int64 habitBaseTicks
     fp64 habitBaseWealthCost
+    # CPL-113: per-tick upkeep vs production credit (net may be
+    # negative). 0 disables upkeep (credit-only, CPL-112 shape).
+    fp64 wealthUpkeepTickRate
+    fp64 resourcesUpkeepTickRate
 
     # Default hull template magnitudes (former design.cw make* literals).
     fp64 designScoutSpeed
@@ -220,6 +225,10 @@ class Scenario {
         accessFloor = 0.20
         habitBaseTicks = 1
         habitBaseWealthCost = 25.0
+        # Small vs production_tick_rate so easy rocks stay positive
+        # and hard (low-access) rocks can debit the empire pool.
+        wealthUpkeepTickRate = 0.003
+        resourcesUpkeepTickRate = 0.003
 
         designScoutSpeed = 2.0
         designScoutSize = 0.5

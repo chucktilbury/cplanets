@@ -81,6 +81,7 @@ written — include it when merged; not required for this docs PR.
 | `home_fallback_livability` / `home_fallback_resources` | setup → sandbox home claim | textfile already · server-textfile-only |
 | `contact_reach` | setup → sandbox neighborhood stamp | textfile already · server-textfile-only |
 | `rare_mineral_weight`, `access_min` / `access_max` / `access_floor`, `habit_base_ticks`, `habit_base_wealth_cost` | setup → galaxy mix, production, yard, colony habit (CPL-112) | textfile already · server-textfile-only |
+| `wealth_upkeep_tick_rate`, `resources_upkeep_tick_rate` | setup → production net income (CPL-113; credit − upkeep) | textfile already · server-textfile-only |
 | Per-planet budget / allocation set | open (RULES); policy % only | needs textfile (when locked) · GUI candidate |
 
 ---
@@ -123,7 +124,8 @@ written — include it when merged; not required for this docs PR.
 | `trade_bump` | setup + `tradeArrive.cw` | textfile already · server-textfile-only |
 | `attack_bump` | setup → defender-win wealth/resources credit (`take.cw`) | textfile already · server-textfile-only |
 | `capture_use_chance`, `cover_factor` | setup (`cover_factor` used in production) | textfile already · server-textfile-only |
-| `production_tick_rate` | setup → productive wealth/resource gains | textfile already · server-textfile-only |
+| `production_tick_rate` | setup → productive wealth/resource **credit** half of net | textfile already · server-textfile-only |
+| `wealth_upkeep_tick_rate` / `resources_upkeep_tick_rate` | setup → productive upkeep half of net (CPL-113) | textfile already · server-textfile-only |
 
 ---
 

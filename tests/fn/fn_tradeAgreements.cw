@@ -184,8 +184,12 @@ start {
         probe)
     fp64 load = 100.0
     Planet home = game.galaxy.planets[0]
-    fp64 prodW = home.livability * game.scenario.coverFactor * 0.01
-    fp64 prodR = home.resources * game.scenario.coverFactor * 0.01
+    fp64 prodW = home.livability * game.scenario.coverFactor * (
+        game.scenario.productionTickRate
+        - game.scenario.wealthUpkeepTickRate)
+    fp64 prodR = home.resources * game.scenario.coverFactor * (
+        game.scenario.productionTickRate
+        - game.scenario.resourcesUpkeepTickRate)
     # Two ticks of home production; one dispatch+loading; return
     # profit. Receiver inbound bump only — sender-only loading.
     fp64 inbound = 100.0 * (game.scenario.tradeBump - 1.0) * 0.5
@@ -367,7 +371,9 @@ start {
         ok = false
     }
     Planet ch = cancel.galaxy.planets[0]
-    fp64 cprod = ch.livability * cancel.scenario.coverFactor * 0.01
+    fp64 cprod = ch.livability * cancel.scenario.coverFactor * (
+        cancel.scenario.productionTickRate
+        - cancel.scenario.wealthUpkeepTickRate)
     Player cancelAfter = cancel.players[0]
     fp64 cdelta = cancelAfter.wealth - (cw0 + cprod)
     if (cdelta < 0.0) {

@@ -35,7 +35,9 @@ start {
     list events = game.tick()
     seat = game.primaryPlayer()
     Planet homeRock = game.galaxy.planets[0]
-    fp64 prod = homeRock.livability * game.scenario.coverFactor * 0.01
+    fp64 prod = homeRock.livability * game.scenario.coverFactor * (
+        game.scenario.productionTickRate
+        - game.scenario.wealthUpkeepTickRate)
     fp64 expected = w0 + prod - expectCost
     fp64 delta = seat.wealth - expected
     if (delta < 0.0) {

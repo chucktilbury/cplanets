@@ -1,10 +1,10 @@
 /*
- * tests/unit/unit_production.cw — productive home credits empire pools.
+ * tests/unit/unit_production.cw — productive home net income.
  *
- * Fixed seed; production tick raises wealth/resources scaled by
- * Planet.allocationPct (PUT /budget). Zero allocation spends nothing;
- * full allocation spends more than a mid-band throttle (PLAN §4.C /
- * RULES §7.1 / DIALOGS §4.2).
+ * Fixed seed; production tick applies credit − upkeep scaled by
+ * Planet.allocationPct (PUT /budget). Zero allocation spends
+ * nothing; full allocation spends more than a mid-band throttle.
+ * CPL-113: low accessibility can debit; pools clamp at zero.
  *
  * Created: 2026-11-05
  * Author: Auto
@@ -13,6 +13,7 @@
  *   2026-11-05  Initial production unit program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
  *   2026-11-07  Prove allocationPct scales empire-pool credit.
+ *   2026-11-11  CPL-113: negative net under low access; clamp.
  */
 
 include "lib/state.cw"
@@ -20,7 +21,7 @@ include "lib/state.cw"
 start {
     bool ok = true
 
-    # --- allocationPct 0: no empire-pool credit ---
+    # --- allocationPct 0: no empire-pool credit or upkeep ---
     State idle = State()
     idle.startClosed(13u, 1)
     idle.ensureAllSeatHomes()
@@ -51,7 +52,7 @@ start {
         ok = false
     }
 
-    # --- mid-band (50): positive gain ---
+    # --- mid-band (50): positive net on fully accessible home ---
     State mid = State()
     mid.startClosed(13u, 1)
     mid.ensureAllSeatHomes()
@@ -90,7 +91,7 @@ start {
         ok = false
     }
 
-    # --- default / 100: roughly 2x mid-band gain ---
+    # --- default / 100: roughly 2x mid-band net ---
     State full = State()
     full.startClosed(13u, 1)
     full.ensureAllSeatHomes()
@@ -117,6 +118,61 @@ start {
         ok = false
     }
     if (rRatio < 1.99 or rRatio > 2.01) {
+        ok = false
+    }
+
+    # --- CPL-113: low access → negative net into empire pools ---
+    State hard = State()
+    hard.startClosed(13u, 1)
+    hard.ensureAllSeatHomes()
+    Planet hardHome = hard.galaxy.planets[0]
+    hardHome.airAccess = 0.2
+    hardHome.waterAccess = 0.2
+    hardHome.commonMineralsAccess = 0.2
+    hardHome.rareMineralsAccess = 0.2
+    hardHome.allocationPct = 100
+    hard.galaxy.planets[0] = hardHome
+    Player beforeHard = hard.primaryPlayer()
+    fp64 wHard0 = beforeHard.wealth
+    fp64 rHard0 = beforeHard.resources
+    hard.tick()
+    Player afterHard = hard.primaryPlayer()
+    if (afterHard.wealth >= wHard0) {
+        ok = false
+    }
+    if (afterHard.resources >= rHard0) {
+        ok = false
+    }
+
+    # --- CPL-113: debit clamp — pool never goes below zero ---
+    State broke = State()
+    broke.startClosed(13u, 1)
+    broke.ensureAllSeatHomes()
+    Planet brokeHome = broke.galaxy.planets[0]
+    brokeHome.airAccess = 0.2
+    brokeHome.waterAccess = 0.2
+    brokeHome.commonMineralsAccess = 0.2
+    brokeHome.rareMineralsAccess = 0.2
+    brokeHome.livability = 100.0
+    brokeHome.resources = 100.0
+    brokeHome.allocationPct = 100
+    broke.galaxy.planets[0] = brokeHome
+    Player beforeBroke = broke.primaryPlayer()
+    beforeBroke.wealth = 0.01
+    beforeBroke.resources = 0.01
+    broke.players[0] = beforeBroke
+    broke.tick()
+    Player afterBroke = broke.primaryPlayer()
+    if (afterBroke.wealth < 0.0) {
+        ok = false
+    }
+    if (afterBroke.resources < 0.0) {
+        ok = false
+    }
+    if (afterBroke.wealth > 0.01) {
+        ok = false
+    }
+    if (afterBroke.resources > 0.01) {
         ok = false
     }
 

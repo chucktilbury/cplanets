@@ -167,6 +167,13 @@ placeholders until RULES locks them. Tick period clamps to **1–30**.
 | `access_floor` | fp | `0.20` | `> 0`–`1` | Floor for `1/access` difficulty (yard, habit, production). |
 | `habit_base_ticks` | int | `1` | `≥ 0` | Base colony terraforming ticks × air/water difficulty (`0` → instant when scaled). |
 | `habit_base_wealth_cost` | fp | `25.0` | `≥ 0` | Base wealth charged on populate × air/water difficulty. |
+| `wealth_upkeep_tick_rate` | fp | `0.003` | `≥ 0` (practical: 0–`production_tick_rate`) | CPL-113 farming upkeep; × livability × air/water difficulty. `0` = no wealth upkeep. |
+| `resources_upkeep_tick_rate` | fp | `0.003` | `≥ 0` (practical: 0–`production_tick_rate`) | CPL-113 industry upkeep; × mineral composite × mineral difficulty. `0` = no resources upkeep. |
+
+Net income (per productive rock, per tick):  
+`credit = quantity × access × cover × production_tick_rate × afk × allocation`  
+`upkeep = quantity × difficulty × <axis>_upkeep_tick_rate × cover × afk × allocation`  
+`net = credit − upkeep` (may be negative; empire pools clamp at 0).
 
 ### Default hull templates
 

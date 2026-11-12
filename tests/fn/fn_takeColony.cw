@@ -13,6 +13,7 @@
  *   2026-11-05  Initial Phase D1 function program.
  *   2026-11-05  Fix colony hop reach; waitArrive checks dest.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-11  CPL-112: wait for habit ticks after colony populate.
  */
 
 include "lib/state.cw"
@@ -190,6 +191,14 @@ start {
     }
     if (colonized.population <= 0.0) {
         ok = false
+    }
+    # CPL-112: air/water accessibility delays productive until
+    # habitTicksLeft completes in the production phase.
+    int64 habitWait = 0
+    while (habitWait < 20 and not colonized.productive) {
+        colGame.tick()
+        colonized = colGame.galaxy.planets[1]
+        habitWait = habitWait + 1
     }
     if (not colonized.productive) {
         ok = false

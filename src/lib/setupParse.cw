@@ -22,6 +22,7 @@
  *   2026-11-07  Drop process keys — server config owns them.
  *   2026-11-07  Production/build/galaxy/design template keys.
  *   2026-11-09  Shared §14 helper for unified ServerConfigParse.
+ *   2026-11-11  CPL-112: rare_mineral_weight, access_*, habit_*.
  */
 
 include "scenario.cw"
@@ -238,6 +239,18 @@ class SetupParse {
             scenario.homeFallbackResources = val.toFp64()
         } else (key.equals("contact_reach")) {
             scenario.contactReach = val.toFp64()
+        } else (key.equals("rare_mineral_weight")) {
+            scenario.rareMineralWeight = val.toFp64()
+        } else (key.equals("access_min")) {
+            scenario.accessMin = val.toFp64()
+        } else (key.equals("access_max")) {
+            scenario.accessMax = val.toFp64()
+        } else (key.equals("access_floor")) {
+            scenario.accessFloor = val.toFp64()
+        } else (key.equals("habit_base_ticks")) {
+            scenario.habitBaseTicks = val.toInt64()
+        } else (key.equals("habit_base_wealth_cost")) {
+            scenario.habitBaseWealthCost = val.toFp64()
         } else (key.equals("design_scout_speed")) {
             scenario.designScoutSpeed = val.toFp64()
         } else (key.equals("design_scout_size")) {

@@ -38,6 +38,7 @@
  *   2026-11-10  setPlayerDisplayName for PUT /name (CPL-106).
  *   2026-11-10  Mark home explored for seat fog (CPL-107).
  *   2026-11-10  markPlayerHuman for human allocate reuse (CPL-108).
+ *   2026-11-11  CPL-112: yard cost/time × mineral accessibility.
  */
 
 
@@ -1096,16 +1097,19 @@ class State {
             return(false)
         }
         Player seat = players[ownerId]
+        # CPL-112: low mineral accessibility raises yard cost/time.
+        fp64 mineDiff = scenario.accessDifficulty(rock.mineralAccess())
         fp64 cost = (
             design.size
             * scenario.yardBuildCostPerSize
-            * fp64(qty))
+            * fp64(qty)
+            * mineDiff)
         if (seat.resources < cost) {
             return(false)
         }
         seat.resources = seat.resources - cost
         players[ownerId] = seat
-        int64 ticks = yardBuildTicksForQty(qty)
+        int64 ticks = yardBuildTicksForQty(qty, mineDiff)
         BuildJob job = BuildJob(
             nextBuildId,
             ownerId,
@@ -1124,26 +1128,34 @@ class State {
      *
      * Purpose: CPL-111 — base yard_build_ticks plus
      * yard_build_extra_hull_time_frac of that base for each hull
-     * beyond the first. Result is rounded up and at least 1.
+     * beyond the first. CPL-112 — multiply by mineral
+     * accessibility difficulty (low access → longer). Result is
+     * rounded up and at least 1.
      *
      * Parameters:
      *   qty — hulls in the batch (>= 1).
+     *   mineralDifficulty — 1/access multiplier (>= 1 typical).
      *
      * Returns: ticks until the BuildJob completes.
      */
-    int64 yardBuildTicksForQty(int64 qty) {
+    int64 yardBuildTicksForQty(int64 qty, fp64 mineralDifficulty) {
         int64 base = scenario.yardBuildTicks
         if (base < 1) {
             base = 1
         }
-        if (qty <= 1) {
-            return(base)
+        fp64 ticksFp = fp64(base)
+        if (qty > 1) {
+            ticksFp = ticksFp + (
+                fp64(base)
+                * scenario.yardBuildExtraHullTimeFrac
+                * fp64(qty - 1))
         }
-        fp64 extra = (
-            fp64(base)
-            * scenario.yardBuildExtraHullTimeFrac
-            * fp64(qty - 1))
-        int64 ticks = base + int64(extra + 0.999)
+        fp64 diff = mineralDifficulty
+        if (diff < 1.0) {
+            diff = 1.0
+        }
+        ticksFp = ticksFp * diff
+        int64 ticks = int64(ticksFp + 0.999)
         if (ticks < 1) {
             return(1)
         }

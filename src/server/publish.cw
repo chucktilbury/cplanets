@@ -18,6 +18,7 @@
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
+ *   2026-11-11  CPL-112: publish air/water/minerals + access 1–10.
  *   2026-11-10  Fleet name + unassigned hull stock rows (CPL-101).
  *   2026-11-10  Planet display name on each planet row.
  *   2026-11-10  Player displayName string on each seat row
@@ -195,6 +196,14 @@ class PublishCodec {
             int64 ownerWire = rock.ownerId + 1
             int64 liv = 0
             int64 res = 0
+            int64 air = 0
+            int64 water = 0
+            int64 common = 0
+            int64 rare = 0
+            int64 airA = 0
+            int64 waterA = 0
+            int64 commonA = 0
+            int64 rareA = 0
             int64 xMilli = int64(rock.x * 1000.0)
             int64 yMilli = int64(rock.y * 1000.0)
             int64 alloc = rock.allocationPct
@@ -207,6 +216,21 @@ class PublishCodec {
                         rock.livability)
                     res = game.scenario.displayLivability(
                         rock.resources)
+                    air = game.scenario.displayLivability(rock.air)
+                    water = game.scenario.displayLivability(
+                        rock.water)
+                    common = game.scenario.displayLivability(
+                        rock.commonMinerals)
+                    rare = game.scenario.displayLivability(
+                        rock.rareMinerals)
+                    airA = game.scenario.displayAccess(
+                        rock.airAccess)
+                    waterA = game.scenario.displayAccess(
+                        rock.waterAccess)
+                    commonA = game.scenario.displayAccess(
+                        rock.commonMineralsAccess)
+                    rareA = game.scenario.displayAccess(
+                        rock.rareMineralsAccess)
                 }
                 if (rock.productive) {
                     flags = flags + 4
@@ -240,6 +264,14 @@ class PublishCodec {
             w.writeU32(ownerWire)
             w.writeU8(liv)
             w.writeU8(res)
+            w.writeU8(air)
+            w.writeU8(water)
+            w.writeU8(common)
+            w.writeU8(rare)
+            w.writeU8(airA)
+            w.writeU8(waterA)
+            w.writeU8(commonA)
+            w.writeU8(rareA)
             w.writeI32(xMilli)
             w.writeI32(yMilli)
             w.writeU8(alloc)

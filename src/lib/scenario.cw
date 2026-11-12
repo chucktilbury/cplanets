@@ -18,6 +18,8 @@
  *               knobs (same placeholder magnitudes as prior literals).
  *   2026-11-11  yardBuildExtraHullTimeFrac — per-hull-over-1 build
  *               time factor (CPL-111, default 0.10).
+ *   2026-11-11  CPL-112: rare mineral weight, access spawn band /
+ *               floor, habitability base ticks + wealth cost.
  */
 
 /*
@@ -92,6 +94,18 @@ class Scenario {
     fp64 homeFallbackLivability
     fp64 homeFallbackResources
     fp64 contactReach
+
+    # CPL-112 planetary resource / accessibility knobs.
+    # industry composite = common + rare * rareMineralWeight.
+    fp64 rareMineralWeight
+    # Spawn accessibility uniform in [accessMin, accessMax].
+    fp64 accessMin
+    fp64 accessMax
+    # Floor for 1/access difficulty (never divide by zero).
+    fp64 accessFloor
+    # Colony terraforming: ticks and wealth × habit difficulty.
+    int64 habitBaseTicks
+    fp64 habitBaseWealthCost
 
     # Default hull template magnitudes (former design.cw make* literals).
     fp64 designScoutSpeed
@@ -200,6 +214,13 @@ class Scenario {
         homeFallbackResources = 50.0
         contactReach = 4.0
 
+        rareMineralWeight = 2.0
+        accessMin = 0.35
+        accessMax = 1.0
+        accessFloor = 0.20
+        habitBaseTicks = 1
+        habitBaseWealthCost = 25.0
+
         designScoutSpeed = 2.0
         designScoutSize = 0.5
         designColonySpeed = 1.0
@@ -288,6 +309,54 @@ class Scenario {
             tickPeriodSeconds = seconds
         }
         return(clampTickPeriod())
+    }
+
+    /*
+     * Convert accessibility (0..1) into a cost/time difficulty.
+     *
+     * Purpose: CPL-112 — low access → more cost and longer extract
+     * / terraform. difficulty = 1 / max(access, accessFloor).
+     *
+     * Parameters:
+     *   access — raw accessibility in 0..1 (may be out of range).
+     *
+     * Returns: multiplier >= 1.0 when access <= 1; larger when hard.
+     */
+    fp64 accessDifficulty(fp64 access) {
+        fp64 a = access
+        if (a < 0.0) {
+            a = 0.0
+        }
+        fp64 floor = accessFloor
+        if (floor < 0.01) {
+            floor = 0.01
+        }
+        if (a < floor) {
+            a = floor
+        }
+        return(1.0 / a)
+    }
+
+    /*
+     * Map accessibility 0..1 onto the human 1–10 display scale.
+     *
+     * Purpose: explored dialog / wire for CPL-112 access ratings
+     * without a separate mapping table.
+     *
+     * Parameters:
+     *   access — accessibility in 0..1.
+     *
+     * Returns: integer in the livability display band.
+     */
+    int64 displayAccess(fp64 access) {
+        fp64 a = access
+        if (a < 0.0) {
+            a = 0.0
+        }
+        if (a > 1.0) {
+            a = 1.0
+        }
+        return(displayLivability(a * livabilityInternalMax))
     }
 
     /*

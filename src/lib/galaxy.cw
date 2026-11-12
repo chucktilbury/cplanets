@@ -17,6 +17,8 @@
  *   2026-11-08  claimPrimaryHome; start layout may leave planet 0
  *               unowned until seat connect.
  *   2026-11-10  Sandbox seat home renamed to "Home" for that rock.
+ *   2026-11-11  CPL-112: air/water/minerals + accessibility mix;
+ *               farming vs industry bias; refresh composites.
  */
 
 import math as Math
@@ -151,13 +153,28 @@ class Galaxy {
         rock.x = 0.0
         rock.y = 0.0
         rock.useful = true
-        rock.livability = scenario.livabilityInternalMax
-        rock.resources = scenario.livabilityInternalMax
+        fp64 peak = scenario.livabilityInternalMax
+        rock.air = peak
+        rock.water = peak
+        # Split industry so common + rare×weight ≈ peak.
+        rock.commonMinerals = peak * 0.5
+        fp64 homeWeight = scenario.rareMineralWeight
+        if (homeWeight <= 0.0) {
+            rock.rareMinerals = peak * 0.5
+        } else {
+            rock.rareMinerals = (peak * 0.5) / homeWeight
+        }
+        rock.airAccess = 1.0
+        rock.waterAccess = 1.0
+        rock.commonMineralsAccess = 1.0
+        rock.rareMineralsAccess = 1.0
+        rock.refreshComposites(scenario.rareMineralWeight)
         rock.productive = true
         rock.shipyard = true
         rock.qualityKnown = true
         rock.ownerId = ownerPlayerId
         rock.population = 1.0
+        rock.habitTicksLeft = 0
         rock.name = "Home"
         if (ownerPlayerId >= 0) {
             rock.partitionId = ownerPlayerId
@@ -207,10 +224,14 @@ class Galaxy {
      * Assign useful/poor mix and leave quality unknown.
      *
      * Purpose: share mix logic between scout-ring and remote rocks.
+     * CPL-112: rolls air/water (farming) and common/rare minerals
+     * (industry) plus per-resource accessibility. Useful rocks may
+     * bias farming-only, industry-only, or both; poor rocks stay
+     * weak on both axes.
      *
      * Parameters:
      *   rock — planet to fill.
-     *   scenario — usefulMix and livability band.
+     *   scenario — usefulMix, livability band, access band.
      *   rng — mix roll.
      *
      * Returns: nothing; mutates rock.
@@ -221,29 +242,80 @@ class Galaxy {
         SeededRng rng) {
         bool useful = rng.nextFp01() < scenario.usefulMix
         rock.useful = useful
+        fp64 lo = scenario.livabilityInternalMin
         fp64 span = (
             scenario.livabilityInternalMax
             - scenario.livabilityInternalMin)
+        fp64 farming = 0.0
+        fp64 industry = 0.0
         if (useful) {
-            rock.livability = (
-                scenario.livabilityInternalMin
-                + scenario.usefulLivabilityFraction * span)
-            rock.resources = rock.livability
+            farming = lo + scenario.usefulLivabilityFraction * span
+            industry = farming
+            # Bias: 0 farming-lean, 1 industry-lean, else both.
+            fp64 bias = rng.nextFp01()
+            if (bias < 0.33) {
+                industry = industry * 0.35
+            } else (bias > 0.66) {
+                farming = farming * 0.35
+            }
         } else {
-            rock.livability = (
-                scenario.livabilityInternalMin
-                + scenario.poorLivabilityFraction * span)
-            rock.resources = (
-                rock.livability * scenario.poorResourcesFraction)
+            farming = lo + scenario.poorLivabilityFraction * span
+            industry = farming * scenario.poorResourcesFraction
         }
+        # Split farming into air/water with mild variance.
+        fp64 airFrac = 0.35 + rng.nextFp01() * 0.30
+        rock.air = farming * (0.7 + airFrac)
+        rock.water = farming * (1.7 - airFrac)
+        # Split industry into common + rare (rare scaled by weight).
+        fp64 commonFrac = 0.40 + rng.nextFp01() * 0.40
+        rock.commonMinerals = industry * commonFrac
+        fp64 rarePart = industry * (1.0 - commonFrac)
+        fp64 weight = scenario.rareMineralWeight
+        if (weight <= 0.0) {
+            rock.rareMinerals = rarePart
+        } else {
+            rock.rareMinerals = rarePart / weight
+        }
+        rock.airAccess = rollAccess(scenario, rng)
+        rock.waterAccess = rollAccess(scenario, rng)
+        rock.commonMineralsAccess = rollAccess(scenario, rng)
+        rock.rareMineralsAccess = rollAccess(scenario, rng)
+        rock.refreshComposites(scenario.rareMineralWeight)
         rock.productive = false
         rock.shipyard = false
         rock.qualityKnown = false
         rock.ownerId = -1
         rock.population = 0.0
+        rock.habitTicksLeft = 0
         # Unowned start rocks sit in partition 0 until a seat
         # connect claims a home (claimPrimaryHome / claimSandboxHome).
         rock.partitionId = 0
+    }
+
+    /*
+     * Roll one accessibility sample in the scenario band.
+     *
+     * Purpose: independent air/water/mineral access draws (CPL-112).
+     *
+     * Parameters:
+     *   scenario — accessMin / accessMax.
+     *   rng — uniform entropy.
+     *
+     * Returns: accessibility in [accessMin, accessMax] (clamped).
+     */
+    fp64 rollAccess(Scenario scenario, SeededRng rng) {
+        fp64 lo = scenario.accessMin
+        fp64 hi = scenario.accessMax
+        if (lo < 0.0) {
+            lo = 0.0
+        }
+        if (hi < lo) {
+            hi = lo
+        }
+        if (hi > 1.0) {
+            hi = 1.0
+        }
+        return(lo + rng.nextFp01() * (hi - lo))
     }
 
     /*
@@ -298,16 +370,30 @@ class Galaxy {
             Planet rock = planets[index]
             if (rock.ownerId < 0 and not rock.productive) {
                 rock.useful = true
-                rock.livability = rock.livability
                 if (rock.livability < 1.0) {
-                    rock.livability = scenario.homeFallbackLivability
-                    rock.resources = scenario.homeFallbackResources
+                    fp64 farm = scenario.homeFallbackLivability
+                    fp64 ind = scenario.homeFallbackResources
+                    rock.air = farm
+                    rock.water = farm
+                    rock.commonMinerals = ind * 0.5
+                    fp64 weight = scenario.rareMineralWeight
+                    if (weight <= 0.0) {
+                        rock.rareMinerals = ind * 0.5
+                    } else {
+                        rock.rareMinerals = (ind * 0.5) / weight
+                    }
                 }
+                rock.airAccess = 1.0
+                rock.waterAccess = 1.0
+                rock.commonMineralsAccess = 1.0
+                rock.rareMineralsAccess = 1.0
+                rock.refreshComposites(scenario.rareMineralWeight)
                 rock.productive = true
                 rock.shipyard = true
                 rock.qualityKnown = true
                 rock.ownerId = ownerPlayerId
                 rock.population = 1.0
+                rock.habitTicksLeft = 0
                 rock.partitionId = partitionId
                 # Seat home chrome label (planet 0 is already
                 # "Home"; sandbox homes match for that seat).

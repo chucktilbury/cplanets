@@ -15,6 +15,8 @@
  *   2026-11-05  Phase D4: participants, screened advance, attribute.
  *   2026-11-07  Wire attack_bump on defender wins (RULES §11.2).
  *   2026-11-10  Mark taker exploredPlanetIds on occupy (CPL-107).
+ *   2026-11-11  CPL-112: colony starts habit countdown scaled by
+ *               air/water accessibility; charge habit wealth.
  */
 
 include "combat.cw"
@@ -154,7 +156,8 @@ class Take {
         Design design = designs[fleet.designId]
         fp64 atk = combat.fleetStrength(fleet, design)
         if (rock.ownerId == fleet.ownerId) {
-            applyPopulateIfColony(rock, fleet, design, events)
+            applyPopulateIfColony(
+                scenario, rock, fleet, design, players, events)
             planets[fleet.locationPlanetId] = rock
             fleets[fleetIndex] = fleet
             return(nextEngagementId)
@@ -181,7 +184,8 @@ class Take {
             rock,
             fleet.ownerId,
             parked)) {
-            applyOccupy(rock, fleet, design, players, events)
+            applyOccupy(
+                scenario, rock, fleet, design, players, events)
             planets[fleet.locationPlanetId] = rock
             fleets[fleetIndex] = fleet
             return(nextEngagementId)
@@ -263,15 +267,17 @@ class Take {
      * War fleets stay as sitters; colony populates when present.
      *
      * Parameters:
+     *   scenario — habit / access knobs for colony populate.
      *   rock — destination planet (mutated).
      *   fleet — arriving take fleet.
      *   design — fleet design.
-     *   players — seats (taker exploredPlanetIds).
+     *   players — seats (taker exploredPlanetIds / habit wealth).
      *   events — log.
      *
      * Returns: nothing.
      */
     void applyOccupy(
+        Scenario scenario,
         Planet rock,
         Fleet fleet,
         Design design,
@@ -291,27 +297,37 @@ class Take {
                 rock.id,
                 fleet.ownerId,
                 0))
-        applyPopulateIfColony(rock, fleet, design, events)
+        applyPopulateIfColony(
+            scenario, rock, fleet, design, players, events)
     }
 
     /*
      * Populate when a surviving colony hull is present.
      *
      * Purpose: colony required to populate; dead colony does not
-     * (RULES §11.3). Sitting alone never populates.
+     * (RULES §11.3). Sitting alone never populates. CPL-112: starts
+     * a habitability countdown scaled by air/water accessibility
+     * (low access → more wealth cost and longer); productive flips
+     * when habitTicksLeft reaches 0 in production. Already-
+     * productive rocks stay productive.
      *
      * Parameters:
+     *   scenario — habit base ticks / wealth + access floor.
      *   rock — occupied planet.
      *   fleet — fleet that may carry colony hulls.
      *   design — that fleet's design.
+     *   players — empire pools (habit wealth charge).
      *   events — log.
      *
-     * Returns: nothing; may set population / productive.
+     * Returns: nothing; may set population / habitTicksLeft /
+     *   productive and debit seat wealth.
      */
     void applyPopulateIfColony(
+        Scenario scenario,
         Planet rock,
         Fleet fleet,
         Design design,
+        list players,
         list events) {
         if (not design.colony) {
             return()
@@ -320,7 +336,6 @@ class Take {
             return()
         }
         rock.population = 1.0
-        rock.productive = true
         events.append(
             TickEvent(
                 "populate",
@@ -328,6 +343,36 @@ class Take {
                 rock.id,
                 fleet.ownerId,
                 fleet.hullCount))
+        if (rock.productive) {
+            rock.habitTicksLeft = 0
+            return()
+        }
+        fp64 difficulty = scenario.accessDifficulty(rock.habitAccess())
+        fp64 cost = scenario.habitBaseWealthCost * difficulty
+        if (fleet.ownerId >= 0 and fleet.ownerId < players.length) {
+            Player seat = players[fleet.ownerId]
+            if (seat.wealth < cost) {
+                cost = seat.wealth
+            }
+            if (cost > 0.0) {
+                seat.wealth = seat.wealth - cost
+                players[fleet.ownerId] = seat
+            }
+        }
+        int64 ticks = scenario.habitBaseTicks
+        if (ticks < 0) {
+            ticks = 0
+        }
+        fp64 scaled = fp64(ticks) * difficulty
+        ticks = int64(scaled + 0.999)
+        if (ticks < 1) {
+            # Instant habit when base is 0 or access is perfect.
+            rock.habitTicksLeft = 0
+            rock.productive = true
+            return()
+        }
+        rock.habitTicksLeft = ticks
+        rock.productive = false
     }
 
     /*
@@ -370,7 +415,8 @@ class Take {
                     design = designs[fleet.designId]
                 }
                 rock.satelliteDefense = 0.0
-                applyOccupy(rock, fleet, design, players, events)
+                applyOccupy(
+                    scenario, rock, fleet, design, players, events)
                 fleets[fidx] = fleet
             } else {
                 rock.ownerId = fight.attackerOwnerId

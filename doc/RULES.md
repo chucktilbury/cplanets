@@ -240,9 +240,30 @@ unassigned stock at that same planet into the fleet). Dispatch leaves
 from the fleet’s sitting location, so range-from-occupied-world stays
 intact. There is **no** abstract no-location hangar. Builds pay the
 empire pool and add to unassigned stock at that yard — they do **not**
-auto-fleet. Do not invent ferry-to-yard logistics. (Planet `resources`
-/ livability on the rock are **quality / yield** attributes, not
-empire-style stockpiles.)
+auto-fleet. Do not invent ferry-to-yard logistics. (Planet quality
+fields below are **rock yield / accessibility**, not empire-style
+stockpiles. Spendable stocks stay empire-wide for now; the model
+must not block a later per-planet shipping / logistics layer.)
+
+**Planetary resources (CPL-112).** Each rock carries four inherent
+quantities — **air**, **water**, **common minerals**, **rare
+minerals** — each with an **accessibility** rating (setup-spawned;
+1 = easy). Composites for chrome / formulas:
+
+- **Farming / habitability** ≈ air + water. Rich air and water make
+  a rock very habitable (farming → empire **wealth** credit).
+- **Industry / shipbuilding** ≈ common minerals + rare minerals
+  (rare weighted by setup). Mineral quantity drives planet value for
+  industry and yard output (empire **resources** credit).
+- Rocks may lean **farming-only**, **industry-only**, or **both**
+  (both more valuable). Poor rocks are weak on both axes.
+
+**Accessibility.** Low mineral accessibility → more **cost** and
+**longer** yard extract / build. Low air/water accessibility → more
+**wealth cost** and **longer** to make a colonized rock
+**habitable** (`productive`). Magnitudes are setup knobs
+(`access_*`, `habit_*`, `rare_mineral_weight`, …). Home yards start
+fully accessible and already productive.
 
 ## 3. State
 
@@ -251,10 +272,12 @@ empire-style stockpiles.)
   chance, …). Where older notes say **curve**, read **setup-tunable
   mapping / coefficients** — not a required fancy math object.
   Immutable after lock.
-- **Galaxy**: planets with livability, resources, efficiencies, owner,
-  **explored** (per player), **population**, **productive**, **shipyard**,
-  parked hulls, **defenses** (e.g. satellites). Quality is **unknown**
-  until the rock is **explored or taken**.
+- **Galaxy**: planets with air / water / common+rare minerals and
+  per-resource accessibility (plus derived farming/industry
+  composites), owner, **explored** (per player), **population**,
+  **productive**, **shipyard**, parked hulls, **defenses** (e.g.
+  satellites), optional habitability countdown after colony.
+  Quality is **unknown** until the rock is **explored or taken**.
 - **Player**: empire **wealth** and **resources**, power, experience,
   technology, **role**, last policy, **detection/range** from
   technology (capability-scaled; §13), **designs**, known competitors.
@@ -668,14 +691,16 @@ quality-known) to you even if it later leaves range. Map, planet
 lists, and seat digest are views of these driver-set flags — not a
 second client fog engine.
 
-**Planet quality display (livability and related):** once a rock is
-**explored** (or taken — quality becomes known **to that player**),
-surface livability and related quality fields to the human on a
-**standard 1–10 scale** (enough granularity to be useful, not
+**Planet quality display (farming / industry / resources):** once a
+rock is **explored** (or taken — quality becomes known **to that
+player**), surface farming and industry composites plus air, water,
+common/rare minerals and each accessibility rating to the human on
+a **standard 1–10 scale** (enough granularity to be useful, not
 burdensome). Exact numeric mapping from internal values → 1–10 is
-setup-owned; do not invent magnitudes here. Whether livability /
-power / experience also **drive the tick** (vs display) remains open
-(§17). Human UI: explored rock **pops a dialog**; that dialog **may
+setup-owned; do not invent magnitudes here. Farming / industry
+composites **do** drive production credit (CPL-112); whether power /
+experience also **drive the tick** (vs display) remains open (§17).
+Human UI: explored rock **pops a dialog**; that dialog **may
 change** as the planet becomes **populated** and **productive**
 (§16).
 

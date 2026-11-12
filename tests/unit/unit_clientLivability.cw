@@ -18,6 +18,14 @@ start {
     row.qualityKnown = true
     row.livabilityDisplay = 7
     row.resourcesDisplay = 4
+    row.airDisplay = 8
+    row.waterDisplay = 6
+    row.commonMineralsDisplay = 5
+    row.rareMineralsDisplay = 3
+    row.airAccessDisplay = 9
+    row.waterAccessDisplay = 8
+    row.commonMineralsAccessDisplay = 4
+    row.rareMineralsAccessDisplay = 2
     row.productive = true
     row.populated = true
     if (not row.dialogMayChange()) {
@@ -27,7 +35,10 @@ start {
     if (ok and text.length < 10) {
         ok = false
     }
-    if (ok and text.find("Livability: 7") < 0) {
+    if (ok and text.find("Farming (air+water): 7") < 0) {
+        ok = false
+    }
+    if (ok and text.find("Air: 8 (access 9)") < 0) {
         ok = false
     }
     if (ok and text.find("may change") < 0) {

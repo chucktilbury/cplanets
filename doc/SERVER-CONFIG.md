@@ -158,6 +158,16 @@ placeholders until RULES locks them. Tick period clamps to **1–30**.
 | `home_fallback_resources` | fp | `50.0` | `≥ 0` | Home resources fallback. |
 | `contact_reach` | fp | `4.0` | `≥ 0` | Sandbox neighborhood stamp reach. |
 
+### Planetary resources / accessibility (CPL-112)
+
+| Key | Type | Default | Reasonable range | Purpose |
+| --- | --- | --- | --- | --- |
+| `rare_mineral_weight` | fp | `2.0` | `≥ 0` | Industry composite = common + rare × weight. |
+| `access_min` / `access_max` | fp | `0.35` / `1.0` | `0`–`1`, min ≤ max | Spawn accessibility band per resource. |
+| `access_floor` | fp | `0.20` | `> 0`–`1` | Floor for `1/access` difficulty (yard, habit, production). |
+| `habit_base_ticks` | int | `1` | `≥ 0` | Base colony terraforming ticks × air/water difficulty (`0` → instant when scaled). |
+| `habit_base_wealth_cost` | fp | `25.0` | `≥ 0` | Base wealth charged on populate × air/water difficulty. |
+
 ### Default hull templates
 
 | Key | Type | Default | Reasonable range | Purpose |

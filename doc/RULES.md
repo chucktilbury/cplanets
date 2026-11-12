@@ -260,14 +260,32 @@ minerals** — each with an **accessibility** rating (setup-spawned;
 
 **Accessibility.** Low mineral accessibility → more **cost** and
 **longer** yard extract / build. Low air/water accessibility → more
-**wealth cost** and **longer** to make a colonized rock
-**habitable** (`productive`). Magnitudes are setup knobs
-(`access_*`, `habit_*`, `rare_mineral_weight`, …). Home yards start
-fully accessible and already productive.
+**wealth cost** and **longer** time-to-productive after colony.
+Magnitudes are setup knobs (`access_*`, `habit_*`,
+`productive_rate`, `rare_mineral_weight`, …). Home yards start fully
+accessible and already productive.
 
-**Per-planet net income (CPL-113).** Each **productive** owned rock
-applies a **net** into the empire pool each production tick — not a
-credit-only bump. Net may be **positive or negative**.
+**Productive (CPL-114).** A planet is **productive** if and only if
+its **structural net income is positive** (farming wealth net +
+industry resources net at full intensity — `allocationPct` / AFK do
+**not** strip the flag). Owned populated rocks that have finished
+time-to-productive still apply per-tick net (credit or debit); the
+flag tracks positivity for inherent defense and yard eligibility.
+Low-habit rocks may stay non-productive until industry (minerals) —
+or later ships / investment — tips combined net above zero.
+
+**Time-to-productive.** After a colony populates, the rock waits
+`habit_base_ticks × effort(qty × accessibility) / productive_rate`
+ticks (`productive_rate` is the global fairness knob; higher →
+faster for everyone). Effort uses both farming and industry
+quantity×access so mineral-rich low-habit rocks are not stuck on
+air/water alone. `habit_base_wealth_cost ×` air/water difficulty is
+still charged on populate.
+
+**Per-planet net income (CPL-113 / CPL-114).** Each owned **populated**
+habit-complete rock applies a **net** into the empire pool each
+production tick — not a credit-only bump. Net may be **positive or
+negative**. Productive ↔ structural net > 0.
 
 - **Farming → wealth:**  
   `wealth_net = wealth_credit − wealth_upkeep`  
@@ -278,10 +296,12 @@ credit-only bump. Net may be **positive or negative**.
 - **Industry → resources:** same shape with mineral composite /
   mineral access / `resources_upkeep_tick_rate`.
 - Low accessibility therefore **cuts credit and raises upkeep**, so
-  hard rocks can be an **ongoing debit**. Easy rocks stay a credit
-  when upkeep rates sit below production rate at access ≈ 1.
-- `allocationPct` (and AFK / cover) scales **both** sides — throttling
-  a rock throttles income intensity, not a logistics tax.
+  hard rocks can be an **ongoing debit** and stay **non-productive**.
+  Easy rocks stay a credit when upkeep rates sit below production
+  rate at access ≈ 1.
+- `allocationPct` (and AFK / cover) scales **both** applied sides —
+  throttling a rock throttles income intensity, not a logistics tax,
+  and does not by itself clear productive.
 - Upkeep rates of **0** restore credit-only behavior (CPL-112 shape).
 
 **Clamp.** Empire `wealth` / `resources` never go below **0** from
@@ -478,8 +498,9 @@ has traveled halfway.
 Intra-tick sequence below is unchanged by the §2 clock: only **when**
 the server calls `tick` changed (real-time cadence), not this order.
 
-1. Production on productive planets (per-planet **net** income into
-   empire pools — CPL-113); shipyard builds.
+1. Production on owned populated habit-complete planets (per-planet
+   **net** income into empire pools; **productive** ↔ structural
+   net > 0 — CPL-113 / CPL-114); shipyard builds.
 2. Cancellations (same-tick recall of not-yet-departed orders).
 3. Other `recall` (turn toward **sender**; recompute ETA).
 4. Decrement ETA / move.

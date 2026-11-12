@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **CPL-114 productive = positive net income:** a planet is
+  **productive** iff structural combined net (farming + industry at
+  full intensity) is **> 0**. Owned populated habit-complete rocks
+  still apply per-tick net (may debit); the flag gates inherent
+  defense / yard produce. Time-to-productive uses planet
+  quantity×accessibility gated by global fairness knob
+  `productive_rate` (default `1.0`; higher → faster). Low-habit
+  rocks may need industry before they qualify. Docs:
+  [RULES.md](RULES.md) §2 / §7 / §11, [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md).
 - **CPL-113 per-planet net income:** productive rocks apply
   `net = production credit − upkeep` into empire wealth/resources.
   Credit still scales with accessibility; upkeep scales with

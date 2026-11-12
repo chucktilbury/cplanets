@@ -184,7 +184,7 @@ owned rocks. Concrete surface:
 | Content | Notes |
 | --- | --- |
 | Per-owned-planet `allocationPct` (0–100) | **Scale**; default **100** = full net-income intensity; empire pools remain sacred (no yard logistics tax) |
-| Tick effect | Productive owned rock → empire pool **net** × `allocationPct/100` (may debit) |
+| Tick effect | Owned populated habit-complete rock → empire pool **net** × `allocationPct/100` (may debit); **productive** ↔ structural net > 0 (CPL-114) |
 | Entry point | Planets root click; map ContextMenu for owned rocks |
 | Exact richer knob list | Still **open** under empire-pool model — do not invent logistics |
 

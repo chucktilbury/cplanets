@@ -21,6 +21,8 @@
  *               accessibility scales credit; advance habit ticks.
  *   2026-11-11  CPL-113: per-planet net = credit − upkeep; clamp
  *               empire pools at zero when debit exceeds stock.
+ *   2026-11-11  CPL-114: productive iff structural net > 0;
+ *               income runs on owned populated habit-complete rocks.
  */
 
 include "design.cw"
@@ -88,8 +90,13 @@ class Production {
                 advanceHabit(rock, planets, index, events)
                 rock = planets[index]
             }
-            if (rock.productive and rock.ownerId >= 0) {
-                producePlanet(scenario, rock, players, events)
+            # CPL-114: owned + populated + habit-complete rocks run
+            # net income; productive flag follows structural net > 0
+            # (not the prior habit-complete boolean alone).
+            if (rock.ownerId >= 0
+                and rock.population > 0.0
+                and rock.habitTicksLeft <= 0) {
+                producePlanet(scenario, rock, planets, index, players, events)
             }
             index = index + 1
         }
@@ -100,10 +107,12 @@ class Production {
     }
 
     /*
-     * Decrement colony terraforming countdown; mark productive.
+     * Decrement colony time-to-productive countdown.
      *
-     * Purpose: CPL-112 — low air/water accessibility delays
-     * habitability after populate. Stocks stay empire-wide.
+     * Purpose: CPL-112/114 — qty×accessibility (via productive_rate)
+     * delays habit completion after populate. Does **not** set
+     * productive; producePlanet classifies from structural net.
+     * Stocks stay empire-wide.
      *
      * Parameters:
      *   rock — planet with habitTicksLeft > 0.
@@ -111,7 +120,7 @@ class Production {
      *   index — rock index in planets.
      *   events — event log.
      *
-     * Returns: nothing; may set productive and clear habitTicksLeft.
+     * Returns: nothing; may clear habitTicksLeft and emit "habit".
      */
     void advanceHabit(
         Planet rock,
@@ -121,7 +130,6 @@ class Production {
         rock.habitTicksLeft = rock.habitTicksLeft - 1
         if (rock.habitTicksLeft <= 0) {
             rock.habitTicksLeft = 0
-            rock.productive = true
             events.append(
                 TickEvent(
                     "habit",
@@ -134,21 +142,23 @@ class Production {
     }
 
     /*
-     * Apply one productive planet's net income to empire pools.
+     * Apply one eligible planet's net income; refresh productive.
      *
-     * Purpose: CPL-113 — each productive rock yields
-     *   net = production credit − upkeep
-     * Farming (air+water → wealth) and industry (minerals →
-     * resources) are independent. Credit scales with accessibility;
-     * upkeep scales with accessDifficulty (1/access). Net may be
-     * negative (ongoing debit into the empire pool). Empire-pool
-     * path only — no per-planet stockpile. When a debit would drive
-     * a pool below zero, clamp that axis to zero (planet-index
-     * order; remaining stock absorbs a partial debit).
+     * Purpose: CPL-113/114 — each owned populated habit-complete
+     * rock yields net = production credit − upkeep. Farming
+     * (air+water → wealth) and industry (minerals → resources) are
+     * independent. Credit scales with accessibility; upkeep scales
+     * with accessDifficulty (1/access). Net may be negative
+     * (ongoing debit). CPL-114: productive := structural combined
+     * net > 0 (alloc/AFK ignored for the flag). Empire-pool path
+     * only — no per-planet stockpile. Debits that would drive a
+     * pool below zero clamp that axis to zero.
      *
      * Parameters:
      *   scenario — cover / production / upkeep rates, accessFloor.
-     *   rock — productive owned planet (allocationPct spend bias).
+     *   rock — owned populated habit-complete planet.
+     *   planets — mutable galaxy list (productive flag written).
+     *   index — rock index in planets.
      *   players — empire list.
      *   events — event log.
      *
@@ -157,6 +167,8 @@ class Production {
     void producePlanet(
         Scenario scenario,
         Planet rock,
+        list planets,
+        int64 index,
         list players,
         list events) {
         if (rock.ownerId < 0 or rock.ownerId >= players.length) {
@@ -175,24 +187,10 @@ class Production {
         fp64 scale = seat.afkProductionScale
         fp64 alloc = allocationFraction(rock.allocationPct)
         fp64 shared = scenario.coverFactor * rate * scale * alloc
-        fp64 farmAccess = rock.habitAccess()
+        fp64 farmAccess = scenario.clampAccess(rock.habitAccess())
         fp64 farmDiff = scenario.accessDifficulty(farmAccess)
-        fp64 mineAccess = rock.mineralAccess()
+        fp64 mineAccess = scenario.clampAccess(rock.mineralAccess())
         fp64 mineDiff = scenario.accessDifficulty(mineAccess)
-        # Clamp access the same way difficulty floors it, so credit
-        # never uses a raw below-floor access while upkeep uses floor.
-        if (farmAccess < scenario.accessFloor) {
-            farmAccess = scenario.accessFloor
-        }
-        if (farmAccess < 0.0) {
-            farmAccess = 0.0
-        }
-        if (mineAccess < scenario.accessFloor) {
-            mineAccess = scenario.accessFloor
-        }
-        if (mineAccess < 0.0) {
-            mineAccess = 0.0
-        }
         fp64 wealthCredit = rock.livability * farmAccess * shared
         # Upkeep uses difficulty and its own rate; share cover/AFK/
         # allocation so throttling a rock throttles both sides.
@@ -213,6 +211,11 @@ class Production {
             * scale
             * alloc)
         fp64 resNet = resCredit - resUpkeep
+        # Flag from structural net (full intensity); apply uses
+        # allocation / AFK. Low-habit rocks stay non-productive
+        # unless industry (or better access/qty) tips combined net.
+        rock.productive = scenario.isStructurallyProductive(rock)
+        planets[index] = rock
         wealthNet = clampPoolDelta(seat.wealth, wealthNet)
         resNet = clampPoolDelta(seat.resources, resNet)
         seat.wealth = seat.wealth + wealthNet

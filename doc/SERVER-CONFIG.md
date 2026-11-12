@@ -165,15 +165,17 @@ placeholders until RULES locks them. Tick period clamps to **1–30**.
 | `rare_mineral_weight` | fp | `2.0` | `≥ 0` | Industry composite = common + rare × weight. |
 | `access_min` / `access_max` | fp | `0.35` / `1.0` | `0`–`1`, min ≤ max | Spawn accessibility band per resource. |
 | `access_floor` | fp | `0.20` | `> 0`–`1` | Floor for `1/access` difficulty (yard, habit, production). |
-| `habit_base_ticks` | int | `1` | `≥ 0` | Base colony terraforming ticks × air/water difficulty (`0` → instant when scaled). |
+| `habit_base_ticks` | int | `1` | `≥ 0` | Scale for colony time-to-productive ticks (`0` → instant). |
 | `habit_base_wealth_cost` | fp | `25.0` | `≥ 0` | Base wealth charged on populate × air/water difficulty. |
+| `productive_rate` | fp | `1.0` | `> 0` (practical: 0.25–4) | CPL-114 global fairness knob: time-to-productive ≈ `habit_base_ticks × effort(qty×access) / productive_rate`. Higher → faster for every rock. |
 | `wealth_upkeep_tick_rate` | fp | `0.003` | `≥ 0` (practical: 0–`production_tick_rate`) | CPL-113 farming upkeep; × livability × air/water difficulty. `0` = no wealth upkeep. |
 | `resources_upkeep_tick_rate` | fp | `0.003` | `≥ 0` (practical: 0–`production_tick_rate`) | CPL-113 industry upkeep; × mineral composite × mineral difficulty. `0` = no resources upkeep. |
 
-Net income (per productive rock, per tick):  
+Net income (per owned populated habit-complete rock, per tick):  
 `credit = quantity × access × cover × production_tick_rate × afk × allocation`  
 `upkeep = quantity × difficulty × <axis>_upkeep_tick_rate × cover × afk × allocation`  
-`net = credit − upkeep` (may be negative; empire pools clamp at 0).
+`net = credit − upkeep` (may be negative; empire pools clamp at 0).  
+**Productive** iff structural combined net (alloc=1, afk=1) is **> 0** (CPL-114).
 
 ### Default hull templates
 

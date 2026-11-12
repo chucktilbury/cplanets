@@ -14,10 +14,19 @@ loads `~/.config/cplanets/server.cfg` (creating the XDG pack —
 The generated `server.cfg` lists **every** process/network and §14
 key the server understands, with closed defaults (same magnitudes as
 [`config/server-default.cfg`](../config/server-default.cfg), plus three
-sample `ai-client` lines). An **explicit** `--config` path that cannot
-open is still a **hard error** (exit 1). `--config` itself has no
-in-file key. There is **no GUI server-config dialog** yet — edit the
-file.
+sample `ai-client` lines). An incomplete *generated* stub (XDG header
+present, CPL-116 keys missing — typical after an older first-run
+write) is **rewritten** on the next omit-config start; remove the
+`Created under ~/.config/cplanets/` header line to keep a hand-edited
+file. Human/AI level files are never overwritten. An **explicit**
+`--config` path that cannot open is still a **hard error** (exit 1).
+`--config` itself has no in-file key. There is **no GUI server-config
+dialog** yet — edit the file.
+
+Listen bind uses `FD_CLOEXEC` so server-spawned AI children do not
+inherit the listen socket (otherwise orphans can hold `host:port`
+after the parent exits and the next start fails with
+`cplanets-server: bind failed host:port`).
 
 CLI flags present on argv override file values **silently**.
 §14 galaxy keys have no argv overlays (edit the file and restart).

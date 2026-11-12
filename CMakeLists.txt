@@ -99,7 +99,8 @@ endif()
 
 # Non-blocking stdin poll for the serve-time status menu (ServerListen).
 add_library(cplanets_native OBJECT
-    "${PROJECT_SOURCE_DIR}/src/native/stdinPoll.c")
+    "${PROJECT_SOURCE_DIR}/src/native/stdinPoll.c"
+    "${PROJECT_SOURCE_DIR}/src/native/socketCloexec.c")
 target_include_directories(cplanets_native PRIVATE
     "${Cwhip_INCLUDE_DIR}")
 

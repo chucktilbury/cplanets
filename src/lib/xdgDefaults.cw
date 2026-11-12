@@ -3,8 +3,11 @@
  *
  * When --config is omitted (or the XDG pack is incomplete), create
  * server.cfg, human.cfg, and ai-{soft,mid,hard}.cfg under the
- * XDG config home. Existing files are never overwritten. Used by
- * cplanets-server, cplanets, and cplanets-ai (CPL-115).
+ * XDG config home. Human/AI files are never overwritten. A
+ * generated server.cfg that is missing the CPL-116 full key set is
+ * rewritten in place (auto-heal); hand-edited files without the
+ * XDG header are left alone. Used by cplanets-server, cplanets,
+ * and cplanets-ai (CPL-115/116/117).
  *
  * Created: 2026-11-11
  * Author: Auto
@@ -12,6 +15,7 @@
  * Changelog:
  *   2026-11-11  CPL-115: XDG default config creation.
  *   2026-11-11  CPL-116: default server.cfg lists every server key.
+ *   2026-11-12  CPL-117: auto-heal incomplete generated server.cfg.
  */
 
 # Callers must `import system as Sys` (server / human / AI mains do).
@@ -20,8 +24,8 @@
  * XdgDefaults resolves and seeds the operator config directory.
  *
  * Prefers $XDG_CONFIG_HOME/cplanets, else $HOME/.config/cplanets.
- * ensureDefaults creates missing files only; lastError explains
- * mkdir / HOME failures.
+ * ensureDefaults creates missing files and rewrites an incomplete
+ * generated server.cfg; lastError explains mkdir / HOME failures.
  */
 class XdgDefaults {
     String lastError
@@ -129,7 +133,10 @@ class XdgDefaults {
      *
      * Purpose: first-run bootstrap so operators can start without
      * --config. Writes server.cfg (with three ai-client lines),
-     * human.cfg, and ai-{soft,mid,hard}.cfg. Never overwrites.
+     * human.cfg, and ai-{soft,mid,hard}.cfg. Human/AI files are
+     * never overwritten. An incomplete *generated* server.cfg
+     * (XDG header present, CPL-116 sentinels missing) is rewritten
+     * with the full key set (CPL-117 auto-heal).
      *
      * Parameters: none.
      *
@@ -145,9 +152,8 @@ class XdgDefaults {
         if (not ensureDir(dir)) {
             return(false)
         }
-        if (not writeIfMissing(
-            Sys.FileSystem().join(dir, "server.cfg"),
-            defaultServerText())) {
+        if (not ensureServerConfig(
+            Sys.FileSystem().join(dir, "server.cfg"))) {
             return(false)
         }
         if (not writeIfMissing(
@@ -229,6 +235,124 @@ class XdgDefaults {
             lastError = format("path exists but is not a file: {}", path)
             return(false)
         }
+        return(writeText(path, body))
+    }
+
+    /*
+     * Ensure server.cfg exists with the full default key set.
+     *
+     * Purpose: create on first run; rewrite a stale CPL-115-era
+     * generated stub that still carries the XDG header but lacks
+     * CPL-116 sentinels (seat_hard_cap, etc.). Hand-edited files
+     * without the XDG header are left alone even if sparse.
+     *
+     * Parameters:
+     *   path — …/cplanets/server.cfg.
+     *
+     * Returns: true when the file exists afterward with either a
+     * full generated body or an untouched operator file.
+     */
+    bool ensureServerConfig(String path) {
+        Sys.FileSystem fs = Sys.FileSystem()
+        if (not fs.isFile(path)) {
+            if (fs.exists(path)) {
+                lastError = format(
+                    "path exists but is not a file: {}", path)
+                return(false)
+            }
+            return(writeText(path, defaultServerText()))
+        }
+        String existing = ""
+        try {
+            Sys.File input = Sys.File(path, "r")
+            existing = input.readAll()
+            input.close()
+        } except() as error {
+            lastError = format(
+                "cannot read '{}': {}", path, error)
+            return(false)
+        }
+        if (not isGeneratedServerStub(existing)) {
+            return(true)
+        }
+        if (hasFullServerKeySet(existing)) {
+            return(true)
+        }
+        return(writeText(path, defaultServerText()))
+    }
+
+    /*
+     * True when text looks like an auto-generated XDG server.cfg.
+     *
+     * Purpose: gate auto-heal so hand-edited configs are never
+     * rewritten. Matches the CPL-115/116 header line.
+     *
+     * Parameters:
+     *   text — current file body.
+     *
+     * Returns: true when the XDG creation marker is present.
+     */
+    bool isGeneratedServerStub(String text) {
+        if (text.contains("Created under ~/.config/cplanets/")) {
+            return(true)
+        }
+        return(false)
+    }
+
+    /*
+     * True when text already lists the CPL-116 full key set.
+     *
+     * Purpose: skip rewrite when the generated file is complete.
+     * Sentinels span process, clock, economy, and display sections.
+     *
+     * Parameters:
+     *   text — current file body.
+     *
+     * Returns: true when every sentinel key appears.
+     */
+    bool hasFullServerKeySet(String text) {
+        if (not text.contains("seat_hard_cap =")) {
+            return(false)
+        }
+        if (not text.contains("recv_buffer_bytes =")) {
+            return(false)
+        }
+        if (not text.contains("verbose_capture_lines =")) {
+            return(false)
+        }
+        if (not text.contains("tick_auto_config_from_ai_lag =")) {
+            return(false)
+        }
+        if (not text.contains("yard_build_extra_hull_time_frac =")) {
+            return(false)
+        }
+        if (not text.contains("productive_rate =")) {
+            return(false)
+        }
+        if (not text.contains("wealth_upkeep_tick_rate =")) {
+            return(false)
+        }
+        if (not text.contains("design_scout_speed =")) {
+            return(false)
+        }
+        if (not text.contains("livability_display_max =")) {
+            return(false)
+        }
+        return(true)
+    }
+
+    /*
+     * Write full text to path (create or truncate).
+     *
+     * Purpose: shared create/rewrite helper for ensureDefaults.
+     *
+     * Parameters:
+     *   path — destination file.
+     *   body — full file contents.
+     *
+     * Returns: true on success; false on write failure (lastError).
+     */
+    bool writeText(String path, String body) {
         try {
             Sys.File out = Sys.File(path, "w")
             out.write(body)
@@ -259,7 +383,9 @@ class XdgDefaults {
         String text = ""
         text.append("# CPlanets XDG default server config\n")
         text.append("# Created under ~/.config/cplanets/ (CPL-115/116).\n")
-        text.append("# Edit freely; re-runs never overwrite this file.\n")
+        text.append("# Edit freely. Incomplete generated stubs are\n")
+        text.append("# rewritten on the next omit-config start; remove\n")
+        text.append("# the XDG header line to keep a hand-edited file.\n")
         text.append("# Lists every server key with closed defaults.\n")
         text.append("# See doc/SERVER-CONFIG.md.\n\n")
         text.append("# --- listen bind ---\n")

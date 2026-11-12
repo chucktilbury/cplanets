@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-11  Initial XDG defaults unit.
  *   2026-11-11  CPL-116: assert full server.cfg key coverage.
+ *   2026-11-12  CPL-117: incomplete generated server.cfg is healed.
  */
 
 import system as Sys
@@ -116,6 +117,51 @@ start {
         ok = false
     }
     if (ok and not serverText.contains("galaxy_radius =")) {
+        ok = false
+    }
+    # CPL-117: incomplete generated stub is rewritten; stamped
+    # hand-edited human.cfg stays untouched (above). Write a
+    # CPL-115-shaped stub and ensureDefaults must expand it.
+    String serverPath = fs.join(dir, "server.cfg")
+    String stubText = ""
+    stubText.append("# CPlanets XDG default server config\n")
+    stubText.append("# Created under ~/.config/cplanets/ (CPL-115).\n")
+    stubText.append("# Edit freely; re-runs never overwrite this file.\n\n")
+    stubText.append("host = 127.0.0.1\n")
+    stubText.append("port = 7700\n")
+    stubText.append("players = 0\n")
+    stubText.append("seed = 7\n")
+    stubText.append("serve = true\n")
+    stubText.append("world_count = 24\n")
+    Sys.File stubOut = Sys.File(serverPath, "w")
+    stubOut.write(stubText)
+    stubOut.close()
+    if (not xdg.ensureDefaults()) {
+        ok = false
+    }
+    Sys.File healedIn = Sys.File(serverPath, "r")
+    String healed = healedIn.readAll()
+    healedIn.close()
+    if (ok and not healed.contains("seat_hard_cap =")) {
+        ok = false
+    }
+    if (ok and not healed.contains("productive_rate =")) {
+        ok = false
+    }
+    if (ok and not healed.contains("livability_display_max =")) {
+        ok = false
+    }
+    # Hand-edited (no XDG header): sparse file must not be clobbered.
+    Sys.File handOut = Sys.File(serverPath, "w")
+    handOut.write("# my custom server\nhost = 0.0.0.0\nport = 9000\n")
+    handOut.close()
+    if (not xdg.ensureDefaults()) {
+        ok = false
+    }
+    Sys.File handIn = Sys.File(serverPath, "r")
+    String handBody = handIn.readAll()
+    handIn.close()
+    if (ok and not handBody.startsWith("# my custom server")) {
         ok = false
     }
     if (priorHome.length > 0) {

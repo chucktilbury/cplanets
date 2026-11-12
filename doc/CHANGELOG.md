@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **CPL-117 server bind + incomplete XDG heal:** mark the TCP listen
+  socket `FD_CLOEXEC` so spawned `cplanets-ai` children no longer
+  inherit it (orphans were holding `127.0.0.1:7700` → opaque
+  `bind failed` on the next start). Bind failures now print
+  `host:port` (and `System.lastError` when set). Incomplete
+  *generated* `~/.config/cplanets/server.cfg` stubs (XDG header,
+  missing CPL-116 keys) are rewritten on the next omit-config
+  start; hand-edited files without that header are left alone.
+  Docs: [SERVER-CONFIG.md](SERVER-CONFIG.md). Tests:
+  `unit_xdgDefaults`, `functional_cli_config_defaults`.
 - **CPL-116 full XDG server.cfg key set:** auto-generated
   `~/.config/cplanets/server.cfg` (and `config/server-default.cfg`)
   list every process/network and §14 key the server understands,

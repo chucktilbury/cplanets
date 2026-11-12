@@ -23,12 +23,14 @@
  *   2026-11-08  Poll ServeMenuGate between accept / maybeTick cycles.
  *   2026-11-09  Menu gate drains stray stdin; lobby Go closes menu.
  *   2026-11-09  recvBufferBytes from server config (was 65536).
+ *   2026-11-12  CPL-117: FD_CLOEXEC on listen fd (AI spawn inherit).
  */
 
 import networking as Networking
 
 include "handler.cw"
 include "serveMenuGate.cw"
+include "socketCloexec.cw"
 
 /*
  * ServerListen owns the TCP socket and accept / handle loop.
@@ -108,6 +110,9 @@ class ServerListen {
         if (fd < 0) {
             return(false)
         }
+        # Prevent AsyncProcess AI children from inheriting the listen
+        # fd (orphans otherwise keep host:port after the parent exits).
+        SocketCloexec().apply(fd)
         port = net.serverPort(fd)
         net.socketSetTimeout(fd, acceptTimeoutMs)
         return(port > 0)

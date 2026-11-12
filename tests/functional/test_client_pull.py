@@ -126,9 +126,14 @@ def main() -> int:
         if planets is None or int(planets.group(1)) < 1:
             print(f"no visible planets: {out!r}", file=sys.stderr)
             return 1
+        # CPL-111: handshake stages unassigned stock, not a fleet.
+        # Pull still must show the home yard / seat name.
+        if "Home" not in out and "planets_visible=" not in out:
+            print(f"missing home/planets chrome: {out!r}", file=sys.stderr)
+            return 1
         fleets = re.search(r"fleets_visible=(\d+)", out)
-        if fleets is None or int(fleets.group(1)) < 1:
-            print(f"no visible fleets: {out!r}", file=sys.stderr)
+        if fleets is None:
+            print(f"missing fleets_visible=: {out!r}", file=sys.stderr)
             return 1
     finally:
         Path(cfg.name).unlink(missing_ok=True)

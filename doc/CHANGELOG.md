@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **CPL-111 Ships/Fleets/Empire UI:** DropDown selection sticks across
+  refresh; Develop defaults kind to **scout**; Build adds qty (extra
+  hulls add `yard_build_extra_hull_time_frac`, default 10%) and lists
+  only seat-developed ready types (no phantom scout/colony);
+  home grant stages unassigned scout stock (no phantom fleet named
+  `starter`); Fleets→Assign removed — Assign/Un-assign live in
+  Fleets→Inventory with planet scope + multi-select stock;
+  `PUT /unassign`; Empire top-level Apply+Close inventory dialog.
+  Docs: [DIALOGS.md](DIALOGS.md), [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [CPLANETS.md](CPLANETS.md), [RULES.md](RULES.md) §2 / §16.
 - **CPL-110 Ships/Fleets submenu dialogs:** replace monolithic Ships
   and Fleets panel dialogs with MenuBar submenus of smaller
   non-modal Apply+Close dialogs — Ships → Develop / Build / Reclaim /

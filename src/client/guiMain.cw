@@ -41,13 +41,15 @@
  *   2026-11-10  Status bar shows seat display name (CPL-106).
  *   2026-11-10  File→Quit PUT /quit for last-human exit (CPL-108).
  *   2026-11-10  CPL-110: Ships/Fleets submenu dialogs.
+ *   2026-11-11  CPL-111: Empire menu; Fleets Inventory assign /
+ *               unassign; Build qty; no Assign menu item.
  */
 
 include "appCore.cw"
 include "designRow.cw"
 include "exploredTrack.cw"
 include "guiDigestPage.cw"
-include "guiFleetAssignPage.cw"
+include "guiEmpirePage.cw"
 include "guiFleetCreatePage.cw"
 include "guiFleetDeployPage.cw"
 include "guiFleetDialog.cw"
@@ -96,9 +98,9 @@ class GuiMain {
     GuiShipReclaimPage shipReclaimPage
     GuiShipInventoryPage shipInventoryPage
     GuiFleetCreatePage fleetCreatePage
-    GuiFleetAssignPage fleetAssignPage
     GuiFleetDeployPage fleetDeployPage
     GuiFleetInventoryPage fleetInventoryPage
+    GuiEmpirePage empirePage
     GuiMapPage mapPage
     GuiPanelHost panels
     ExploredTrack explored
@@ -116,6 +118,7 @@ class GuiMain {
     void<> examineShipAction
     void<> createFleetAction
     void<> assignAction
+    void<> unassignAction
     void<> dispatchAction
     void<> recallAction
     void<> developAction
@@ -124,6 +127,7 @@ class GuiMain {
     void<> reclaimAction
     void<> budgetAction
     void<> sendAction
+    void<> empireApplyAction
     void<bool> pauseAction
     void<bool> afkAction
     void<> testAction
@@ -175,20 +179,20 @@ class GuiMain {
         shipReclaimPage = GuiShipReclaimPage(appCore)
         shipInventoryPage = GuiShipInventoryPage(appCore)
         fleetCreatePage = GuiFleetCreatePage(appCore)
-        fleetAssignPage = GuiFleetAssignPage(appCore)
         fleetDeployPage = GuiFleetDeployPage(appCore)
         fleetInventoryPage = GuiFleetInventoryPage(appCore)
+        empirePage = GuiEmpirePage(appCore)
         mapPage = GuiMapPage(appCore)
         panels = GuiPanelHost()
         panels.showPlanetsAction = panels.showPlanets
         panels.showDigestAction = panels.showDigest
         panels.showPolicyAction = panels.showPolicy
+        panels.showEmpireAction = panels.showEmpire
         panels.showShipDevelopAction = panels.showShipDevelop
         panels.showShipBuildAction = panels.showShipBuild
         panels.showShipReclaimAction = panels.showShipReclaim
         panels.showShipInventoryAction = panels.showShipInventory
         panels.showFleetCreateAction = panels.showFleetCreate
-        panels.showFleetAssignAction = panels.showFleetAssign
         panels.showFleetDeployAction = panels.showFleetDeploy
         panels.showFleetInventoryAction = panels.showFleetInventory
         explored = ExploredTrack()
@@ -206,6 +210,7 @@ class GuiMain {
         examineShipAction = null
         createFleetAction = null
         assignAction = null
+        unassignAction = null
         dispatchAction = null
         recallAction = null
         developAction = null
@@ -214,6 +219,7 @@ class GuiMain {
         reclaimAction = null
         budgetAction = null
         sendAction = null
+        empireApplyAction = null
         pauseAction = null
         afkAction = null
         testAction = null
@@ -321,8 +327,6 @@ class GuiMain {
         menu.addItem(
             fleetsMenu, "Create", panels.showFleetCreateAction)
         menu.addItem(
-            fleetsMenu, "Assign", panels.showFleetAssignAction)
-        menu.addItem(
             fleetsMenu, "Deploy", panels.showFleetDeployAction)
         menu.addItem(
             fleetsMenu, "Inventory", panels.showFleetInventoryAction)
@@ -338,6 +342,7 @@ class GuiMain {
         appendPanelOpener(menuStrip, "Planets", panels.showPlanetsAction)
         appendPanelOpener(menuStrip, "Digest", panels.showDigestAction)
         appendPanelOpener(menuStrip, "Policy", panels.showPolicyAction)
+        appendPanelOpener(menuStrip, "Empire", panels.showEmpireAction)
         root.append(menuStrip)
         Gtk.Box top = Gtk.Box(Gtk.Box.HORIZONTAL, 8)
         status = Gtk.Label("Ready")
@@ -387,14 +392,19 @@ class GuiMain {
             shipReclaimPage.onReclaimFleetChanged)
         shipInventoryPage.designChoice.changedAction = (
             shipInventoryPage.refreshSelectedHint)
-        fleetAssignPage.assignQtyChangedAction = (
-            fleetAssignPage.onAssignQtyChanged)
+        shipBuildPage.qtyChangedAction = shipBuildPage.onQtyChanged
         fleetDeployPage.recallAction = recallAction
         fleetDeployPage.hullsChangedAction = fleetDeployPage.onHullsChanged
         fleetDeployPage.fleetChoice.changedAction = (
             fleetDeployPage.onFleetChoiceChanged)
         fleetInventoryPage.fleetChoice.changedAction = (
             fleetInventoryPage.refreshSelectedHint)
+        fleetInventoryPage.planetChoice.changedAction = (
+            fleetInventoryPage.refresh)
+        fleetInventoryPage.qtyChangedAction = (
+            fleetInventoryPage.onQtyChanged)
+        fleetInventoryPage.assignAction = assignAction
+        fleetInventoryPage.unassignAction = unassignAction
         digestPage.sendAction = sendAction
         digestPage.toChoice.bindSelected(
             digestPage.toChoice.onSelected)
@@ -410,27 +420,26 @@ class GuiMain {
         panels.shipReclaimPanel.applyAction = reclaimStockAction
         panels.shipInventoryPanel.applyAction = examineShipAction
         panels.fleetCreatePanel.applyAction = createFleetAction
-        panels.fleetAssignPanel.applyAction = assignAction
         panels.fleetDeployPanel.applyAction = dispatchAction
         panels.fleetInventoryPanel.applyAction = examineFleetAction
+        panels.empirePanel.applyAction = empireApplyAction
         shipDevelopPage.bindChoices()
         shipBuildPage.bindChoices()
         shipReclaimPage.bindChoices()
         shipInventoryPage.bindChoices()
         fleetCreatePage.bindChoices()
-        fleetAssignPage.bindChoices()
         fleetDeployPage.bindChoices()
         fleetInventoryPage.bindChoices()
         panels.wire(
             planetPage,
             digestPage,
             policyPage,
+            empirePage,
             shipDevelopPage,
             shipBuildPage,
             shipReclaimPage,
             shipInventoryPage,
             fleetCreatePage,
-            fleetAssignPage,
             fleetDeployPage,
             fleetInventoryPage)
         planetDialog.closeAction = dialogCloseAction
@@ -616,9 +625,9 @@ class GuiMain {
         shipReclaimPage.refresh()
         shipInventoryPage.refresh()
         fleetCreatePage.refresh()
-        fleetAssignPage.refresh()
         fleetDeployPage.refresh()
         fleetInventoryPage.refresh()
+        empirePage.refresh()
         mapPage.refresh()
         digestPage.refresh()
         policyPage.syncFromDraft()
@@ -1159,10 +1168,11 @@ class GuiMain {
     }
 
     /*
-     * Assign hulls: PUT /assign from Fleets→Assign dialog.
+     * Assign hulls: PUT /assign from Fleets→Inventory.
      *
-     * Purpose: CPL-101 move type+qty from unassigned stock into a
-     * sitting fleet. Over-assign shows AlertDialog with lastError.
+     * Purpose: CPL-111 move selected stock types + qty into the
+     * selected sitting fleet at the inventory planet. Over-assign
+     * shows AlertDialog with lastError.
      *
      * Parameters: none.
      *
@@ -1173,23 +1183,108 @@ class GuiMain {
             status.setText("assign needs live server")
             return()
         }
-        int64 fleetId = fleetAssignPage.assignFleetValue()
-        String typeName = fleetAssignPage.assignTypeValue()
-        int64 qty = fleetAssignPage.assignQtyValue()
-        if (core.putAssignRemote(fleetId, typeName, qty)) {
-            core.pullRemote()
-            refreshLists()
-            status.setText(format(
-                "assigned type={} qty={} → fleet {}",
-                typeName, qty, fleetId))
-        } else {
-            String detail = core.lastError
-            if (detail.length < 1) {
-                detail = format(
-                    "assign rejected fleet={} type={} qty={}",
-                    fleetId, typeName, qty)
+        int64 fleetId = fleetInventoryPage.fleetIdValue()
+        int64 qty = fleetInventoryPage.qtyValue()
+        list types = fleetInventoryPage.selectedTypeNames()
+        if (types.length < 1) {
+            reportFailure(
+                "Assign failed",
+                "select one or more unassigned stock types")
+            return()
+        }
+        int64 index = 0
+        while (index < types.length) {
+            String typeName = types[index]
+            if (core.putAssignRemote(fleetId, typeName, qty)) {
+                status.setText(format(
+                    "assigned type={} qty={} → fleet {}",
+                    typeName, qty, fleetId))
+            } else {
+                String detail = core.lastError
+                if (detail.length < 1) {
+                    detail = format(
+                        "assign rejected fleet={} type={} qty={}",
+                        fleetId, typeName, qty)
+                }
+                reportFailure("Assign failed", detail)
+                core.pullRemote()
+                refreshLists()
+                return()
             }
-            reportFailure("Assign failed", detail)
+            index = index + 1
+        }
+        core.pullRemote()
+        refreshLists()
+    }
+
+    /*
+     * Unassign hulls: PUT /unassign from Fleets→Inventory.
+     *
+     * Purpose: CPL-111 free selected types from the fleet back to
+     * unassigned stock at the fleet location.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onUnassign() {
+        if (core.config.port < 1) {
+            status.setText("unassign needs live server")
+            return()
+        }
+        int64 fleetId = fleetInventoryPage.fleetIdValue()
+        int64 qty = fleetInventoryPage.qtyValue()
+        list types = fleetInventoryPage.selectedTypeNames()
+        if (types.length < 1) {
+            reportFailure(
+                "Un-assign failed",
+                "select one or more stock types matching fleet hulls")
+            return()
+        }
+        int64 index = 0
+        while (index < types.length) {
+            String typeName = types[index]
+            if (core.putUnassignRemote(fleetId, typeName, qty)) {
+                status.setText(format(
+                    "unassigned type={} qty={} ← fleet {}",
+                    typeName, qty, fleetId))
+            } else {
+                String detail = core.lastError
+                if (detail.length < 1) {
+                    detail = format(
+                        "unassign rejected fleet={} type={} qty={}",
+                        fleetId, typeName, qty)
+                }
+                reportFailure("Un-assign failed", detail)
+                core.pullRemote()
+                refreshLists()
+                return()
+            }
+            index = index + 1
+        }
+        core.pullRemote()
+        refreshLists()
+    }
+
+    /*
+     * Empire Apply: pull + refresh empire inventory chrome.
+     *
+     * Purpose: CPL-111 Empire dialog Apply+Close pattern.
+     *
+     * Parameters: none.
+     *
+     * Returns: nothing.
+     */
+    void onEmpireApply() {
+        if (core.config.port > 0) {
+            if (not core.pullRemote()) {
+                reportConnectFailure(core.lastError)
+                return()
+            }
+        }
+        refreshLists()
+        if (status != null) {
+            status.setText("empire inventory refreshed")
         }
     }
 
@@ -1268,18 +1363,19 @@ class GuiMain {
         }
         int64 planetId = shipBuildPage.planetValue()
         int64 designId = shipBuildPage.designIdValue()
-        if (core.putBuildRemote(planetId, designId)) {
+        int64 qty = shipBuildPage.qtyValue()
+        if (core.putBuildRemote(planetId, designId, qty)) {
             core.pullRemote()
             refreshLists()
             status.setText(format(
-                "build queued planet={} design={}",
-                planetId, designId))
+                "build queued planet={} design={} qty={}",
+                planetId, designId, qty))
         } else {
             String detail = core.lastError
             if (detail.length < 1) {
                 detail = format(
-                    "build rejected planet={} design={}",
-                    planetId, designId)
+                    "build rejected planet={} design={} qty={}",
+                    planetId, designId, qty)
             }
             reportFailure("Yard build failed", detail)
         }

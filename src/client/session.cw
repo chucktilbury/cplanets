@@ -531,21 +531,27 @@ class HumanSession {
     }
 
     /*
-     * PUT /build to queue a yard hull.
+     * PUT /build to queue a yard hull batch.
      *
-     * Purpose: Ships tab Queue build.
+     * Purpose: Ships tab Queue build. CPL-111: qty scales cost and
+     * build ticks on the server.
      *
      * Parameters:
      *   planetId — owned productive shipyard.
      *   designId — ready design id.
+     *   qty — hulls to produce (>= 1).
      *
      * Returns: true when the BuildJob was queued.
      */
-    bool putBuild(int64 planetId, int64 designId) {
+    bool putBuild(int64 planetId, int64 designId, int64 qty) {
         WireBytes w = WireBytes()
         w.writeU32(config.playerId)
         w.writeU32(planetId)
         w.writeU32(designId)
+        if (qty < 1) {
+            qty = 1
+        }
+        w.writeU32(qty)
         Envelope env = Envelope().make(
             Envelope.VERB_PUT, "/build", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
@@ -621,6 +627,31 @@ class HumanSession {
             Envelope.VERB_PUT, "/assign", w.bytes)
         buffer resp = exchange(EnvelopeCodec().encode(env))
         return(flagAccepted(resp, "/assign"))
+    }
+
+    /*
+     * PUT /unassign to move type+qty from a fleet back to stock.
+     *
+     * Purpose: CPL-111 Fleets→Inventory Un-assign. Over-unassign
+     * rejects with a reason string for the human error dialog.
+     *
+     * Parameters:
+     *   fleetId — sitting owned fleet at a planet.
+     *   typeName — design name to free.
+     *   qty — hulls to move (> 0).
+     *
+     * Returns: true when unassigned. lastRejectReason set on reject.
+     */
+    bool putUnassign(int64 fleetId, String typeName, int64 qty) {
+        WireBytes w = WireBytes()
+        w.writeU32(config.playerId)
+        w.writeU32(fleetId)
+        w.writeString(typeName)
+        w.writeU32(qty)
+        Envelope env = Envelope().make(
+            Envelope.VERB_PUT, "/unassign", w.bytes)
+        buffer resp = exchange(EnvelopeCodec().encode(env))
+        return(flagAccepted(resp, "/unassign"))
     }
 
     /*

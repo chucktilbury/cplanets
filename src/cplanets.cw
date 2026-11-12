@@ -378,6 +378,7 @@ class HumanMain {
         gui.examineShipAction = gui.showShipExamine
         gui.createFleetAction = gui.onCreateFleet
         gui.assignAction = gui.onAssign
+        gui.unassignAction = gui.onUnassign
         gui.dispatchAction = gui.onDispatch
         gui.recallAction = gui.onRecall
         gui.developAction = gui.onDevelop
@@ -386,6 +387,7 @@ class HumanMain {
         gui.reclaimAction = gui.onReclaimHulls
         gui.budgetAction = gui.onBudget
         gui.sendAction = gui.onSendMessage
+        gui.empireApplyAction = gui.onEmpireApply
         gui.pauseAction = gui.onPauseToggled
         gui.afkAction = gui.onAfkToggled
         gui.testAction = gui.onTest

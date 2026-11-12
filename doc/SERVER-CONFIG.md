@@ -140,6 +140,7 @@ placeholders until RULES locks them. Tick period clamps to **1–30**.
 | --- | --- | --- | --- | --- |
 | `production_tick_rate` | fp | `0.01` | `> 0` (practical: 0.001–0.1) | Base production rate per tick. |
 | `yard_build_cost_per_size` | fp | `10.0` | `≥ 0` | Resources per hull size to build. |
+| `yard_build_extra_hull_time_frac` | fp | `0.10` | `≥ 0` | Extra fraction of `yard_build_ticks` charged per hull beyond the first in one `PUT /build` qty (CPL-111). qty 2 → 110% of one-hull ticks (rounded up). |
 | `design_develop_cost_per_size` | fp | `50.0` | `≥ 0` | Wealth per size to develop. |
 | `colony_hop_fraction` | fp | `0.5` | `0`–`1` | Colony hop reach vs scout. |
 

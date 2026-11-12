@@ -747,7 +747,7 @@ class GameDriver {
      * stage as unassigned stock at the yard (CPL-101), not a fleet.
      */
     bool queueOwnedBuild(
-        int64 playerId, int64 planetId, int64 designId) {
+        int64 playerId, int64 planetId, int64 designId, int64 qty) {
         if (game.ended) {
             verbose.logYardBuild(
                 playerId, planetId, designId, false)
@@ -763,7 +763,11 @@ class GameDriver {
                 playerId, planetId, designId, false)
             return(false)
         }
-        bool ok = game.queueYardBuild(playerId, planetId, designId)
+        if (qty < 1) {
+            qty = 1
+        }
+        bool ok = game.queueYardBuild(
+            playerId, planetId, designId, qty)
         verbose.logYardBuild(playerId, planetId, designId, ok)
         if (ok) {
             republishWithoutTick()
@@ -865,6 +869,39 @@ class GameDriver {
             return(false)
         }
         bool ok = game.assignHullsToFleet(
+            playerId, fleetId, typeName, qty)
+        if (ok) {
+            republishWithoutTick()
+        }
+        return(ok)
+    }
+
+    /*
+     * Unassign type name + qty from a sitting fleet into stock.
+     *
+     * Purpose: wire PUT /unassign (CPL-111 Fleets→Inventory).
+     * Hulls return to unassigned stock at the fleet location.
+     *
+     * Parameters:
+     *   playerId — owning seat.
+     *   fleetId — sitting fleet at a planet.
+     *   typeName — design name to free.
+     *   qty — hulls to move.
+     *
+     * Returns: true when unassigned.
+     */
+    bool unassignOwnedHulls(
+        int64 playerId,
+        int64 fleetId,
+        String typeName,
+        int64 qty) {
+        if (game.ended or not requireGo()) {
+            return(false)
+        }
+        if (playerId < 0 or playerId >= game.players.length) {
+            return(false)
+        }
+        bool ok = game.unassignHullsFromFleet(
             playerId, fleetId, typeName, qty)
         if (ok) {
             republishWithoutTick()

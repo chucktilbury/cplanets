@@ -46,7 +46,7 @@ start {
         ok = false
     }
     drv.advanceTicks(2)
-    if (ok and not drv.queueOwnedBuild(0, 0, 0)) {
+    if (ok and not drv.queueOwnedBuild(0, 0, 0, 1)) {
         ok = false
     }
     int64 waited = 0
@@ -88,7 +88,7 @@ start {
     d2.game.players[0] = s2
     int64 before = d2.game.findFleet(1).hullCount
     int64 stock0 = book.available(d2.game.stocks, 0, 0, 0)
-    if (ok and not d2.queueOwnedBuild(0, 0, 0)) {
+    if (ok and not d2.queueOwnedBuild(0, 0, 0, 1)) {
         ok = false
     }
     d2.advanceTicks(10)

@@ -12,6 +12,8 @@
  *   2026-11-09  Initial GuiChoiceRow for View dialog usability.
  *   2026-11-09  Rewrap as Gtk.DropDown (replace prev/next stand-in).
  *   2026-11-10  Preserve prior selection across setChoices refresh.
+ *   2026-11-11  Remember last non-empty pick so refresh_ms cannot
+ *               snap back to index 0 when DropDown.setChoices does.
  */
 
 /*
@@ -183,6 +185,16 @@ class GuiChoiceRow {
      * Returns: nothing.
      */
     void onSelected(int64 index) {
+        # Remember the operator's live pick so the next setChoices
+        # refresh can restore it even when DropDown briefly reports
+        # empty during model rebuild (CPL-111).
+        if (drop != null and drop.size() > 0) {
+            String live = drop.selectedText()
+            if (live.length > 0 and not live.equals(emptyText)) {
+                pendingValue = live
+                hasPendingValue = true
+            }
+        }
         notifyChanged()
     }
 
@@ -220,6 +232,10 @@ class GuiChoiceRow {
         if (drop == null) {
             return()
         }
+        # Prefer the live selection, then the last remembered pick.
+        # DropDown.setChoices falls back to index 0 when prior text
+        # is empty — re-apply remembered text so refresh cycles do
+        # not reset the operator mid-edit (CPL-111 / CPL-104).
         String prior = ""
         if (drop.size() > 0) {
             prior = value()
@@ -239,11 +255,15 @@ class GuiChoiceRow {
         drop.setChoices(newChoices)
         if (prior.length > 0) {
             if (selectText(prior)) {
+                pendingValue = prior
+                hasPendingValue = true
                 return()
             }
         }
         if (hasPendingValue and pendingValue.length > 0) {
-            selectText(pendingValue)
+            if (selectText(pendingValue)) {
+                return()
+            }
         }
     }
 

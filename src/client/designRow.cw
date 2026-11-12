@@ -11,6 +11,7 @@
  *   2026-11-07  Initial DesignRow for ship create / yard GUI.
  *   2026-11-09  examineDialogText for design TransientWindow.
  *   2026-11-10  choiceLabel for name-based DropDown chrome.
+ *   2026-11-11  mine flag — seat-developed types for Build filter.
  */
 
 /*
@@ -28,6 +29,9 @@ class DesignRow {
     bool colony
     bool defense
     bool ready
+    # True when this seat developed the type (not a shared system
+    # template). Build chrome lists only mine + ready designs.
+    bool mine
     int64 speedMilli
     int64 hopMilli
     int64 sizeMilli
@@ -51,6 +55,7 @@ class DesignRow {
         colony = false
         defense = false
         ready = false
+        mine = false
         speedMilli = 0
         hopMilli = 0
         sizeMilli = 0

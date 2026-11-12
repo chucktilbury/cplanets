@@ -351,9 +351,9 @@ class State {
         # Home is explored for this seat (fog discovery; CPL-107).
         seat.markExploredPlanet(homeId)
         players[playerId] = seat
-        # RULES §2: every seated empire gets the productive yard
-        # plus the minimal starter scout stack (not seat-0 only).
-        seedStarterFleet(playerId, homeId)
+        # RULES §2 / CPL-111: productive yard plus unassigned scout
+        # stock at home (not a phantom named "starter" fleet).
+        seedStarterStock(playerId, homeId)
         return(true)
     }
 
@@ -361,8 +361,9 @@ class State {
      * Seat every configured empire with a home (test helper).
      *
      * Purpose: in-process unit/fn programs that never open TCP still
-     * need productive yards and starter fleets. Production servers
-     * must not call this — they seat via handshake only.
+     * need productive yards and a sitting scout stack. Production
+     * servers must not call this — they seat via handshake only
+     * (stock without a phantom named fleet; CPL-111).
      *
      * Parameters: none.
      *
@@ -374,6 +375,10 @@ class State {
         while (index < players.length) {
             if (not ensureHomeForSeat(index)) {
                 ok = false
+            } else {
+                # Test-only: promote home stock into a sitting fleet
+                # so legacy findFleet(1) fixtures keep working.
+                promoteHomeStockToFleet(index)
             }
             index = index + 1
         }
@@ -381,28 +386,76 @@ class State {
     }
 
     /*
-     * Park a small scout fleet on a newly granted home yard.
+     * Promote unassigned home stock into one sitting fleet (tests).
      *
-     * Purpose: give every seated empire a dispatch-ready scout
-     * stack without waiting on yard production first (RULES §2
-     * minimal starter fleet). Called once from ensureHomeForSeat
-     * for primary and sandbox seats alike.
+     * Purpose: ensureAllSeatHomes convenience — live handshake leaves
+     * stock unassigned (no phantom "starter" fleet). Idempotent when
+     * the seat already has a sitting fleet with hulls.
      *
      * Parameters:
-     *   ownerId — empire that owns the fleet.
-     *   homePlanetId — sitting location (the new home yard).
+     *   ownerId — seat that just received seedStarterStock.
      *
-     * Returns: nothing; appends to fleets when designs exist.
+     * Returns: nothing.
      */
-    void seedStarterFleet(int64 ownerId, int64 homePlanetId) {
+    void promoteHomeStockToFleet(int64 ownerId) {
+        if (ownerId < 0 or ownerId >= players.length) {
+            return()
+        }
+        int64 index = 0
+        while (index < fleets.length) {
+            Fleet existing = fleets[index]
+            if (existing.ownerId == ownerId
+                and existing.hullCount > 0
+                and existing.sitting) {
+                return()
+            }
+            index = index + 1
+        }
+        int64 homePlanet = -1
+        index = 0
+        while (index < galaxy.planets.length) {
+            Planet rock = galaxy.planets[index]
+            if (rock.ownerId == ownerId and rock.shipyard) {
+                homePlanet = rock.id
+                break
+            }
+            index = index + 1
+        }
+        if (homePlanet < 0 or designs.length < 1) {
+            return()
+        }
+        int64 available = inventory.available(
+            stocks, ownerId, 0, homePlanet)
+        if (available < 1) {
+            return()
+        }
+        String fname = format("test-{}", ownerId)
+        int64 fleetId = createNamedFleet(ownerId, fname, homePlanet)
+        if (fleetId < 0) {
+            return()
+        }
+        assignHullsToFleet(ownerId, fleetId, "scout", available)
+    }
+
+    /*
+     * Stage a small unassigned scout stock on a new home yard.
+     *
+     * Purpose: CPL-111 — give every seated empire starting hulls
+     * without inventing a phantom fleet named "starter". Players
+     * create a fleet and assign from this stock (RULES §2 / §5).
+     * Uses design id 0 (seeded scout template) when present.
+     *
+     * Parameters:
+     *   ownerId — empire that owns the stock.
+     *   homePlanetId — yard planet where the stock stages.
+     *
+     * Returns: nothing; credits HullStock when designs exist.
+     */
+    void seedStarterStock(int64 ownerId, int64 homePlanetId) {
         if (designs.length < 1 or ownerId < 0) {
             return()
         }
-        Fleet home = Fleet(
-            nextFleetId, ownerId, homePlanetId, 0, 3)
-        home.name = "starter"
-        nextFleetId = nextFleetId + 1
-        fleets.append(home)
+        inventory.credit(stocks, ownerId, 0, homePlanetId, 3)
     }
 
     /*
@@ -1005,19 +1058,23 @@ class State {
      * Queue a yard hull build on a productive shipyard.
      *
      * Purpose: non-instant production (RULES §5.3). Spends a
-     * placeholder resource cost from the empire pool.
+     * placeholder resource cost from the empire pool. CPL-111:
+     * qty scales cost and ticks — each hull over 1 adds
+     * yardBuildExtraHullTimeFrac of the base tick count.
      *
      * Parameters:
      *   ownerId — empire paying.
      *   planetId — shipyard planet.
      *   designId — ready design to build.
+     *   qty — hulls to produce in this job (>= 1).
      *
      * Returns: true when the BuildJob was queued.
      */
     bool queueYardBuild(
         int64 ownerId,
         int64 planetId,
-        int64 designId) {
+        int64 designId,
+        int64 qty) {
         if (ownerId < 0 or ownerId >= players.length) {
             return(false)
         }
@@ -1025,6 +1082,9 @@ class State {
             return(false)
         }
         if (designId < 0 or designId >= designs.length) {
+            return(false)
+        }
+        if (qty < 1) {
             return(false)
         }
         Planet rock = galaxy.planets[planetId]
@@ -1036,22 +1096,58 @@ class State {
             return(false)
         }
         Player seat = players[ownerId]
-        fp64 cost = design.size * scenario.yardBuildCostPerSize
+        fp64 cost = (
+            design.size
+            * scenario.yardBuildCostPerSize
+            * fp64(qty))
         if (seat.resources < cost) {
             return(false)
         }
         seat.resources = seat.resources - cost
         players[ownerId] = seat
+        int64 ticks = yardBuildTicksForQty(qty)
         BuildJob job = BuildJob(
             nextBuildId,
             ownerId,
             planetId,
             designId,
-            scenario.yardBuildTicks,
-            cost)
+            ticks,
+            cost,
+            qty)
         nextBuildId = nextBuildId + 1
         builds.append(job)
         return(true)
+    }
+
+    /*
+     * Compute yard build ticks for a multi-hull batch.
+     *
+     * Purpose: CPL-111 — base yard_build_ticks plus
+     * yard_build_extra_hull_time_frac of that base for each hull
+     * beyond the first. Result is rounded up and at least 1.
+     *
+     * Parameters:
+     *   qty — hulls in the batch (>= 1).
+     *
+     * Returns: ticks until the BuildJob completes.
+     */
+    int64 yardBuildTicksForQty(int64 qty) {
+        int64 base = scenario.yardBuildTicks
+        if (base < 1) {
+            base = 1
+        }
+        if (qty <= 1) {
+            return(base)
+        }
+        fp64 extra = (
+            fp64(base)
+            * scenario.yardBuildExtraHullTimeFrac
+            * fp64(qty - 1))
+        int64 ticks = base + int64(extra + 0.999)
+        if (ticks < 1) {
+            return(1)
+        }
+        return(ticks)
     }
 
     /*
@@ -1287,6 +1383,109 @@ class State {
         }
         lastInventoryError = (
             "fleet already has two ship types; create another fleet")
+        return(false)
+    }
+
+    /*
+     * Unassign type name + quantity from a fleet back into stock.
+     *
+     * Purpose: CPL-111 Fleets→Inventory Un-assign. Hulls return to
+     * unassigned stock at the fleet's location planet. Over-unassign
+     * (qty > assigned of that type) is a hard reject.
+     *
+     * Parameters:
+     *   ownerId — empire owning fleet and stock.
+     *   fleetId — sitting unlocked fleet at a planet.
+     *   typeName — design name to free.
+     *   qty — hulls to move (> 0).
+     *
+     * Returns: true when unassigned; false on reject (see
+     * lastInventoryError).
+     */
+    bool unassignHullsFromFleet(
+        int64 ownerId,
+        int64 fleetId,
+        String typeName,
+        int64 qty) {
+        lastInventoryError = ""
+        if (ownerId < 0 or ownerId >= players.length) {
+            lastInventoryError = "invalid player"
+            return(false)
+        }
+        if (qty <= 0) {
+            lastInventoryError = "quantity must be positive"
+            return(false)
+        }
+        Fleet fleet = findFleet(fleetId)
+        if (fleet.id < 0 or fleet.ownerId != ownerId) {
+            lastInventoryError = "fleet missing or not owned"
+            return(false)
+        }
+        if (not fleet.sitting
+            or fleet.pendingDeparture
+            or fleet.departed
+            or fleet.stranded
+            or fleet.engagementId >= 0) {
+            lastInventoryError = "fleet not sitting"
+            return(false)
+        }
+        if (fleet.locationPlanetId < 0) {
+            lastInventoryError = "fleet has no location planet"
+            return(false)
+        }
+        int64 designId = findOpenDesignByName(ownerId, typeName)
+        if (designId < 0) {
+            lastInventoryError = format(
+                "ship type '{}' not found", typeName)
+            return(false)
+        }
+        if (fleet.designId == designId and fleet.hullCount > 0) {
+            if (qty > fleet.hullCount) {
+                lastInventoryError = format(
+                    "over-unassign: requested {} but only {} assigned",
+                    qty, fleet.hullCount)
+                return(false)
+            }
+            inventory.credit(
+                stocks, ownerId, designId,
+                fleet.locationPlanetId, qty)
+            fleet.hullCount = fleet.hullCount - qty
+            if (fleet.hullCount <= 0) {
+                fleet.hullCount = 0
+                fleet.designId = -1
+                # Promote escort to primary when primary empties.
+                if (fleet.escortHullCount > 0
+                    and fleet.escortDesignId >= 0) {
+                    fleet.designId = fleet.escortDesignId
+                    fleet.hullCount = fleet.escortHullCount
+                    fleet.escortDesignId = -1
+                    fleet.escortHullCount = 0
+                }
+            }
+            storeFleet(fleet)
+            return(true)
+        }
+        if (fleet.escortDesignId == designId
+            and fleet.escortHullCount > 0) {
+            if (qty > fleet.escortHullCount) {
+                lastInventoryError = format(
+                    "over-unassign: requested {} but only {} assigned",
+                    qty, fleet.escortHullCount)
+                return(false)
+            }
+            inventory.credit(
+                stocks, ownerId, designId,
+                fleet.locationPlanetId, qty)
+            fleet.escortHullCount = fleet.escortHullCount - qty
+            if (fleet.escortHullCount <= 0) {
+                fleet.escortHullCount = 0
+                fleet.escortDesignId = -1
+            }
+            storeFleet(fleet)
+            return(true)
+        }
+        lastInventoryError = format(
+            "fleet has no assigned '{}' hulls", typeName)
         return(false)
     }
 

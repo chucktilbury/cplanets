@@ -15,13 +15,16 @@
  *   2026-11-07  allocationPct for planet budget chrome.
  *   2026-11-10  Published display name + choiceLabel helper.
  *   2026-11-10  ownerName for seat display labels (CPL-106).
+ *   2026-11-11  CPL-112: air/water/minerals + accessibility display.
  */
 
 /*
  * PlanetRow is one visibility-limited planet summary.
  *
- * livabilityDisplay / resourcesDisplay are 0 when quality is
- * unknown; otherwise in the setup 1–10 band (RULES §13 / §16).
+ * livabilityDisplay / resourcesDisplay are farming / industry
+ * composites (0 when quality unknown). CPL-112 also carries the
+ * four resource quantities and accessibility ratings on the same
+ * 1–10 band when known (RULES §13 / §16).
  */
 class PlanetRow {
     int64 id
@@ -38,6 +41,14 @@ class PlanetRow {
     String ownerName
     int64 livabilityDisplay
     int64 resourcesDisplay
+    int64 airDisplay
+    int64 waterDisplay
+    int64 commonMineralsDisplay
+    int64 rareMineralsDisplay
+    int64 airAccessDisplay
+    int64 waterAccessDisplay
+    int64 commonMineralsAccessDisplay
+    int64 rareMineralsAccessDisplay
     int64 allocationPct
     fp64 x
     fp64 y
@@ -64,6 +75,14 @@ class PlanetRow {
         ownerName = ""
         livabilityDisplay = 0
         resourcesDisplay = 0
+        airDisplay = 0
+        waterDisplay = 0
+        commonMineralsDisplay = 0
+        rareMineralsDisplay = 0
+        airAccessDisplay = 0
+        waterAccessDisplay = 0
+        commonMineralsAccessDisplay = 0
+        rareMineralsAccessDisplay = 0
         allocationPct = 100
         x = 0.0
         y = 0.0
@@ -186,9 +205,20 @@ class PlanetRow {
         if (not qualityKnown) {
             return("")
         }
-        String text = format(
-            "{}\nLivability: {}\nQuality/resources: {}\n",
-            choiceLabel(), livabilityDisplay, resourcesDisplay)
+        String text = format("{}\n", choiceLabel())
+        text.append(format(
+            "Farming (air+water): {}\nIndustry (minerals): {}\n",
+            livabilityDisplay, resourcesDisplay))
+        text.append(format(
+            "Air: {} (access {})\nWater: {} (access {})\n",
+            airDisplay, airAccessDisplay,
+            waterDisplay, waterAccessDisplay))
+        text.append(format(
+            "Common minerals: {} (access {})\n",
+            commonMineralsDisplay, commonMineralsAccessDisplay))
+        text.append(format(
+            "Rare minerals: {} (access {})\n",
+            rareMineralsDisplay, rareMineralsAccessDisplay))
         if (productive) {
             text.append("Status: productive\n")
         } else {

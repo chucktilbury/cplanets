@@ -86,7 +86,8 @@ planet becomes **populated** and **productive**. Mapping internal →
 
 - `GuiPlanetDialog` (`TransientWindow`): title `Planet {id}`; body from
   `PlanetRow.exploredDialogText()`.
-- Fields shown: livability (1–10), quality/resources (1–10), productive
+- Fields shown: farming/industry composites (1–10), air/water/common+rare
+  minerals and each accessibility (1–10), productive
   yes/no, population present/none, note when values may change.
 - Trigger: “Show first explored” button (exercises dialog without Tree
   activate) — not yet auto-pop on explore event.
@@ -97,7 +98,7 @@ planet becomes **populated** and **productive**. Mapping internal →
 | Aspect | Intent |
 | --- | --- |
 | **When** | Auto-present (or prominently raise) when quality first becomes known for this seat; refresh/reopen content when populated/productive changes for that rock |
-| **Always** | Livability 1–10; related quality (resources / efficiencies as decided for display) on same scale band |
+| **Always** | Farming + industry 1–10; air / water / common+rare minerals and accessibility on same scale band (CPL-112) |
 | **When populated** | Population presence (and richer population chrome if RULES later names display fields — **open** if livability also drives tick) |
 | **When productive** | Productive status; inherent-defense implication is rules, not a warning dialog |
 | **Actions** | Close; from map flow, path into budget / fleet attach without a second hoop if possible |

@@ -14,6 +14,7 @@
  *   2026-11-07  Chrome trailer: seat pools + design catalog.
  *   2026-11-07  Phase I: planet x/y milli + fleet outboundEta.
  *   2026-11-07  Planet allocationPct; known competitors; digest text.
+ *   2026-11-11  CPL-112: decode air/water/minerals + access 1–10.
  *   2026-11-08  Structured develop/build/reclaim ProgressJob lists
  *               for Gtk.ProgressBar fraction chrome (CPL-72).
  *   2026-11-10  Fleet name + unassigned stock rows (CPL-101).
@@ -147,6 +148,14 @@ class PublishDecode {
             row.ownerName = view.playerDisplayName(row.ownerId)
             row.livabilityDisplay = r.readU8()
             row.resourcesDisplay = r.readU8()
+            row.airDisplay = r.readU8()
+            row.waterDisplay = r.readU8()
+            row.commonMineralsDisplay = r.readU8()
+            row.rareMineralsDisplay = r.readU8()
+            row.airAccessDisplay = r.readU8()
+            row.waterAccessDisplay = r.readU8()
+            row.commonMineralsAccessDisplay = r.readU8()
+            row.rareMineralsAccessDisplay = r.readU8()
             int64 xMilli = r.readI32()
             int64 yMilli = r.readI32()
             row.x = fp64(xMilli) / 1000.0

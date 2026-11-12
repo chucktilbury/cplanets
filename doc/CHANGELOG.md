@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **CPL-112 planetary resources / accessibility:** each rock carries
+  air, water, common minerals, rare minerals with per-resource
+  accessibility. Farming (air+water) credits empire wealth; industry
+  (minerals) credits empire resources — stocks stay empire-wide.
+  Low mineral access raises yard cost/time; low air/water access
+  raises colony habit wealth cost and terraforming ticks. Wire +
+  explored dialog publish 1–10 quantities and access. Setup knobs:
+  `rare_mineral_weight`, `access_min` / `access_max` / `access_floor`,
+  `habit_base_ticks`, `habit_base_wealth_cost`. Docs:
+  [RULES.md](RULES.md) §2–§3 / §13, [SERVER-CONFIG.md](SERVER-CONFIG.md),
+  [KNOB-COVERAGE.md](KNOB-COVERAGE.md).
 - **CPL-111 Ships/Fleets/Empire UI:** DropDown selection sticks across
   refresh; Develop defaults kind to **scout**; Build adds qty (extra
   hulls add `yard_build_extra_hull_time_frac`, default 10%) and lists

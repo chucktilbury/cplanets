@@ -17,6 +17,8 @@
  *               instead of auto-spawning / merging a sitting fleet.
  *   2026-11-09  reclaim event fleetId carries designId so State can
  *               free the type name after the last hulls reclaim.
+ *   2026-11-11  CPL-112: farming vs industry production axes;
+ *               accessibility scales credit; advance habit ticks.
  */
 
 include "design.cw"
@@ -80,6 +82,10 @@ class Production {
         int64 index = 0
         while (index < planets.length) {
             Planet rock = planets[index]
+            if (rock.habitTicksLeft > 0) {
+                advanceHabit(rock, planets, index, events)
+                rock = planets[index]
+            }
             if (rock.productive and rock.ownerId >= 0) {
                 producePlanet(scenario, rock, players, events)
             }
@@ -92,15 +98,49 @@ class Production {
     }
 
     /*
-     * Credit one productive planet into its owner's pools.
+     * Decrement colony terraforming countdown; mark productive.
      *
-     * Purpose: placeholder production using livability/resources
-     * scaled by coverFactor and the planet's allocationPct
-     * (PUT /budget). Empire-pool path only — no yard logistics.
-     * Magnitudes stay setup knobs; allocation is a 0..100 fraction.
+     * Purpose: CPL-112 — low air/water accessibility delays
+     * habitability after populate. Stocks stay empire-wide.
      *
      * Parameters:
-     *   scenario — coverFactor / productionTickRate knobs.
+     *   rock — planet with habitTicksLeft > 0.
+     *   planets — mutable galaxy list.
+     *   index — rock index in planets.
+     *   events — event log.
+     *
+     * Returns: nothing; may set productive and clear habitTicksLeft.
+     */
+    void advanceHabit(
+        Planet rock,
+        list planets,
+        int64 index,
+        list events) {
+        rock.habitTicksLeft = rock.habitTicksLeft - 1
+        if (rock.habitTicksLeft <= 0) {
+            rock.habitTicksLeft = 0
+            rock.productive = true
+            events.append(
+                TickEvent(
+                    "habit",
+                    -1,
+                    rock.id,
+                    rock.ownerId,
+                    1))
+        }
+        planets[index] = rock
+    }
+
+    /*
+     * Credit one productive planet into its owner's pools.
+     *
+     * Purpose: CPL-112 farming (air+water → wealth) vs industry
+     * (minerals → resources), each scaled by accessibility and
+     * by coverFactor / allocationPct. Empire-pool path only —
+     * no per-planet stockpile or yard logistics tax.
+     *
+     * Parameters:
+     *   scenario — coverFactor / productionTickRate / accessFloor.
      *   rock — productive owned planet (allocationPct spend bias).
      *   players — empire list.
      *   events — event log.
@@ -119,14 +159,24 @@ class Production {
         fp64 rate = scenario.productionTickRate
         fp64 scale = seat.afkProductionScale
         fp64 alloc = allocationFraction(rock.allocationPct)
+        fp64 farmAccess = rock.habitAccess()
+        if (farmAccess < scenario.accessFloor) {
+            farmAccess = scenario.accessFloor
+        }
+        fp64 mineAccess = rock.mineralAccess()
+        if (mineAccess < scenario.accessFloor) {
+            mineAccess = scenario.accessFloor
+        }
         fp64 wealthGain = (
             rock.livability
+            * farmAccess
             * scenario.coverFactor
             * rate
             * scale
             * alloc)
         fp64 resGain = (
             rock.resources
+            * mineAccess
             * scenario.coverFactor
             * rate
             * scale

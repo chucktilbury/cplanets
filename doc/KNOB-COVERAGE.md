@@ -80,6 +80,7 @@ written — include it when merged; not required for this docs PR.
 | `useful_livability_fraction` / `poor_livability_fraction` / `poor_resources_fraction` | setup → `galaxy.cw` | textfile already · server-textfile-only |
 | `home_fallback_livability` / `home_fallback_resources` | setup → sandbox home claim | textfile already · server-textfile-only |
 | `contact_reach` | setup → sandbox neighborhood stamp | textfile already · server-textfile-only |
+| `rare_mineral_weight`, `access_min` / `access_max` / `access_floor`, `habit_base_ticks`, `habit_base_wealth_cost` | setup → galaxy mix, production, yard, colony habit (CPL-112) | textfile already · server-textfile-only |
 | Per-planet budget / allocation set | open (RULES); policy % only | needs textfile (when locked) · GUI candidate |
 
 ---

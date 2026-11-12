@@ -11,6 +11,7 @@
  * Changelog:
  *   2026-11-05  Initial human client function program.
  *   2026-11-06  Moved from src/ to tests/; include via cwhip -p src.
+ *   2026-11-11  CPL-112: explored dialog farming label.
  */
 
 include "client/appCore.cw"
@@ -54,7 +55,10 @@ start {
         ok = false
     }
     String dialog = home.exploredDialogText()
-    if (ok and dialog.find("Livability:") < 0) {
+    if (ok and dialog.find("Farming (air+water):") < 0) {
+        ok = false
+    }
+    if (ok and dialog.find("Air:") < 0) {
         ok = false
     }
     if (ok and home.dialogMayChange()) {
